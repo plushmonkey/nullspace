@@ -281,7 +281,7 @@ bool ContinuumEncrypt::ExpandKey(u32 key1, u32 key2) {
   return true;
 }
 
-void ContinuumEncrypt::Encrypt(u8* pkt, size_t size) {
+void ContinuumEncrypt::Encrypt(const u8* pkt, u8* dest, size_t size) {
   u8 encrypted[kMaxPacketSize];
   u8 source[kMaxPacketSize];
   u8 crc = crc8(pkt, size);
@@ -296,10 +296,10 @@ void ContinuumEncrypt::Encrypt(u8* pkt, size_t size) {
   // Perform crc escape if the crc ends up being 0xFF or encrypted packet looks like connection init packet
   if (encrypted[0] == 0xFF ||
       (encrypted[0] == 0x00 && (encrypted[1] == 0x01 || encrypted[1] == 0x10 || encrypted[1] == 0x11))) {
-    pkt[0] = 0xFF;
-    memcpy(pkt + 1, encrypted, size + 1);
+    dest[0] = 0xFF;
+    memcpy(dest + 1, encrypted, size + 1);
   } else {
-    memcpy(pkt, encrypted, size + 1);
+    memcpy(dest, encrypted, size + 1);
   }
 }
 

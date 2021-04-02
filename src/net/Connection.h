@@ -29,6 +29,7 @@ struct Connection {
   SocketType fd = -1;
   RemoteAddress remote_addr;
   bool connected = false;
+  MemoryArena& temp_arena;
   ContinuumEncrypt encrypt;
 
   PacketSequencer packet_sequencer;
@@ -44,6 +45,8 @@ struct Connection {
   size_t Send(NetworkBuffer& buffer);
 
   TickResult Tick();
+
+  void ProcessPacket(u8* pkt, size_t size);
 };
 
 }  // namespace null

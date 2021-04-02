@@ -15,7 +15,7 @@ struct NetworkBuffer {
   void WriteU16(u16 value);
   void WriteU32(u32 value);
   void WriteFloat(float value);
-  void WriteString(char* str, size_t size);
+  void WriteString(const char* str, size_t size);
 
   u8 ReadU8();
   u16 ReadU16();

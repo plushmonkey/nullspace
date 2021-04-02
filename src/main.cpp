@@ -42,6 +42,7 @@ void run() {
 
   while (connection->connected) {
     connection->Tick();
+    trans_arena.Reset();
   }
 }
 

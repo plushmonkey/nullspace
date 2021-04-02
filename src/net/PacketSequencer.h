@@ -22,9 +22,9 @@ struct Connection;
 
 struct PacketSequencer {
   // Next sequence number to process from the server
-  u32 next_reliable_process_id = 1;
+  u32 next_reliable_process_id = 0;
   // Next sequence number used by this client
-  u32 next_reliable_id = 1;
+  u32 next_reliable_id = 0;
 
   size_t reliable_sent_count = 0;
   // The reliable messages that were sent and are waiting to be acknowledged.

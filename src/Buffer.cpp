@@ -54,7 +54,7 @@ void NetworkBuffer::WriteFloat(float value) {
   this->write += sizeof(value);
 }
 
-void NetworkBuffer::WriteString(char* str, size_t size) {
+void NetworkBuffer::WriteString(const char* str, size_t size) {
   assert(this->write + size <= this->data + this->size);
 
   memcpy(this->write, str, size);

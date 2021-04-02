@@ -6,7 +6,7 @@
 namespace null {
 
 struct ContinuumEncrypt {
-  void Encrypt(u8* pkt, size_t size);
+  void Encrypt(const u8* pkt, u8* dest, size_t size);
   void Decrypt(u8* pkt, size_t size);
 
   bool ExpandKey(u32 key1, u32 key2);

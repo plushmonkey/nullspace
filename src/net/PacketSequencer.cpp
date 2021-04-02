@@ -31,7 +31,7 @@ void PacketSequencer::Tick(Connection& connection) {
   while (process_queue_count > 0 && process_queue[0].id == next_reliable_process_id) {
     // Process
     printf("Processing reliable id %d\n", process_queue[0].id);
-
+    connection.ProcessPacket(process_queue[0].message, process_queue[0].size);
     std::pop_heap(process_queue, process_queue + process_queue_count--);
     ++next_reliable_process_id;
   }
@@ -54,14 +54,16 @@ void PacketSequencer::SendReliableMessage(Connection& connection, u8* pkt, size_
 void PacketSequencer::OnReliableMessage(Connection& connection, u8* pkt, size_t size) {
   u32 id = *(u32*)(pkt + 2);
 
-  struct {
-    u8 core;
-    u8 type;
-    u32 id;
-  } ack_pkt = {0x00, 0x04, id};
+  printf("Got reliable message of id %d\n", id);
+  u8 ack_pkt[6];
+  NetworkBuffer buffer(ack_pkt, 6);
 
+  buffer.WriteU8(0x00);
+  buffer.WriteU8(0x04);
+  buffer.WriteU32(id);
+  
   // Send acknowledgement
-  connection.Send((u8*)&ack_pkt, sizeof(ack_pkt));
+  connection.Send(buffer);
 
   ReliableMessage* mesg = process_queue + process_queue_count++;
 
