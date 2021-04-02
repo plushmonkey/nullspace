@@ -134,15 +134,25 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\Buffer.cpp" />
+    <ClCompile Include="src\Checksum.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\MD5.cpp" />
     <ClCompile Include="src\Memory.cpp" />
     <ClCompile Include="src\net\Connection.cpp" />
+    <ClCompile Include="src\net\Crypt.cpp" />
+    <ClCompile Include="src\net\PacketSequencer.cpp" />
+    <ClCompile Include="src\Tick.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Buffer.h" />
+    <ClInclude Include="src\Checksum.h" />
+    <ClInclude Include="src\MD5.h" />
+    <ClInclude Include="src\net\Crypt.h" />
     <ClInclude Include="src\Memory.h" />
     <ClInclude Include="src\net\Connection.h" />
+    <ClInclude Include="src\net\PacketSequencer.h" />
     <ClInclude Include="src\Player.h" />
+    <ClInclude Include="src\Tick.h" />
     <ClInclude Include="src\Types.h" />
     <ClInclude Include="src\Math.h" />
   </ItemGroup>

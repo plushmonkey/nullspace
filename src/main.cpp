@@ -21,8 +21,9 @@ void run() {
   MemoryArena perm_arena(perm_memory, kPermanentSize);
   MemoryArena trans_arena(trans_memory, kTransientSize);
 
-  Connection connection(perm_arena, trans_arena);
-  null::ConnectResult result = connection.Connect("127.0.0.1", 5000);
+  Connection* connection = memory_arena_construct_type(&perm_arena, Connection, perm_arena, trans_arena);
+  
+  null::ConnectResult result = connection->Connect("127.0.0.1", 5000);
 
   if (result != null::ConnectResult::Success) {
     fprintf(stderr, "Failed to connect. Error: %d\n", (int)result);
@@ -37,15 +38,16 @@ void run() {
   buffer.WriteU32(0x00000000); // Key
   buffer.WriteU16(0x11); // Version
 
-  connection.Send(buffer);
+  connection->Send(buffer);
 
-  while (connection.connected) {
-    connection.Tick();
+  while (connection->connected) {
+    connection->Tick();
   }
 }
 
 }  // namespace null
 
+#include "net/Crypt.h"
 int main(void) {
   null::run();
 

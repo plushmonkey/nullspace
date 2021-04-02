@@ -1,13 +1,13 @@
 #ifndef NULLSPACE_CONNECTION_H_
 #define NULLSPACE_CONNECTION_H_
 
-#include "../Types.h"
 #include "../Buffer.h"
+#include "../Types.h"
+#include "Crypt.h"
+#include "PacketSequencer.h"
 
 namespace null {
 enum class ConnectResult { Success, ErrorSocket, ErrorAddrInfo, ErrorConnect };
-
-constexpr size_t kMaxPacketSize = 520;
 
 struct RemoteAddress {
   long addr;
@@ -29,7 +29,9 @@ struct Connection {
   SocketType fd = -1;
   RemoteAddress remote_addr;
   bool connected = false;
+  ContinuumEncrypt encrypt;
 
+  PacketSequencer packet_sequencer;
   NetworkBuffer buffer;
 
   Connection(MemoryArena& perm_arena, MemoryArena& temp_arena);
@@ -38,8 +40,8 @@ struct Connection {
   void Disconnect();
   void SetBlocking(bool blocking);
 
-  size_t Send(const u8* data, size_t size);
-  size_t Send(const NetworkBuffer& buffer);
+  size_t Send(u8* data, size_t size);
+  size_t Send(NetworkBuffer& buffer);
 
   TickResult Tick();
 };
