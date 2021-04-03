@@ -12,6 +12,7 @@
 #include <Windows.h>
 #endif
 
+#include "../ArenaSettings.h"
 #include "../Tick.h"
 
 //#define PACKET_SHEDDING 20
@@ -44,7 +45,10 @@ const char* kLoginResponses[] = {"Ok",
                                  "Restricted zone, mod access required"};
 
 Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena)
-    : remote_addr(), buffer(perm_arena, kMaxPacketSize), temp_arena(temp_arena) {}
+    : remote_addr(),
+      buffer(perm_arena, kMaxPacketSize),
+      temp_arena(temp_arena),
+      packet_sequencer(perm_arena, temp_arena) {}
 
 Connection::TickResult Connection::Tick() {
   sockaddr_in addr = {};
@@ -100,8 +104,7 @@ Connection::TickResult Connection::Tick() {
 }
 
 void Connection::ProcessPacket(u8* pkt, size_t size) {
-  NetworkBuffer buffer(pkt, size);
-  buffer.write += size;
+  NetworkBuffer buffer(pkt, size, size);
 
   u8 type = buffer.ReadU8();
 
@@ -146,14 +149,25 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         // Send(buffer);
         packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
       } break;
-      case 0x03: {
+      case 0x03: {  // Reliable message
         packet_sequencer.OnReliableMessage(*this, pkt, size);
       } break;
-      case 0x04: {
+      case 0x04: {  // Reliable ack
         packet_sequencer.OnReliableAck(*this, pkt, size);
       } break;
-      case 0x0E: {
-        // Packet cluster
+      case 0x08: {  // Small chunk body
+        packet_sequencer.OnSmallChunkBody(*this, pkt, size);
+      } break;
+      case 0x09: {  // Small chunk tail
+        packet_sequencer.OnSmallChunkTail(*this, pkt, size);
+      } break;
+      case 0x0A: {  // Huge chunk
+        packet_sequencer.OnHugeChunk(*this, pkt, size);
+      } break;
+      case 0x0B: {  // Cancel huge chunk
+        packet_sequencer.OnCancelHugeChunk(*this, pkt, size);
+      } break;
+      case 0x0E: {  // Packet cluster
         while (buffer.read < buffer.write) {
           u8 cluster_pkt_size = buffer.ReadU8();
 
@@ -278,6 +292,19 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
           packet_sequencer.SendReliableMessage(*this, write.read, write.GetSize());
         }
+      } break;
+      case 0x0F: {  // Arena settings
+        // Settings struct contains the packet type data
+        ArenaSettings* settings = (ArenaSettings*)(pkt);
+
+        printf("Got arena settings.\n");
+      } break;
+      case 0x29: {  // Map information
+        char* filename = buffer.ReadString(16);
+        u32 checksum = buffer.ReadU32();
+        u32 filesize = buffer.ReadU32();
+
+        // TODO: Send request if map doesn't exist
       } break;
       default: {
       } break;

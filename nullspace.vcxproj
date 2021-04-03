@@ -144,6 +144,7 @@
     <ClCompile Include="src\Tick.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\ArenaSettings.h" />
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\Checksum.h" />
     <ClInclude Include="src\MD5.h" />

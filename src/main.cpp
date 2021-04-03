@@ -1,7 +1,6 @@
 #include <cstdio>
 
 #include "Buffer.h"
-#include "Math.h"
 #include "Memory.h"
 #include "net/Connection.h"
 
@@ -10,7 +9,6 @@
 #endif
 
 namespace null {
-
 
 const char* kPlayerName = "nullspace";
 const char* kPlayerPassword = "none";
@@ -36,7 +34,7 @@ void run() {
   MemoryArena trans_arena(trans_memory, kTransientSize);
 
   Connection* connection = memory_arena_construct_type(&perm_arena, Connection, perm_arena, trans_arena);
-  
+
   null::ConnectResult result = connection->Connect(kServerIp, kServerPort);
 
   if (result != null::ConnectResult::Success) {
@@ -47,10 +45,10 @@ void run() {
   // Send Continuum encryption request
   NetworkBuffer buffer(perm_arena, kMaxPacketSize);
 
-  buffer.WriteU8(0x00); // Core
-  buffer.WriteU8(0x01); // Encryption request
-  buffer.WriteU32(0x00000000); // Key
-  buffer.WriteU16(0x11); // Version
+  buffer.WriteU8(0x00);         // Core
+  buffer.WriteU8(0x01);         // Encryption request
+  buffer.WriteU32(0x00000000);  // Key
+  buffer.WriteU16(0x11);        // Version
 
   connection->Send(buffer);
 
@@ -62,7 +60,6 @@ void run() {
 
 }  // namespace null
 
-#include "net/Crypt.h"
 int main(void) {
   null::run();
 

@@ -11,8 +11,8 @@
 
 namespace null {
 
-size_t kReliableHeaderSize = 6;
-const u32 kResendDelay = 300;
+constexpr size_t kReliableHeaderSize = 6;
+constexpr u32 kResendDelay = 300;
 
 void SendReliable(Connection& connection, ReliableMessage& mesg) {
   u8 data[kMaxPacketSize];
@@ -50,6 +50,8 @@ void PacketSequencer::Tick(Connection& connection) {
     }
   }
 }
+
+///////////// Reliable messages
 
 void PacketSequencer::SendReliableMessage(Connection& connection, u8* pkt, size_t size) {
   assert(size + kReliableHeaderSize <= kMaxPacketSize);
@@ -117,6 +119,144 @@ void PacketSequencer::OnReliableAck(Connection& connection, u8* pkt, size_t size
       return;
     }
   }
+}
+
+///////////// Small chunks
+
+void PacketSequencer::OnSmallChunkBody(Connection& connection, u8* pkt, size_t size) {
+  small_chunks.Push(perm_arena, pkt + 2, size - 2);
+}
+
+void PacketSequencer::OnSmallChunkTail(Connection& connection, u8* pkt, size_t size) {
+  small_chunks.Push(perm_arena, pkt + 2, size - 2);
+
+  ChunkData* current = small_chunks.chunks;
+  assert(current);
+
+  u8* body_data = nullptr;
+  size_t body_size = small_chunks.Construct(temp_arena, &body_data);
+
+  assert(body_data);
+
+  small_chunks.Clear();
+
+  // Process the full body. The body data will be freed when the temp arena is freed in the main loop.
+  connection.ProcessPacket(body_data, body_size);
+}
+
+///////////// Huge chunks
+
+void PacketSequencer::OnHugeChunk(Connection& connection, u8* pkt, size_t size) {
+  u32 length = *(u32*)(pkt + 2);
+
+  huge_chunks.Push(perm_arena, pkt + 6, size - 6);
+
+  size_t current_size = huge_chunks.GetSize();
+
+  printf("Huge chunk received (%zu / %d)\n", current_size, length);
+
+  if (current_size >= length) {
+    u8* body_data = nullptr;
+    size_t body_size = huge_chunks.Construct(temp_arena, &body_data);
+
+    assert(body_data);
+
+    huge_chunks.Clear();
+
+    connection.ProcessPacket(body_data, body_size);
+  }
+}
+
+void PacketSequencer::OnCancelHugeChunk(Connection& connection, u8* pkt, size_t size) {
+  struct {
+    u8 core;
+    u8 type;
+  } ack = {0x00, 0x0C};
+
+  connection.Send((u8*)&ack, 2);
+
+  huge_chunks.Clear();
+}
+
+///////////// Chunk store
+
+void ChunkStore::Push(MemoryArena& arena, u8* data, size_t size) {
+  ChunkData* body_data = free;
+
+  if (!body_data) {
+    body_data = memory_arena_push_type(&arena, ChunkData);
+  }
+
+  assert(body_data);
+  assert(size <= kMaxPacketSize);
+
+  memcpy(body_data->data, data, size);
+  body_data->size = size;
+  body_data->next = nullptr;
+
+  if (chunks == nullptr) {
+    chunks = body_data;
+  }
+
+  if (end) {
+    end->next = body_data;
+  }
+
+  end = body_data;
+}
+
+void ChunkStore::Clear() {
+  ChunkData* current = chunks;
+
+  // Push the full chunk list into the free list
+  while (current) {
+    ChunkData* new_free = current;
+    current = current->next;
+
+    new_free->next = free;
+    free = new_free;
+  }
+
+  chunks = nullptr;
+  end = nullptr;
+}
+
+size_t ChunkStore::GetSize() {
+  size_t body_size = 0;
+  ChunkData* current = chunks;
+
+  while (current) {
+    body_size += current->size;
+    current = current->next;
+  }
+
+  return body_size;
+}
+
+size_t ChunkStore::Construct(MemoryArena& arena, u8** data) {
+  *data = nullptr;
+
+  // Loop to get full size of chunk data
+  size_t body_size = 0;
+  ChunkData* current = chunks;
+  while (current) {
+    body_size += current->size;
+    current = current->next;
+  }
+
+  // Allocate enough space for the body
+  *data = arena.Allocate(body_size);
+  u8* write_ptr = *data;
+
+  // Loop to write data to the body
+  current = chunks;
+  while (current) {
+    memcpy(write_ptr, current->data, current->size);
+    write_ptr += current->size;
+    current = current->next;
+  }
+
+  return body_size;
 }
 
 }  // namespace null

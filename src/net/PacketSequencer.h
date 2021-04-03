@@ -1,9 +1,12 @@
 #ifndef NULLSPACE_NET_PACKETSEQUENCER_H_
 #define NULLSPACE_NET_PACKETSEQUENCER_H_
 
+#include "../Memory.h"
 #include "../Types.h"
 
 namespace null {
+
+struct Connection;
 
 struct ReliableMessage {
   size_t size;
@@ -16,11 +19,33 @@ struct ReliableMessage {
   bool operator<(const ReliableMessage& other) { return id > other.id; }
 };
 
+struct ChunkData {
+  u8 data[kMaxPacketSize];
+  size_t size;
+
+  ChunkData* next;
+};
+
+struct ChunkStore {
+  // Beginning of chunk data stored as linked list
+  ChunkData* chunks = nullptr;
+  // End of small data to make appending faster
+  ChunkData* end = nullptr;
+  // Free list for chunk data
+  ChunkData* free = nullptr;
+
+  void Push(MemoryArena& arena, u8* data, size_t size);
+  void Clear();
+  size_t GetSize();
+
+  size_t Construct(MemoryArena& arena, u8** data);
+};
+
 constexpr size_t kReliableQueueSize = 256;
-
-struct Connection;
-
 struct PacketSequencer {
+  MemoryArena& perm_arena;
+  MemoryArena& temp_arena;
+
   // Next sequence number to process from the server
   u32 next_reliable_process_id = 0;
   // Next sequence number used by this client
@@ -34,11 +59,22 @@ struct PacketSequencer {
   // The reliable messages there were received and are waiting to be processed in order.
   ReliableMessage process_queue[kReliableQueueSize];
 
-  void SendReliableMessage(Connection& connection, u8* pkt, size_t size);
+  ChunkStore small_chunks;
+  ChunkStore huge_chunks;
+
+  PacketSequencer(MemoryArena& perm_arena, MemoryArena& temp_arena) : perm_arena(perm_arena), temp_arena(temp_arena) {}
+
   void Tick(Connection& connection);
 
+  void SendReliableMessage(Connection& connection, u8* pkt, size_t size);
   void OnReliableMessage(Connection& connection, u8* pkt, size_t size);
   void OnReliableAck(Connection& connection, u8* pkt, size_t size);
+
+  void OnSmallChunkBody(Connection& connection, u8* pkt, size_t size);
+  void OnSmallChunkTail(Connection& connection, u8* pkt, size_t size);
+
+  void OnHugeChunk(Connection& connection, u8* pkt, size_t size);
+  void OnCancelHugeChunk(Connection& connection, u8* pkt, size_t size);
 };
 
 }  // namespace null
