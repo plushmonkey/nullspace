@@ -151,11 +151,9 @@ void PacketSequencer::OnHugeChunk(Connection& connection, u8* pkt, size_t size) 
 
   huge_chunks.Push(perm_arena, pkt + 6, size - 6);
 
-  size_t current_size = huge_chunks.GetSize();
+  printf("Huge chunk received (%zu / %d)\n", huge_chunks.size, length);
 
-  printf("Huge chunk received (%zu / %d)\n", current_size, length);
-
-  if (current_size >= length) {
+  if (huge_chunks.size >= length) {
     u8* body_data = nullptr;
     size_t body_size = huge_chunks.Construct(temp_arena, &body_data);
 
@@ -183,8 +181,11 @@ void PacketSequencer::OnCancelHugeChunk(Connection& connection, u8* pkt, size_t 
 void ChunkStore::Push(MemoryArena& arena, u8* data, size_t size) {
   ChunkData* body_data = free;
 
+  // Allocate or pop off free list
   if (!body_data) {
     body_data = memory_arena_push_type(&arena, ChunkData);
+  } else {
+    free = free->next;
   }
 
   assert(body_data);
@@ -203,6 +204,7 @@ void ChunkStore::Push(MemoryArena& arena, u8* data, size_t size) {
   }
 
   end = body_data;
+  this->size += size;
 }
 
 void ChunkStore::Clear() {
@@ -219,44 +221,25 @@ void ChunkStore::Clear() {
 
   chunks = nullptr;
   end = nullptr;
-}
-
-size_t ChunkStore::GetSize() {
-  size_t body_size = 0;
-  ChunkData* current = chunks;
-
-  while (current) {
-    body_size += current->size;
-    current = current->next;
-  }
-
-  return body_size;
+  size = 0;
 }
 
 size_t ChunkStore::Construct(MemoryArena& arena, u8** data) {
   *data = nullptr;
 
-  // Loop to get full size of chunk data
-  size_t body_size = 0;
-  ChunkData* current = chunks;
-  while (current) {
-    body_size += current->size;
-    current = current->next;
-  }
-
   // Allocate enough space for the body
-  *data = arena.Allocate(body_size);
+  *data = arena.Allocate(size);
   u8* write_ptr = *data;
 
   // Loop to write data to the body
-  current = chunks;
+  ChunkData* current = chunks;
   while (current) {
     memcpy(write_ptr, current->data, current->size);
     write_ptr += current->size;
     current = current->next;
   }
 
-  return body_size;
+  return size;
 }
 
 }  // namespace null

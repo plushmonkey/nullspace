@@ -29,14 +29,15 @@ struct ChunkData {
 struct ChunkStore {
   // Beginning of chunk data stored as linked list
   ChunkData* chunks = nullptr;
-  // End of small data to make appending faster
+  // End of chunk data to make appending faster
   ChunkData* end = nullptr;
   // Free list for chunk data
   ChunkData* free = nullptr;
+  // Current size so far
+  size_t size = 0;
 
   void Push(MemoryArena& arena, u8* data, size_t size);
   void Clear();
-  size_t GetSize();
 
   size_t Construct(MemoryArena& arena, u8** data);
 };

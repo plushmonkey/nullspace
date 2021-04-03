@@ -304,7 +304,20 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         u32 checksum = buffer.ReadU32();
         u32 filesize = buffer.ReadU32();
 
-        // TODO: Send request if map doesn't exist
+        // TODO: Send security packet if map exists and sync request was received
+        // TODO: Send request if map doesn't exist.
+#if 1
+        u8 request = 0x0c;
+        Send(&request, 1);
+#endif
+      } break;
+      case 0x2A: {  // Compressed map file
+        char* filename = buffer.ReadString(16);
+        u8* compressed_data = buffer.read;
+        size_t compressed_size = (size_t)(buffer.write - buffer.read);
+
+        // TODO: Store map
+        // TODO: Send security packet. Store checksum and seeds from sync request 0x18 to use here
       } break;
       default: {
       } break;
