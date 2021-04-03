@@ -12,6 +12,7 @@
 namespace null {
 
 size_t kReliableHeaderSize = 6;
+const u32 kResendDelay = 300;
 
 void SendReliable(Connection& connection, ReliableMessage& mesg) {
   u8 data[kMaxPacketSize];
@@ -36,7 +37,18 @@ void PacketSequencer::Tick(Connection& connection) {
     ++next_reliable_process_id;
   }
 
-  // TODO: Resend timed out messages from reliable_sent
+  u32 current_tick = GetCurrentTick();
+
+  // Resend timed out messages from reliable_sent
+  for (int i = 0; i < reliable_sent_count; ++i) {
+    ReliableMessage* mesg = reliable_sent + i;
+
+    if (TICK_DIFF(current_tick, mesg->timestamp) >= kResendDelay) {
+      printf("******** Resending timed out message with id %d\n", mesg->id);
+      SendReliable(connection, *mesg);
+      mesg->timestamp = current_tick;
+    }
+  }
 }
 
 void PacketSequencer::SendReliableMessage(Connection& connection, u8* pkt, size_t size) {
@@ -55,15 +67,30 @@ void PacketSequencer::OnReliableMessage(Connection& connection, u8* pkt, size_t 
   u32 id = *(u32*)(pkt + 2);
 
   printf("Got reliable message of id %d\n", id);
+
   u8 ack_pkt[6];
   NetworkBuffer buffer(ack_pkt, 6);
 
   buffer.WriteU8(0x00);
   buffer.WriteU8(0x04);
   buffer.WriteU32(id);
-  
+
   // Send acknowledgement
   connection.Send(buffer);
+
+  // This was already processed
+  if (id < next_reliable_process_id) {
+    return;
+  }
+
+  for (size_t i = 0; i < process_queue_count; ++i) {
+    ReliableMessage* mesg = process_queue + i;
+
+    // Don't add it to the process list if it is already there
+    if (mesg->id == id) {
+      return;
+    }
+  }
 
   ReliableMessage* mesg = process_queue + process_queue_count++;
 

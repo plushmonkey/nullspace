@@ -281,26 +281,26 @@ bool ContinuumEncrypt::ExpandKey(u32 key1, u32 key2) {
   return true;
 }
 
-void ContinuumEncrypt::Encrypt(const u8* pkt, u8* dest, size_t size) {
-  u8 encrypted[kMaxPacketSize];
-  u8 source[kMaxPacketSize];
+size_t ContinuumEncrypt::Encrypt(const u8* pkt, u8* dest, size_t size) {
+  u8 source[kMaxPacketSize + 1];
   u8 crc = crc8(pkt, size);
 
   source[0] = crc;
-  memcpy(source + 1, pkt, size);
+  memcpy(source + 1, pkt, size++);
 
   // TODO: Can target and source be the same thing?
   // TODO: Max packet sizes including crc?
-  encrypt(encrypted, source, (u32)size + 1, expanded_key);
+  encrypt(dest, source, (u32)size, expanded_key);
 
   // Perform crc escape if the crc ends up being 0xFF or encrypted packet looks like connection init packet
-  if (encrypted[0] == 0xFF ||
-      (encrypted[0] == 0x00 && (encrypted[1] == 0x01 || encrypted[1] == 0x10 || encrypted[1] == 0x11))) {
+  if (dest[0] == 0xFF ||
+      (dest[0] == 0x00 && (dest[1] == 0x01 || dest[1] == 0x10 || dest[1] == 0x11))) {
+    memmove(dest + 1, dest, size);
     dest[0] = 0xFF;
-    memcpy(dest + 1, encrypted, size + 1);
-  } else {
-    memcpy(dest, encrypted, size + 1);
+    ++size;
   }
+
+  return size;
 }
 
 void ContinuumEncrypt::Decrypt(u8* pkt, size_t size) {

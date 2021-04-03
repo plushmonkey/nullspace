@@ -12,31 +12,36 @@
 #include <Windows.h>
 #endif
 
+#include "../Tick.h"
+
+//#define PACKET_SHEDDING 20
+
 namespace null {
 
-const char* kLoginResponses[] = {
-  "Ok",
-  "Unregistered player",
-  "Bad password",
-  "Arena is full",
-  "Locked out of zone",
-  "Permission only arena",
-  "Permission to spectate only",
-  "Too many points to play here",
-  "Connection is too slow",
-  "Permission only arena",
-  "Server is full",
-  "Invalid name",
-  "Offensive name",
-  "No active biller",
-  "Server busy, try later",
-  "Not enough usage to play here",
-  "Restricted zone",
-  "Demo version detected",
-  "Too many demo users",
-  "Demo versions not allowed",
-  "Restricted zone, mod access required"
-};
+extern const char* kPlayerName;
+extern const char* kPlayerPassword;
+
+const char* kLoginResponses[] = {"Ok",
+                                 "Unregistered player",
+                                 "Bad password",
+                                 "Arena is full",
+                                 "Locked out of zone",
+                                 "Permission only arena",
+                                 "Permission to spectate only",
+                                 "Too many points to play here",
+                                 "Connection is too slow",
+                                 "Permission only arena",
+                                 "Server is full",
+                                 "Invalid name",
+                                 "Offensive name",
+                                 "No active biller",
+                                 "Server busy, try later",
+                                 "Not enough usage to play here",
+                                 "Restricted zone",
+                                 "Demo version detected",
+                                 "Too many demo users",
+                                 "Demo versions not allowed",
+                                 "Restricted zone, mod access required"};
 
 Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena)
     : remote_addr(), buffer(perm_arena, kMaxPacketSize), temp_arena(temp_arena) {}
@@ -47,8 +52,9 @@ Connection::TickResult Connection::Tick() {
   addr.sin_port = remote_addr.port;
   addr.sin_addr.s_addr = remote_addr.addr;
 
-  buffer.Reset();
   packet_sequencer.Tick(*this);
+  // Buffer must be reset after packet sequencer runs so the read pointer is reset.
+  buffer.Reset();
 
   socklen_t socklen = sizeof(addr);
   int bytes_recv = recvfrom(fd, (char*)buffer.read, kMaxPacketSize, 0, (sockaddr*)&addr, &socklen);
@@ -79,7 +85,15 @@ Connection::TickResult Connection::Tick() {
       --size;  // Drop crc
     }
 
-    ProcessPacket(pkt, size);
+#ifdef PACKET_SHEDDING  // packet shedding for testing sequencer
+    srand(GetCurrentTick());
+
+    if (rand() % 100 > PACKET_SHEDDING) {
+#else
+    if (1) {
+#endif
+      ProcessPacket(pkt, size);
+    }
   }
 
   return TickResult::Success;
@@ -97,7 +111,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
     printf("Received core packet of type 0x%02X\n", type);
 
     switch (type) {
-      case 0x02: { // Encryption response
+      case 0x02: {  // Encryption response
         // Send password packet now
         u8 data[kMaxPacketSize];
         NetworkBuffer buffer(data, kMaxPacketSize);
@@ -105,21 +119,21 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         char name[32] = {};
         char password[32] = {};
 
-        strcpy(name, "nullspace");
-        strcpy(password, "none");
+        strcpy(name, kPlayerName);
+        strcpy(password, kPlayerPassword);
 
-        buffer.WriteU8(0x24); // Continuum password packet
-        buffer.WriteU8(0x00); // New user
+        buffer.WriteU8(0x24);  // Continuum password packet
+        buffer.WriteU8(0x00);  // New user
         buffer.WriteString(name, 32);
         buffer.WriteString(password, 32);
-        buffer.WriteU32(1178436307); // Machine ID
-        buffer.WriteU8(0x00); // connect type
-        buffer.WriteU16(240); // Time zone bias
-        buffer.WriteU16(0); // Unknown
-        buffer.WriteU16(40); // Version
+        buffer.WriteU32(1178436307);  // Machine ID
+        buffer.WriteU8(0x00);         // connect type
+        buffer.WriteU16(240);         // Time zone bias
+        buffer.WriteU16(0);           // Unknown
+        buffer.WriteU16(40);          // Version
         buffer.WriteU32(0xA5);
         buffer.WriteU32(0x00);
-        buffer.WriteU32(0); // permission id
+        buffer.WriteU32(0);  // permission id
 
         buffer.WriteU32(0);
         buffer.WriteU32(0);
@@ -129,7 +143,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           buffer.WriteU32(0);
         }
 
-        Send(buffer);
+        // Send(buffer);
+        packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
       } break;
       case 0x03: {
         packet_sequencer.OnReliableMessage(*this, pkt, size);
@@ -204,14 +219,35 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
     printf("Received non-core packet of type 0x%02X\n", type);
 
     switch (type) {
-      case 0x01: { // PlayerID change
+      case 0x01: {  // PlayerID change
         u16 pid = buffer.ReadU16();
         printf("Player id: %d\n", pid);
       } break;
-      case 0x02: { // In game
+      case 0x02: {  // In game
         printf("Now in game\n");
       } break;
-      case 0x07: { // Chat
+      case 0x03: {  // Player entering
+        u8 ship = buffer.ReadU8();
+        u8 unknown = buffer.ReadU8();
+        char* name = buffer.ReadString(20);
+        char* squad = buffer.ReadString(20);
+        u32 kill_points = buffer.ReadU32();
+        u32 flag_points = buffer.ReadU32();
+        u16 id = buffer.ReadU16();
+        u16 frequency = buffer.ReadU16();
+        u16 wins = buffer.ReadU16();
+        u16 losses = buffer.ReadU16();
+        u16 attachee = buffer.ReadU16();
+        u16 flags = buffer.ReadU16();
+        u8 has_koth = buffer.ReadU8();
+
+        printf("Player entered %s\n", name);
+
+        if (buffer.read < buffer.write) {
+          ProcessPacket(buffer.read, (size_t)(buffer.write - buffer.read));
+        }
+      } break;
+      case 0x07: {  // Chat
         u8 type = buffer.ReadU8();
         u8 sound = buffer.ReadU8();
         u16 sender_id = buffer.ReadU16();
@@ -221,7 +257,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
         printf("%*s\n", (u32)len, mesg);
       } break;
-      case 0x0A: { // Password packet response
+      case 0x0A: {  // Password packet response
         u8 response = buffer.ReadU8();
 
         printf("Login response: %s\n", kLoginResponses[response]);
@@ -232,14 +268,15 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
           char arena[16] = {};
 
-          write.WriteU8(0x01); // type
-          write.WriteU8(0x08); // ship number
-          write.WriteU16(0x00); // allow audio
-          write.WriteU16(1920); // x res
-          write.WriteU16(1080); // y res
-          write.WriteU16(0xFFFF); // Arena number
+          write.WriteU8(0x01);     // type
+          write.WriteU8(0x08);     // ship number
+          write.WriteU16(0x00);    // allow audio
+          write.WriteU16(1920);    // x res
+          write.WriteU16(1080);    // y res
+          write.WriteU16(0xFFFF);  // Arena number
           write.WriteString(arena, 16);
-          Send(write);
+
+          packet_sequencer.SendReliableMessage(*this, write.read, write.GetSize());
         }
       } break;
       default: {
@@ -269,15 +306,19 @@ ConnectResult Connection::Connect(const char* ip, u16 port) {
 size_t Connection::Send(NetworkBuffer& buffer) { return Send(buffer.data, buffer.GetSize()); }
 
 size_t Connection::Send(u8* data, size_t size) {
+#ifdef PACKET_SHEDDING
+  if (rand() % 100 < PACKET_SHEDDING) return size;
+#endif
+
   sockaddr_in addr;
   addr.sin_family = remote_addr.family;
   addr.sin_port = remote_addr.port;
   addr.sin_addr.s_addr = remote_addr.addr;
 
   if (encrypt.key1 || encrypt.key2) {
-    u8* dest = temp_arena.Allocate(size + 1);
-    encrypt.Encrypt(data, dest, size);
-    ++size; // Add crc
+    // Allocate enough space for both the crc and possibly the crc escape
+    u8* dest = temp_arena.Allocate(size + 2);
+    size = encrypt.Encrypt(data, dest, size);
     data = dest;
   }
 

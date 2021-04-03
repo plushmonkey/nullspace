@@ -11,6 +11,20 @@
 
 namespace null {
 
+
+const char* kPlayerName = "nullspace";
+const char* kPlayerPassword = "none";
+
+#if 1
+// Local
+const char* kServerIp = "127.0.0.1";
+const u16 kServerPort = 5000;
+#else
+// Hyperspace
+const char* kServerIp = "162.248.95.143";
+const u16 kServerPort = 5005;
+#endif
+
 void run() {
   constexpr size_t kPermanentSize = Megabytes(32);
   constexpr size_t kTransientSize = Megabytes(32);
@@ -23,7 +37,7 @@ void run() {
 
   Connection* connection = memory_arena_construct_type(&perm_arena, Connection, perm_arena, trans_arena);
   
-  null::ConnectResult result = connection->Connect("127.0.0.1", 5000);
+  null::ConnectResult result = connection->Connect(kServerIp, kServerPort);
 
   if (result != null::ConnectResult::Success) {
     fprintf(stderr, "Failed to connect. Error: %d\n", (int)result);
