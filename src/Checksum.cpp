@@ -65,6 +65,9 @@ u32 MemoryChecksumGenerator::Generate(u32 key) {
 
   offset = 0x4A743C;
 
+  // Move data to the start of the memory checksum area to make memory dumping easier
+  data += 0x43C;
+
   do {
     if ((offset & 0x7FF) == 0) {
       if ((offset & 0x3FFF) == 0) {

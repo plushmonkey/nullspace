@@ -227,7 +227,7 @@ bool generate(u32 key) {
     CloseHandle(pinfo.hThread);
     success = true;
   } else {
-    fprintf(stderr, "Failed to create generator process. %d\n", GetLastError());
+    printf("Failed to create generator process. Falling back to scrty1.\n");
   }
 
   return success;
@@ -239,18 +239,35 @@ bool generate(u32 key) {
 // Loads the first two steps for key expansion requests
 bool ContinuumEncrypt::LoadTable(u32* table, u32 key) {
   // TODO: Probably use some network service as oracle instead of generator.exe
+  bool find_key = false;
 
   // Use generator.exe to perform first two steps of key expansion
   if (!generate(key)) {
-    return false;
+    find_key = true;
   }
 
   auto scrty1 = read_security_file("scrty1");
   if (!scrty1) {
+    fprintf(stderr, "Could not read scrty1 file. Provide generator or scrty1 file from server.\n");
     return false;
   }
 
-  memcpy(table, scrty1->expansions[0].table, sizeof(int) * 20);
+  size_t index = 0;
+
+  // Fall back to using scrty1 file if generator didn't work
+  if (find_key) {
+    for (size_t i = 0; i < 1024; ++i) {
+      if (scrty1->expansions[i].key == key) {
+        index = i;
+        goto has_index;
+      }
+    }
+
+    return false;
+  }
+
+has_index:
+  memcpy(table, scrty1->expansions[index].table, sizeof(int) * 20);
   return true;
 }
 
@@ -262,7 +279,7 @@ bool ContinuumEncrypt::ExpandKey(u32 key1, u32 key2) {
   if (!LoadTable(expanded_key, key2)) {
     return false;
   }
-  
+
   // Perform final step of key expansion by running it through a modified MD5 hasher
   expanded_key[0] ^= key1;
 
@@ -293,8 +310,7 @@ size_t ContinuumEncrypt::Encrypt(const u8* pkt, u8* dest, size_t size) {
   encrypt(dest, source, (u32)size, expanded_key);
 
   // Perform crc escape if the crc ends up being 0xFF or encrypted packet looks like connection init packet
-  if (dest[0] == 0xFF ||
-      (dest[0] == 0x00 && (dest[1] == 0x01 || dest[1] == 0x10 || dest[1] == 0x11))) {
+  if (dest[0] == 0xFF || (dest[0] == 0x00 && (dest[1] == 0x01 || dest[1] == 0x10 || dest[1] == 0x11))) {
     memmove(dest + 1, dest, size);
     dest[0] = 0xFF;
     ++size;
