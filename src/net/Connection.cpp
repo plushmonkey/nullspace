@@ -13,6 +13,7 @@
 #endif
 
 #include "../ArenaSettings.h"
+#include "../Checksum.h"
 #include "../Tick.h"
 
 //#define PACKET_SHEDDING 20
@@ -146,14 +147,37 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           buffer.WriteU32(0);
         }
 
-        // Send(buffer);
         packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
+
+        SendSyncTimeRequestPacket();
       } break;
       case 0x03: {  // Reliable message
         packet_sequencer.OnReliableMessage(*this, pkt, size);
       } break;
       case 0x04: {  // Reliable ack
         packet_sequencer.OnReliableAck(*this, pkt, size);
+      } break;
+      case 0x05: {  // Sync time request
+        u32 timestamp = buffer.ReadU32();
+
+        struct {
+          u8 core;
+          u8 type;
+          u32 received_timestamp;
+          u32 local_timestamp;
+        } sync_response = {0x00, 0x06, timestamp, GetCurrentTick()};
+
+        packet_sequencer.SendReliableMessage(*this, (u8*)&sync_response, sizeof(sync_response));
+
+        last_sync = GetCurrentTick();
+      } break;
+      case 0x06: {  // Sync time response
+        // The timestamp that was sent in the sync request
+        u32 sent_timestamp = buffer.ReadU32();
+        // The server timestamp at the time of request
+        u32 server_timestamp = buffer.ReadU32();
+
+        // TODO: calculate ping
       } break;
       case 0x08: {  // Small chunk body
         packet_sequencer.OnSmallChunkBody(*this, pkt, size);
@@ -234,8 +258,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
     switch (type) {
       case 0x01: {  // PlayerID change
-        u16 pid = buffer.ReadU16();
-        printf("Player id: %d\n", pid);
+        player_id = buffer.ReadU16();
+        printf("Player id: %d\n", player_id);
       } break;
       case 0x02: {  // In game
         printf("Now in game\n");
@@ -297,6 +321,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         // Settings struct contains the packet type data
         ArenaSettings* settings = (ArenaSettings*)(pkt);
 
+        this->settings = *settings;
         printf("Got arena settings.\n");
       } break;
       case 0x18: {  // Synchronization request
@@ -310,13 +335,13 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         }
       } break;
       case 0x29: {  // Map information
-        if (map_handler.OnMapInformation(*this, pkt, size) && security.checksum_key) {
-          SendSecurityPacket();
+        if (map_handler.OnMapInformation(*this, pkt, size)) {
+          OnMapLoad();
         }
       } break;
       case 0x2A: {  // Compressed map file
-        if (map_handler.OnCompressedMap(*this, pkt, size) && security.checksum_key) {
-          SendSecurityPacket();
+        if (map_handler.OnCompressedMap(*this, pkt, size)) {
+          OnMapLoad();
         }
       } break;
       default: {
@@ -325,7 +350,82 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
   }
 }
 
-void Connection::SendSecurityPacket() {}
+void Connection::OnMapLoad() {
+  // I don't think this should ever be set because the server doesn't know that the map was loaded yet
+  if (security.checksum_key) {
+    SendSecurityPacket();
+  }
+
+  // Send a small position packet to let server know that the map is loaded.
+  u8 data[kMaxPacketSize];
+  NetworkBuffer buffer(data, kMaxPacketSize);
+
+  buffer.WriteU8(0x03);               // Type
+  buffer.WriteU8(0);                  // Direction
+  buffer.WriteU32(GetCurrentTick());  // Timestamp
+  buffer.WriteU16(0);                 // X velocity
+  buffer.WriteU16(0);                 // Y
+  buffer.WriteU8(0);                  // Checksum
+  buffer.WriteU8(0);                  // Togglables
+  buffer.WriteU16(0);                 // X
+  buffer.WriteU16(0);                 // Y velocity
+  buffer.WriteU16(0);                 // Bounty
+  buffer.WriteU16(0);                 // Energy
+  buffer.WriteU16(0);                 // Weapon info
+
+  u8 checksum = WeaponChecksum(buffer.data, buffer.GetSize());
+  buffer.data[10] = checksum;
+
+  packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
+  printf("Sending initial position packet\n");
+}
+
+void Connection::SendSyncTimeRequestPacket() {
+#pragma pack(push, 1)
+  struct {
+    u8 core;
+    u8 type;
+    u32 timestamp;
+    u32 total_sent;
+    u32 total_received;
+  } sync_request = {0, 0x05, GetCurrentTick(), packets_sent, packets_received};
+#pragma pack(pop)
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&sync_request, sizeof(sync_request));
+
+  last_sync = GetCurrentTick();
+}
+
+void Connection::SendSecurityPacket() {
+  const Map& map = map_handler.map;
+
+  u32 settings_checksum = SettingsChecksum(security.checksum_key, settings);
+  u32 exe_checksum = MemoryChecksumGenerator::Generate(security.checksum_key);
+  u32 map_checksum = map.GetChecksum(security.checksum_key);
+
+  printf("Sending security packet with checksum seed %08X\n", security.checksum_key);
+
+  u8 data[kMaxPacketSize];
+  NetworkBuffer buffer(data, kMaxPacketSize);
+
+  buffer.WriteU8(0x1A);
+  buffer.WriteU32(0x00);  // Weapon count
+  buffer.WriteU32(settings_checksum);
+  buffer.WriteU32(exe_checksum);
+  buffer.WriteU32(map_checksum);
+  buffer.WriteU32(0);  // S2C slow total
+  buffer.WriteU32(0);  // S2C fast total
+  buffer.WriteU16(0);  // S2C slow current
+  buffer.WriteU16(0);  // S2C fast current
+  buffer.WriteU16(0);  // S2C reliable out
+  buffer.WriteU16(0);  // Ping
+  buffer.WriteU16(0);  // Ping average
+  buffer.WriteU16(0);  // Ping low
+  buffer.WriteU16(0);  // Ping high
+  buffer.WriteU8(0);   // slow frame
+
+  packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
+}
 
 ConnectResult Connection::Connect(const char* ip, u16 port) {
   inet_pton(AF_INET, ip, &this->remote_addr.addr);

@@ -1,6 +1,7 @@
 #ifndef NULLSPACE_CONNECTION_H_
 #define NULLSPACE_CONNECTION_H_
 
+#include "../ArenaSettings.h"
 #include "../Buffer.h"
 #include "../MapHandler.h"
 #include "../Types.h"
@@ -45,6 +46,13 @@ struct Connection {
 
   MapHandler map_handler;
   Security security;
+  ArenaSettings settings;
+
+  u32 packets_sent = 0;
+  u32 packets_received = 0;
+  u32 last_sync = 0;
+
+  u16 player_id;
 
   Connection(MemoryArena& perm_arena, MemoryArena& temp_arena);
 
@@ -58,7 +66,10 @@ struct Connection {
   TickResult Tick();
 
   void ProcessPacket(u8* pkt, size_t size);
+
+  void OnMapLoad();
   void SendSecurityPacket();
+  void SendSyncTimeRequestPacket();
 };
 
 }  // namespace null

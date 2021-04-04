@@ -19,6 +19,10 @@ struct MemoryChecksumGenerator {
 u8 crc8(const u8* ptr, size_t len);
 u32 crc32(const u8* ptr, size_t size);
 
+struct ArenaSettings;
+u32 SettingsChecksum(u32 key, const ArenaSettings& settings);
+u8 WeaponChecksum(const u8* data, size_t size);
+
 }  // namespace null
 
 #endif

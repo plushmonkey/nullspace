@@ -81,7 +81,7 @@ bool Map::IsSolid(unsigned short x, unsigned short y) const {
   return null::IsSolid(id);
 }
 
-u32 Map::GetChecksum(u32 key) {
+u32 Map::GetChecksum(u32 key) const {
   constexpr u32 kTileStart = 1;
   constexpr u32 kTileEnd = 160;
   constexpr u32 kTileSafe = 171;

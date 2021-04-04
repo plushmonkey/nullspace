@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+#include "ArenaSettings.h"
 #include "MD5.h"
 
 namespace null {
@@ -137,6 +138,27 @@ u32 crc32(const u8* ptr, size_t size) {
   }
 
   return crc;
+}
+
+u32 SettingsChecksum(u32 key, const ArenaSettings& settings) {
+  u32* data = (u32*)&settings;
+  u32 sum = 0;
+
+  for (int i = 0; i < sizeof(settings) / sizeof(u32); ++i, ++data) {
+    sum += (*data ^ key);
+  }
+
+  return sum;
+}
+
+u8 WeaponChecksum(const u8* data, size_t size) {
+  u8 checksum = 0;
+
+  for (size_t i = 0; i < size; ++i) {
+    checksum ^= data[i];
+  }
+
+  return checksum;
 }
 
 }  // namespace null

@@ -20,7 +20,7 @@ struct Map {
   bool IsSolid(u16 x, u16 y) const;
   TileId GetTileId(u16 x, u16 y) const;
 
-  u32 GetChecksum(u32 key);
+  u32 GetChecksum(u32 key) const;
 
   char filename[1024];
   char* data = nullptr;
