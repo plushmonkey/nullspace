@@ -28,4 +28,29 @@ u8 crc8(const u8* ptr, size_t len) {
   return crc;
 }
 
+uint32_t crc32_for_byte(uint32_t r) {
+  for (int j = 0; j < 8; ++j) {
+    r = (r & 1 ? 0 : (uint32_t)0xEDB88320L) ^ r >> 1;
+  }
+
+  return r ^ (uint32_t)0xFF000000L;
+}
+
+u32 crc32(const u8* ptr, size_t size) {
+  static uint32_t table[0x100];
+  u32 crc = 0;
+
+  if (!*table) {
+    for (size_t i = 0; i < 0x100; ++i) {
+      table[i] = crc32_for_byte(static_cast<uint32_t>(i));
+    }
+  }
+
+  for (size_t i = 0; i < size; ++i) {
+    crc = table[(uint8_t)crc ^ ((uint8_t*)ptr)[i]] ^ crc >> 8;
+  }
+
+  return crc;
+}
+
 }  // namespace null

@@ -2,6 +2,7 @@
 #define NULLSPACE_CONNECTION_H_
 
 #include "../Buffer.h"
+#include "../MapHandler.h"
 #include "../Types.h"
 #include "Crypt.h"
 #include "PacketSequencer.h"
@@ -34,6 +35,7 @@ struct Connection {
 
   PacketSequencer packet_sequencer;
   NetworkBuffer buffer;
+  MapHandler map_handler;
 
   Connection(MemoryArena& perm_arena, MemoryArena& temp_arena);
 

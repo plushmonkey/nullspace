@@ -17,3 +17,4 @@ x64
 generator.exe
 cont_mem_data
 cont_mem_text
+*.lvl

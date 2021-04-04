@@ -303,7 +303,7 @@ size_t ContinuumEncrypt::Encrypt(const u8* pkt, u8* dest, size_t size) {
   return size;
 }
 
-void ContinuumEncrypt::Decrypt(u8* pkt, size_t size) {
+size_t ContinuumEncrypt::Decrypt(u8* pkt, size_t size) {
   u8* src = pkt;
   // Perform crc escape if the crc ends up being 0xFF
   if ((u8)src[0] == 0xFF && ((u8)src[1] == 0x00 || (u8)src[1] == 0xFF)) {
@@ -314,12 +314,16 @@ void ContinuumEncrypt::Decrypt(u8* pkt, size_t size) {
   u8 decrypted[kMaxPacketSize];
   decrypt(decrypted, src, (u32)size, expanded_key);
 
-  memcpy(pkt, decrypted + 1, size - 1);
+  size--;
+
+  memcpy(pkt, decrypted + 1, size);
 
   u8 crc_check = decrypted[0];
-  u8 crc = crc8(decrypted + 1, size - 1);
+  u8 crc = crc8(decrypted + 1, size);
 
   // TODO: crc verify
+
+  return size;
 }
 
 }  // namespace null

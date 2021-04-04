@@ -135,7 +135,10 @@
   <ItemGroup>
     <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\Checksum.cpp" />
+    <ClCompile Include="src\Inflate.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\Map.cpp" />
+    <ClCompile Include="src\MapHandler.cpp" />
     <ClCompile Include="src\MD5.cpp" />
     <ClCompile Include="src\Memory.cpp" />
     <ClCompile Include="src\net\Connection.cpp" />
@@ -147,6 +150,9 @@
     <ClInclude Include="src\ArenaSettings.h" />
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\Checksum.h" />
+    <ClInclude Include="src\Inflate.h" />
+    <ClInclude Include="src\Map.h" />
+    <ClInclude Include="src\MapHandler.h" />
     <ClInclude Include="src\MD5.h" />
     <ClInclude Include="src\net\Crypt.h" />
     <ClInclude Include="src\Memory.h" />
