@@ -1,6 +1,7 @@
 #include <cstdio>
 
 #include "Buffer.h"
+#include "Checksum.h"
 #include "Memory.h"
 #include "net/Connection.h"
 
@@ -23,6 +24,28 @@ const char* kServerIp = "162.248.95.143";
 const u16 kServerPort = 5005;
 #endif
 
+char* LoadFile(MemoryArena& arena, const char* path) {
+#pragma warning(push)
+#pragma warning(disable : 4996)
+  FILE* f = fopen(path, "rb");
+#pragma warning(pop)
+
+  if (!f) {
+    return nullptr;
+  }
+
+  fseek(f, 0, SEEK_END);
+  long size = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  char* data = (char*)arena.Allocate(size);
+
+  fread(data, 1, size, f);
+  fclose(f);
+
+  return data;
+}
+
 void run() {
   constexpr size_t kPermanentSize = Megabytes(32);
   constexpr size_t kTransientSize = Megabytes(32);
@@ -32,6 +55,16 @@ void run() {
 
   MemoryArena perm_arena(perm_memory, kPermanentSize);
   MemoryArena trans_arena(trans_memory, kTransientSize);
+
+  char* mem_text = LoadFile(perm_arena, "cont_mem_text");
+  char* mem_data = LoadFile(perm_arena, "cont_mem_data");
+
+  if (!mem_text || !mem_data) {
+    fprintf(stderr, "Requires Continuum dumped memory files cont_mem_text and cont_mem_data\n");
+    return;
+  }
+
+  MemoryChecksumGenerator::Initialize(mem_text, mem_data);
 
   Connection* connection = memory_arena_construct_type(&perm_arena, Connection, perm_arena, trans_arena);
 

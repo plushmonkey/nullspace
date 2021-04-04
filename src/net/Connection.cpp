@@ -299,19 +299,33 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
         printf("Got arena settings.\n");
       } break;
+      case 0x18: {  // Synchronization request
+        security.prize_seed = buffer.ReadU32();
+        security.door_seed = buffer.ReadU32();
+        security.timestamp = buffer.ReadU32();
+        security.checksum_key = buffer.ReadU32();
+
+        if (security.checksum_key && map_handler.checksum) {
+          SendSecurityPacket();
+        }
+      } break;
       case 0x29: {  // Map information
-        // TODO: Send security packet if map exists and sync request was received
-        map_handler.OnMapInformation(*this, pkt, size);
+        if (map_handler.OnMapInformation(*this, pkt, size) && security.checksum_key) {
+          SendSecurityPacket();
+        }
       } break;
       case 0x2A: {  // Compressed map file
-        // TODO: Send security packet. Store checksum and seeds from sync request 0x18 to use here
-        map_handler.OnCompressedMap(*this, pkt, size);
+        if (map_handler.OnCompressedMap(*this, pkt, size) && security.checksum_key) {
+          SendSecurityPacket();
+        }
       } break;
       default: {
       } break;
     }
   }
 }
+
+void Connection::SendSecurityPacket() {}
 
 ConnectResult Connection::Connect(const char* ip, u16 port) {
   inet_pton(AF_INET, ip, &this->remote_addr.addr);

@@ -24,6 +24,13 @@ using SocketType = long long;
 using SocketType = int;
 #endif
 
+struct Security {
+  u32 prize_seed = 0;
+  u32 door_seed = 0;
+  u32 timestamp = 0;
+  u32 checksum_key = 0;
+};
+
 struct Connection {
   enum class TickResult { Success, ConnectionClosed, ConnectionError };
 
@@ -35,7 +42,9 @@ struct Connection {
 
   PacketSequencer packet_sequencer;
   NetworkBuffer buffer;
+
   MapHandler map_handler;
+  Security security;
 
   Connection(MemoryArena& perm_arena, MemoryArena& temp_arena);
 
@@ -49,6 +58,7 @@ struct Connection {
   TickResult Tick();
 
   void ProcessPacket(u8* pkt, size_t size);
+  void SendSecurityPacket();
 };
 
 }  // namespace null

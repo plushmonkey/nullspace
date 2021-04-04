@@ -20,6 +20,8 @@ struct Map {
   bool IsSolid(u16 x, u16 y) const;
   TileId GetTileId(u16 x, u16 y) const;
 
+  u32 GetChecksum(u32 key);
+
   char filename[1024];
   char* data = nullptr;
   Tile* tiles = nullptr;

@@ -81,4 +81,23 @@ bool Map::IsSolid(unsigned short x, unsigned short y) const {
   return null::IsSolid(id);
 }
 
+u32 Map::GetChecksum(u32 key) {
+  constexpr u32 kTileStart = 1;
+  constexpr u32 kTileEnd = 160;
+  constexpr u32 kTileSafe = 171;
+
+  int basekey = key;
+
+  for (int y = basekey % 32; y < 1024; y += 32) {
+    for (int x = basekey % 31; x < 1024; x += 31) {
+      u8 tile = (u8)GetTileId(x, y);
+      if ((tile >= kTileStart && tile <= kTileEnd) || tile == kTileSafe) {
+        key += basekey ^ tile;
+      }
+    }
+  }
+
+  return key;
+}
+
 }  // namespace null

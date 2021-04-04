@@ -1,6 +1,92 @@
 #include "Checksum.h"
 
+#include <cassert>
+
+#include "MD5.h"
+
 namespace null {
+
+const char* MemoryChecksumGenerator::text_section_ = nullptr;
+const char* MemoryChecksumGenerator::data_section_ = nullptr;
+
+void MemoryChecksumGenerator::Initialize(const char* text_section, const char* data_section) {
+  text_section_ = text_section;
+  data_section_ = data_section;
+}
+
+u32 MemoryChecksumGenerator::Generate(u32 key) {
+  constexpr u32 kChecksumMangler = 7193;
+
+  MD5_CTX ctx;
+  MD5Init(&ctx, kChecksumMangler);
+
+  key = key * 0x10dcd + 0x4271;
+
+  u32 result = key;
+  u32 offset = 0x401000;
+  const char* text = text_section_;
+  const char* data = data_section_;
+
+  assert(text);
+  assert(data);
+
+  do {
+    if ((offset & 0x7FF) == 0) {
+      if ((offset & 0x3FFF) == 0) {
+        if (offset == 0x408000) {
+          const u32 table[16] = {
+              0x5e15b28d, 0x4d2b9852, 0x1c23b9ef, 0x0d3d6503, 0xccb0edce, 0xded2a666, 0x3f187861, 0x1f2f7c89,
+              0x4d8b2ced, 0x3a482c78, 0xa7d65dae, 0xeb036aed, 0x016b4fee, 0x9e02729e, 0x74dbcf80, 0x6f7ea6d8,
+          };
+
+          for (int i = 0; i < 0x40; ++i) {
+            result ^= ((u8*)table)[i] * (i + 0x25);
+          }
+        }
+
+        // Do two rounds of MD5 update
+        const unsigned char* ptr = (const unsigned char*)text;
+        for (int i = 0; i < 2; ++i) {
+          MD5Update(&ctx, ptr, 64);
+          ptr += 64;
+        }
+      }
+
+      key = key * 0x10dcd + 0x4271;
+      result = result + 0x34d927 ^ (result - 0x53933A9) ^ ctx.buf[1] ^ ctx.buf[3] ^ ctx.buf[2] ^ offset ^ result ^ key;
+    }
+
+    result =
+        result ^ (*(u32*)(text + 0x04) + (ctx.buf[0] - *(u32*)(text)) ^ *(u32*)(text + 0x08)) - *(u32*)(text + 0x0C);
+    offset += 0x10;
+    text += 0x10;
+  } while (offset < 0x4A7000);
+
+  offset = 0x4A743C;
+
+  do {
+    if ((offset & 0x7FF) == 0) {
+      if ((offset & 0x3FFF) == 0) {
+        // Do two rounds of MD5 update
+        const unsigned char* ptr = (const unsigned char*)data;
+        for (int i = 0; i < 2; ++i) {
+          MD5Update(&ctx, ptr, 64);
+          ptr += 64;
+        }
+      }
+
+      key = key * 0x10dcd + 0x4271;
+      result = result + 0x34d927 ^ (result - 0x53933A9) ^ ctx.buf[1] ^ ctx.buf[3] ^ ctx.buf[2] ^ offset ^ result ^ key;
+    }
+
+    result = result ^ (*(u32*)(data + 0x04) + *(u32*)(data + 0x08)) - *(u32*)(data + 0x0C) ^ ctx.buf[0] - *(u32*)(data);
+
+    offset += 0x10;
+    data += 0x10;
+  } while (offset < 0x4B3E90);
+
+  return result;
+}
 
 static u8 crc8_table[256] = {
     0x00, 0x5e, 0xbc, 0xe2, 0x61, 0x3f, 0xdd, 0x83, 0xc2, 0x9c, 0x7e, 0x20, 0xa3, 0xfd, 0x1f, 0x41, 0x9d, 0xc3, 0x21,
