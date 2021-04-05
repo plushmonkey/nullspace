@@ -158,6 +158,7 @@
     <ClInclude Include="src\Memory.h" />
     <ClInclude Include="src\net\Connection.h" />
     <ClInclude Include="src\net\PacketSequencer.h" />
+    <ClInclude Include="src\net\Protocol.h" />
     <ClInclude Include="src\Player.h" />
     <ClInclude Include="src\Tick.h" />
     <ClInclude Include="src\Types.h" />

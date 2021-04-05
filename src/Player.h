@@ -18,13 +18,13 @@ struct WeaponData {
 };
 
 struct Player {
-  char name[32];
+  char name[20];
   char squad[20];
 
   s32 flag_points;
   s32 kill_points;
 
-  PlayerId player_id;
+  PlayerId id;
   u16 frequency;
 
   Vector2f position;
@@ -40,6 +40,11 @@ struct Player {
   u8 direction;
   u8 togglables;
   u8 ping;
+
+  u16 attach_parent;
+  u16 flags;
+
+  u8 koth;
 
   WeaponData weapon;
 };

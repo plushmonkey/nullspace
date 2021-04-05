@@ -9,6 +9,8 @@
 #include "../Tick.h"
 #include "Connection.h"
 
+//#define DEBUG_SEQUENCER
+
 namespace null {
 
 constexpr size_t kReliableHeaderSize = 6;
@@ -31,7 +33,9 @@ void PacketSequencer::Tick(Connection& connection) {
 
   while (process_queue_count > 0 && process_queue[0].id == next_reliable_process_id) {
     // Process
+#ifdef DEBUG_SEQUENCER
     printf("Processing reliable id %d\n", process_queue[0].id);
+#endif
     connection.ProcessPacket(process_queue[0].message, process_queue[0].size);
     std::pop_heap(process_queue, process_queue + process_queue_count--);
     ++next_reliable_process_id;
@@ -44,7 +48,9 @@ void PacketSequencer::Tick(Connection& connection) {
     ReliableMessage* mesg = reliable_sent + i;
 
     if (TICK_DIFF(current_tick, mesg->timestamp) >= kResendDelay) {
+#ifdef DEBUG_SEQUENCER
       printf("******** Resending timed out message with id %d\n", mesg->id);
+#endif
       SendReliable(connection, *mesg);
       mesg->timestamp = current_tick;
     }
@@ -68,7 +74,9 @@ void PacketSequencer::SendReliableMessage(Connection& connection, u8* pkt, size_
 void PacketSequencer::OnReliableMessage(Connection& connection, u8* pkt, size_t size) {
   u32 id = *(u32*)(pkt + 2);
 
+#ifdef DEBUG_SEQUENCER
   printf("Got reliable message of id %d\n", id);
+#endif
 
   u8 ack_pkt[6];
   NetworkBuffer buffer(ack_pkt, 6);
@@ -107,7 +115,9 @@ void PacketSequencer::OnReliableMessage(Connection& connection, u8* pkt, size_t 
 void PacketSequencer::OnReliableAck(Connection& connection, u8* pkt, size_t size) {
   u32 id = *(u32*)(pkt + 2);
 
+#ifdef DEBUG_SEQUENCER
   printf("Received reliable ack with id %d\n", id);
+#endif
 
   for (size_t i = 0; i < reliable_sent_count; ++i) {
     ReliableMessage* mesg = reliable_sent + i;
@@ -115,7 +125,9 @@ void PacketSequencer::OnReliableAck(Connection& connection, u8* pkt, size_t size
     if (mesg->id == id) {
       // Swap last reliable sent message to this slot and decrease count
       reliable_sent[i] = reliable_sent[--reliable_sent_count];
+#ifdef DEBUG_SEQUENCER
       printf("Found reliable ack in sent list.\n");
+#endif
       return;
     }
   }
@@ -151,7 +163,9 @@ void PacketSequencer::OnHugeChunk(Connection& connection, u8* pkt, size_t size) 
 
   huge_chunks.Push(perm_arena, pkt + 6, size - 6);
 
+#ifdef DEBUG_SEQUENCER
   printf("Huge chunk received (%zu / %d)\n", huge_chunks.size, length);
+#endif
 
   if (huge_chunks.size >= length) {
     u8* body_data = nullptr;

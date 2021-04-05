@@ -46,6 +46,7 @@ bool MapHandler::OnMapInformation(Connection& connection, u8* pkt, size_t size) 
   if (!map.Load(perm_arena, filename)) {
     u8 request = 0x0c;
     connection.Send(&request, 1);
+    printf("Downloading map.\n");
     return false;
   }
 

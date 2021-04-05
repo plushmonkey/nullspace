@@ -8,6 +8,9 @@
 #include "Crypt.h"
 #include "PacketSequencer.h"
 
+// TODO: Move out of connection
+#include "../Player.h"
+
 namespace null {
 enum class ConnectResult { Success, ErrorSocket, ErrorAddrInfo, ErrorConnect };
 
@@ -34,6 +37,13 @@ struct Security {
 
 struct Connection {
   enum class TickResult { Success, ConnectionClosed, ConnectionError };
+  enum class LoginState {
+    EncryptionRequested,  // Sent encryption request
+    Authentication,       // Sent password packet
+    ArenaLogin,           // Requested to join arena
+    MapDownload,
+    Complete
+  };
 
   SocketType fd = -1;
   RemoteAddress remote_addr;
@@ -46,13 +56,21 @@ struct Connection {
 
   MapHandler map_handler;
   Security security;
-  ArenaSettings settings;
+  ArenaSettings settings = {};
 
   u32 packets_sent = 0;
   u32 packets_received = 0;
-  u32 last_sync = 0;
+  s32 time_diff = 0;
+  u32 ping = 0;
 
-  u16 player_id;
+  u32 last_sync_tick = 0;
+  u32 last_position_tick = 0;
+  LoginState login_state = LoginState::EncryptionRequested;
+
+  size_t player_count = 0;
+  Player players[1024];
+
+  u16 player_id = 0;
 
   Connection(MemoryArena& perm_arena, MemoryArena& temp_arena);
 
@@ -68,8 +86,11 @@ struct Connection {
   void ProcessPacket(u8* pkt, size_t size);
 
   void OnMapLoad();
+  void SendPositionPacket();
   void SendSecurityPacket();
-  void SendSyncTimeRequestPacket();
+  void SendSyncTimeRequestPacket(bool reliable);
+
+  Player* GetPlayerById(u16 id, size_t* index = nullptr);
 };
 
 }  // namespace null

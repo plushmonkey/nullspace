@@ -15,6 +15,7 @@
 #include "../ArenaSettings.h"
 #include "../Checksum.h"
 #include "../Tick.h"
+#include "Protocol.h"
 
 //#define PACKET_SHEDDING 20
 
@@ -50,13 +51,32 @@ Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena)
       buffer(perm_arena, kMaxPacketSize),
       temp_arena(temp_arena),
       packet_sequencer(perm_arena, temp_arena),
-      map_handler(perm_arena, temp_arena) {}
+      map_handler(perm_arena, temp_arena),
+      last_sync_tick(GetCurrentTick()),
+      last_position_tick(GetCurrentTick()) {}
 
 Connection::TickResult Connection::Tick() {
+  constexpr s32 kSyncDelay = 500;
+  constexpr s32 kPositionDelay = 100;
+
   sockaddr_in addr = {};
   addr.sin_family = remote_addr.family;
   addr.sin_port = remote_addr.port;
   addr.sin_addr.s_addr = remote_addr.addr;
+
+  null::Tick current_tick = GetCurrentTick();
+
+  // Continuum client seems to send sync request every 5 seconds
+  if (TICK_DIFF(current_tick, last_sync_tick) >= kSyncDelay) {
+    SendSyncTimeRequestPacket(false);
+  }
+
+  // Continuum client seems to send position update every second while spectating.
+  // Subgame will kick the client if they stop sending packets for too long.
+  if (login_state == LoginState::Complete && TICK_DIFF(current_tick, last_position_tick) >= kPositionDelay) {
+    SendPositionPacket();
+    last_position_tick = current_tick;
+  }
 
   packet_sequencer.Tick(*this);
   // Buffer must be reset after packet sequencer runs so the read pointer is reset.
@@ -81,6 +101,7 @@ Connection::TickResult Connection::Tick() {
   } else if (bytes_recv > 0) {
     assert(bytes_recv <= kMaxPacketSize);
 
+    ++packets_received;
     buffer.write += bytes_recv;
 
     u8* pkt = (u8*)buffer.data;
@@ -107,15 +128,17 @@ Connection::TickResult Connection::Tick() {
 void Connection::ProcessPacket(u8* pkt, size_t size) {
   NetworkBuffer buffer(pkt, size, size);
 
-  u8 type = buffer.ReadU8();
+  u8 type_byte = buffer.ReadU8();
 
-  if (type == 0x00) {  // Core packet
-    type = buffer.ReadU8();
+  if (type_byte == 0x00) {  // Core packet
+    type_byte = buffer.ReadU8();
 
-    printf("Received core packet of type 0x%02X\n", type);
+    assert(type_byte < (u8)ProtocolCore::Count);
+
+    ProtocolCore type = (ProtocolCore)type_byte;
 
     switch (type) {
-      case 0x02: {  // Encryption response
+      case ProtocolCore::EncryptionResponse: {
         // Send password packet now
         u8 data[kMaxPacketSize];
         NetworkBuffer buffer(data, kMaxPacketSize);
@@ -148,16 +171,17 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         }
 
         packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
+        login_state = LoginState::Authentication;
 
-        SendSyncTimeRequestPacket();
+        SendSyncTimeRequestPacket(true);
       } break;
-      case 0x03: {  // Reliable message
+      case ProtocolCore::ReliableMessage: {
         packet_sequencer.OnReliableMessage(*this, pkt, size);
       } break;
-      case 0x04: {  // Reliable ack
+      case ProtocolCore::ReliableAck: {
         packet_sequencer.OnReliableAck(*this, pkt, size);
       } break;
-      case 0x05: {  // Sync time request
+      case ProtocolCore::SyncTimeRequest: {
         u32 timestamp = buffer.ReadU32();
 
         struct {
@@ -169,29 +193,30 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
         packet_sequencer.SendReliableMessage(*this, (u8*)&sync_response, sizeof(sync_response));
 
-        last_sync = GetCurrentTick();
+        last_sync_tick = GetCurrentTick();
       } break;
-      case 0x06: {  // Sync time response
+      case ProtocolCore::SyncTimeResponse: {
         // The timestamp that was sent in the sync request
         u32 sent_timestamp = buffer.ReadU32();
         // The server timestamp at the time of request
         u32 server_timestamp = buffer.ReadU32();
+        u32 rtt = GetCurrentTick() - sent_timestamp;
 
-        // TODO: calculate ping
+        ping = (u32)((rtt / 2.0f) * 10.0f);
       } break;
-      case 0x08: {  // Small chunk body
+      case ProtocolCore::SmallChunkBody: {
         packet_sequencer.OnSmallChunkBody(*this, pkt, size);
       } break;
-      case 0x09: {  // Small chunk tail
+      case ProtocolCore::SmallChunkTail: {
         packet_sequencer.OnSmallChunkTail(*this, pkt, size);
       } break;
-      case 0x0A: {  // Huge chunk
+      case ProtocolCore::HugeChunk: {
         packet_sequencer.OnHugeChunk(*this, pkt, size);
       } break;
-      case 0x0B: {  // Cancel huge chunk
+      case ProtocolCore::HugeChunkCancel: {
         packet_sequencer.OnCancelHugeChunk(*this, pkt, size);
       } break;
-      case 0x0E: {  // Packet cluster
+      case ProtocolCore::PacketCluster: {
         while (buffer.read < buffer.write) {
           u8 cluster_pkt_size = buffer.ReadU8();
 
@@ -200,7 +225,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           buffer.read += cluster_pkt_size;
         }
       } break;
-      case 0x10: {  // Continuum encryption response
+      case ProtocolCore::ContinuumEncryptionResponse: {
         u32 key1 = buffer.ReadU32();
         u32 key2 = buffer.ReadU32();
 
@@ -228,7 +253,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           printf("Successfully expanded continuum encryption keys.\n");
         }
       } break;
-      case 0x12: {  // Continuum key expansion request
+      case ProtocolCore::ContinuumKeyExpansionRequest: {
         u32 table[20];
         u32 seed = buffer.ReadU32();
 
@@ -251,41 +276,88 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         }
       } break;
       default: {
+        printf("Received unhandled core packet of type 0x%02X\n", type);
       } break;
     }
   } else {
-    printf("Received non-core packet of type 0x%02X\n", type);
+    assert(type_byte < (u8)ProtocolS2C::Count);
+    ProtocolS2C type = (ProtocolS2C)type_byte;
 
     switch (type) {
-      case 0x01: {  // PlayerID change
+      case ProtocolS2C::PlayerId: {
         player_id = buffer.ReadU16();
         printf("Player id: %d\n", player_id);
       } break;
-      case 0x02: {  // In game
-        printf("Now in game\n");
+      case ProtocolS2C::JoinGame: {
+        printf("Successfully joined game.\n");
       } break;
-      case 0x03: {  // Player entering
-        u8 ship = buffer.ReadU8();
-        u8 unknown = buffer.ReadU8();
+      case ProtocolS2C::PlayerEntering: {
+        Player* player = players + player_count++;
+
+        player->ship = buffer.ReadU8();
+        u8 audio = buffer.ReadU8();
         char* name = buffer.ReadString(20);
         char* squad = buffer.ReadString(20);
-        u32 kill_points = buffer.ReadU32();
-        u32 flag_points = buffer.ReadU32();
-        u16 id = buffer.ReadU16();
-        u16 frequency = buffer.ReadU16();
-        u16 wins = buffer.ReadU16();
-        u16 losses = buffer.ReadU16();
-        u16 attachee = buffer.ReadU16();
-        u16 flags = buffer.ReadU16();
-        u8 has_koth = buffer.ReadU8();
 
-        printf("Player entered %s\n", name);
+        memcpy(player->name, name, 20);
+        memcpy(player->squad, squad, 20);
+
+        player->kill_points = buffer.ReadU32();
+        player->flag_points = buffer.ReadU32();
+        player->id = buffer.ReadU16();
+        player->frequency = buffer.ReadU16();
+        player->wins = buffer.ReadU16();
+        player->losses = buffer.ReadU16();
+        player->attach_parent = buffer.ReadU16();
+        player->flags = buffer.ReadU16();
+        player->koth = buffer.ReadU8();
+
+        printf("%s entered arena\n", name);
 
         if (buffer.read < buffer.write) {
           ProcessPacket(buffer.read, (size_t)(buffer.write - buffer.read));
         }
       } break;
-      case 0x07: {  // Chat
+      case ProtocolS2C::PlayerLeaving: {
+        u16 pid = buffer.ReadU16();
+
+        size_t index;
+        Player* player = GetPlayerById(pid, &index);
+
+        if (player) {
+          printf("%s left arena\n", player->name);
+
+          players[index] = players[--player_count];
+        }
+      } break;
+      case ProtocolS2C::LargePosition: {
+        u8 direction = buffer.ReadU8();
+        u16 timestamp = buffer.ReadU16();
+        u16 x = buffer.ReadU16();
+        u16 vel_y = buffer.ReadU16();
+        u16 pid = buffer.ReadU16();
+
+        Player* player = GetPlayerById(pid);
+
+        if (player) {
+          player->direction = direction;
+          player->position.x = x / 16.0f;
+          player->velocity.y = vel_y / 16.0f;
+
+          player->velocity.x = buffer.ReadU16() / 16.0f;
+          u8 checksum = buffer.ReadU8();
+          player->togglables = buffer.ReadU8();
+          player->ping = buffer.ReadU8();
+          player->position.y = buffer.ReadU16() / 16.0f;
+          player->bounty = buffer.ReadU16();
+
+          u16 weapon = buffer.ReadU16();
+          memcpy(&player->weapon, &weapon, sizeof(weapon));
+        }
+      } break;
+      case ProtocolS2C::PlayerDeath: {
+      } break;
+      case ProtocolS2C::Chat: {
         u8 type = buffer.ReadU8();
         u8 sound = buffer.ReadU8();
         u16 sender_id = buffer.ReadU16();
@@ -293,9 +365,23 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         size_t len = (size_t)(buffer.write - buffer.read);
         char* mesg = buffer.ReadString(len);
 
-        printf("%*s\n", (u32)len, mesg);
+        Player* player = GetPlayerById(sender_id);
+
+        if (player) {
+          if (type == 0x03) {  // Team
+            printf("T  ");
+          } else if (type == 0x05) {  // Private
+            printf("P  ");
+          }
+
+          printf("%s> ", player->name);
+        }
+
+        printf("%s\n", mesg);
       } break;
-      case 0x0A: {  // Password packet response
+      case ProtocolS2C::PlayerPrize: {
+      } break;
+      case ProtocolS2C::Password: {
         u8 response = buffer.ReadU8();
 
         printf("Login response: %s\n", kLoginResponses[response]);
@@ -306,6 +392,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
           char arena[16] = {};
 
+          // Join arena request
           write.WriteU8(0x01);     // type
           write.WriteU8(0x08);     // ship number
           write.WriteU16(0x00);    // allow audio
@@ -315,16 +402,18 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           write.WriteString(arena, 16);
 
           packet_sequencer.SendReliableMessage(*this, write.read, write.GetSize());
+          login_state = LoginState::ArenaLogin;
         }
       } break;
-      case 0x0F: {  // Arena settings
+      case ProtocolS2C::CreateTurret: {
+      } break;
+      case ProtocolS2C::ArenaSettings: {
         // Settings struct contains the packet type data
         ArenaSettings* settings = (ArenaSettings*)(pkt);
 
         this->settings = *settings;
-        printf("Got arena settings.\n");
       } break;
-      case 0x18: {  // Synchronization request
+      case ProtocolS2C::Security: {
         security.prize_seed = buffer.ReadU32();
         security.door_seed = buffer.ReadU32();
         security.timestamp = buffer.ReadU32();
@@ -334,20 +423,98 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           SendSecurityPacket();
         }
       } break;
-      case 0x29: {  // Map information
+      case ProtocolS2C::FlagPosition: {
+      } break;
+      case ProtocolS2C::FlagClaim: {
+      } break;
+      case ProtocolS2C::DropFlag: {
+      } break;
+      case ProtocolS2C::TeamAndShipChange: {
+        u8 ship = buffer.ReadU8();
+        u16 pid = buffer.ReadU16();
+        u16 freq = buffer.ReadU16();
+
+        Player* player = GetPlayerById(pid);
+
+        if (player) {
+          player->ship = ship;
+          player->frequency = freq;
+        }
+      } break;
+      case ProtocolS2C::BrickDropped: {
+      } break;
+      case ProtocolS2C::KeepAlive: {
+      } break;
+      case ProtocolS2C::SmallPosition: {
+        u8 direction = buffer.ReadU8();
+        u16 timestamp = buffer.ReadU16();
+        u16 x = buffer.ReadU16();
+        u8 ping = buffer.ReadU8();
+        u8 bounty = buffer.ReadU8();
+        u16 pid = buffer.ReadU8();
+
+        Player* player = GetPlayerById(pid);
+
+        if (player) {
+          player->direction = direction;
+          player->ping = ping;
+          player->bounty = bounty;
+          player->position.x = x / 16.0f;
+          player->togglables = buffer.ReadU8();
+          player->velocity.y = buffer.ReadU16() / 16.0f;
+          player->position.y = buffer.ReadU16() / 16.0f;
+          player->velocity.x = buffer.ReadU16() / 16.0f;
+        }
+      } break;
+      case ProtocolS2C::MapInformation: {
+        login_state = LoginState::MapDownload;
+
         if (map_handler.OnMapInformation(*this, pkt, size)) {
           OnMapLoad();
         }
       } break;
-      case 0x2A: {  // Compressed map file
+      case ProtocolS2C::CompressedMap: {
         if (map_handler.OnCompressedMap(*this, pkt, size)) {
           OnMapLoad();
         }
       } break;
+      case ProtocolS2C::PowerballPosition: {
+      } break;
+      case ProtocolS2C::Version: {
+        u16 version = buffer.ReadU16();
+        u32 checksum = buffer.ReadU32();
+
+        printf("Connected to server running Continuum 0.%d with checksum %08X\n", version, checksum);
+      } break;
+      case ProtocolS2C::ToggleLVZ: {
+      } break;
+      case ProtocolS2C::ModifyLVZ: {
+      } break;
+      case ProtocolS2C::ToggleSendDamage: {
+      } break;
+      case ProtocolS2C::WatchDamage: {
+      } break;
       default: {
+        printf("Received unhandled non-core packet of type 0x%02X\n", type);
       } break;
     }
   }
+}
+
+// TODO: Move into player manager
+Player* Connection::GetPlayerById(u16 id, size_t* index) {
+  for (size_t i = 0; i < player_count; ++i) {
+    Player* player = players + i;
+
+    if (player->id == id) {
+      if (index) {
+        *index = i;
+      }
+      return player;
+    }
+  }
+
+  return nullptr;
 }
 
 void Connection::OnMapLoad() {
@@ -356,7 +523,14 @@ void Connection::OnMapLoad() {
     SendSecurityPacket();
   }
 
-  // Send a small position packet to let server know that the map is loaded.
+  login_state = LoginState::Complete;
+
+  // Send a position packet to let server know that the map is loaded.
+  SendPositionPacket();
+  printf("Map loaded. Sending initial position packet\n");
+}
+
+void Connection::SendPositionPacket() {
   u8 data[kMaxPacketSize];
   NetworkBuffer buffer(data, kMaxPacketSize);
 
@@ -376,11 +550,10 @@ void Connection::OnMapLoad() {
   u8 checksum = WeaponChecksum(buffer.data, buffer.GetSize());
   buffer.data[10] = checksum;
 
-  packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
-  printf("Sending initial position packet\n");
+  Send(buffer);
 }
 
-void Connection::SendSyncTimeRequestPacket() {
+void Connection::SendSyncTimeRequestPacket(bool reliable) {
 #pragma pack(push, 1)
   struct {
     u8 core;
@@ -391,9 +564,13 @@ void Connection::SendSyncTimeRequestPacket() {
   } sync_request = {0, 0x05, GetCurrentTick(), packets_sent, packets_received};
 #pragma pack(pop)
 
-  packet_sequencer.SendReliableMessage(*this, (u8*)&sync_request, sizeof(sync_request));
+  if (reliable) {
+    packet_sequencer.SendReliableMessage(*this, (u8*)&sync_request, sizeof(sync_request));
+  } else {
+    Send((u8*)&sync_request, sizeof(sync_request));
+  }
 
-  last_sync = GetCurrentTick();
+  last_sync_tick = GetCurrentTick();
 }
 
 void Connection::SendSecurityPacket() {
@@ -413,16 +590,16 @@ void Connection::SendSecurityPacket() {
   buffer.WriteU32(settings_checksum);
   buffer.WriteU32(exe_checksum);
   buffer.WriteU32(map_checksum);
-  buffer.WriteU32(0);  // S2C slow total
-  buffer.WriteU32(0);  // S2C fast total
-  buffer.WriteU16(0);  // S2C slow current
-  buffer.WriteU16(0);  // S2C fast current
-  buffer.WriteU16(0);  // S2C reliable out
-  buffer.WriteU16(0);  // Ping
-  buffer.WriteU16(0);  // Ping average
-  buffer.WriteU16(0);  // Ping low
-  buffer.WriteU16(0);  // Ping high
-  buffer.WriteU8(0);   // slow frame
+  buffer.WriteU32(0);     // S2C slow total
+  buffer.WriteU32(0);     // S2C fast total
+  buffer.WriteU16(0);     // S2C slow current
+  buffer.WriteU16(0);     // S2C fast current
+  buffer.WriteU16(0);     // S2C reliable out
+  buffer.WriteU16(ping);  // Ping
+  buffer.WriteU16(ping);  // Ping average
+  buffer.WriteU16(ping);  // Ping low
+  buffer.WriteU16(ping);  // Ping high
+  buffer.WriteU8(0);      // slow frame
 
   packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
 }
@@ -465,6 +642,7 @@ size_t Connection::Send(u8* data, size_t size) {
   }
 
   int bytes = sendto(this->fd, (const char*)data, (int)size, 0, (sockaddr*)&addr, sizeof(addr));
+  ++packets_sent;
 
   if (bytes <= 0) {
     Disconnect();

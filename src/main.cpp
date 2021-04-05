@@ -14,15 +14,24 @@ namespace null {
 const char* kPlayerName = "nullspace";
 const char* kPlayerPassword = "none";
 
-#if 1
-// Local
-const char* kServerIp = "127.0.0.1";
-const u16 kServerPort = 5000;
-#else
-// Hyperspace
-const char* kServerIp = "162.248.95.143";
-const u16 kServerPort = 5005;
-#endif
+struct ServerInfo {
+  const char* server;
+  u16 port;
+};
+
+ServerInfo kServers[] = {
+    {"127.0.0.1", 5000},       // Local
+    {"192.168.0.13", 5001},    // Subgame
+    {"162.248.95.143", 5005},  // Hyperspace
+    {"69.164.220.203", 7022},  // Devastation
+};
+
+constexpr size_t kServerIndex = 2;
+
+static_assert(kServerIndex < sizeof(kServers) / sizeof(*kServers), "Bad server index");
+
+const char* kServerIp = kServers[kServerIndex].server;
+const u16 kServerPort = kServers[kServerIndex].port;
 
 char* LoadFile(MemoryArena& arena, const char* path) {
 #pragma warning(push)
