@@ -57,7 +57,6 @@ Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena)
 
 Connection::TickResult Connection::Tick() {
   constexpr s32 kSyncDelay = 500;
-  constexpr s32 kPositionDelay = 100;
 
   sockaddr_in addr = {};
   addr.sin_family = remote_addr.family;
@@ -69,6 +68,14 @@ Connection::TickResult Connection::Tick() {
   // Continuum client seems to send sync request every 5 seconds
   if (TICK_DIFF(current_tick, last_sync_tick) >= kSyncDelay) {
     SendSyncTimeRequestPacket(false);
+  }
+
+  s32 kPositionDelay = 100;
+
+  // TODO: varying delay based on movement
+  Player* player = GetPlayerById(player_id);
+  if (player && player->ship != 8) {
+    kPositionDelay = 10;
   }
 
   // Continuum client seems to send position update every second while spectating.
@@ -200,9 +207,14 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         u32 sent_timestamp = buffer.ReadU32();
         // The server timestamp at the time of request
         u32 server_timestamp = buffer.ReadU32();
-        u32 rtt = GetCurrentTick() - sent_timestamp;
+        u32 current_tick = GetCurrentTick();
+        u32 rtt = current_tick - sent_timestamp;
 
         ping = (u32)((rtt / 2.0f) * 10.0f);
+        time_diff = ((rtt * 3) / 5) + server_timestamp - current_tick;
+        if (time_diff >= -10 && time_diff <= 10) {
+          time_diff = 0;
+        }
       } break;
       case ProtocolCore::SmallChunkBody: {
         packet_sequencer.OnSmallChunkBody(*this, pkt, size);
@@ -534,18 +546,31 @@ void Connection::SendPositionPacket() {
   u8 data[kMaxPacketSize];
   NetworkBuffer buffer(data, kMaxPacketSize);
 
-  buffer.WriteU8(0x03);               // Type
-  buffer.WriteU8(0);                  // Direction
-  buffer.WriteU32(GetCurrentTick());  // Timestamp
-  buffer.WriteU16(0);                 // X velocity
-  buffer.WriteU16(0);                 // Y
-  buffer.WriteU8(0);                  // Checksum
-  buffer.WriteU8(0);                  // Togglables
-  buffer.WriteU16(0);                 // X
-  buffer.WriteU16(0);                 // Y velocity
-  buffer.WriteU16(0);                 // Bounty
-  buffer.WriteU16(0);                 // Energy
-  buffer.WriteU16(0);                 // Weapon info
+  Player* player = GetPlayerById(player_id);
+
+  assert(player);
+
+  u16 x = (u16)(player->position.x * 16.0f);
+  u16 y = (u16)(player->position.y * 16.0f);
+
+  u16 vel_x = (u16)(player->velocity.x * 16.0f * 10.0f);
+  u16 vel_y = (u16)(player->velocity.y * 16.0f * 10.0f);
+
+  u16 weapon = *(u16*)&player->weapon;
+  u16 energy = settings.ShipSettings[player->ship].MaximumEnergy;
+
+  buffer.WriteU8(0x03);                           // Type
+  buffer.WriteU8(player->direction);              // Direction
+  buffer.WriteU32(GetCurrentTick() + time_diff);  // Timestamp
+  buffer.WriteU16(vel_x);                         // X velocity
+  buffer.WriteU16(y);                             // Y
+  buffer.WriteU8(0);                              // Checksum
+  buffer.WriteU8(player->togglables);             // Togglables
+  buffer.WriteU16(x);                             // X
+  buffer.WriteU16(vel_y);                         // Y velocity
+  buffer.WriteU16(player->bounty);                // Bounty
+  buffer.WriteU16(energy);                        // Energy
+  buffer.WriteU16(weapon);                        // Weapon info
 
   u8 checksum = WeaponChecksum(buffer.data, buffer.GetSize());
   buffer.data[10] = checksum;
