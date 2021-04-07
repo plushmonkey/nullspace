@@ -69,14 +69,25 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -90,7 +101,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -105,7 +116,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -123,7 +134,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -133,6 +144,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="lib\glad\src\glad.c" />
+    <ClCompile Include="lib\glfw\src\context.c" />
+    <ClCompile Include="lib\glfw\src\egl_context.c" />
+    <ClCompile Include="lib\glfw\src\init.c" />
+    <ClCompile Include="lib\glfw\src\input.c" />
+    <ClCompile Include="lib\glfw\src\monitor.c" />
+    <ClCompile Include="lib\glfw\src\osmesa_context.c" />
+    <ClCompile Include="lib\glfw\src\vulkan.c" />
+    <ClCompile Include="lib\glfw\src\wgl_context.c" />
+    <ClCompile Include="lib\glfw\src\win32_init.c" />
+    <ClCompile Include="lib\glfw\src\win32_joystick.c" />
+    <ClCompile Include="lib\glfw\src\win32_monitor.c" />
+    <ClCompile Include="lib\glfw\src\win32_thread.c" />
+    <ClCompile Include="lib\glfw\src\win32_time.c" />
+    <ClCompile Include="lib\glfw\src\win32_window.c" />
+    <ClCompile Include="lib\glfw\src\window.c" />
     <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\Checksum.cpp" />
     <ClCompile Include="src\Inflate.cpp" />
@@ -144,6 +171,7 @@
     <ClCompile Include="src\net\Connection.cpp" />
     <ClCompile Include="src\net\Crypt.cpp" />
     <ClCompile Include="src\net\PacketSequencer.cpp" />
+    <ClCompile Include="src\Render.cpp" />
     <ClCompile Include="src\Tick.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -160,6 +188,8 @@
     <ClInclude Include="src\net\PacketSequencer.h" />
     <ClInclude Include="src\net\Protocol.h" />
     <ClInclude Include="src\Player.h" />
+    <ClInclude Include="src\Render.h" />
+    <ClInclude Include="lib\stb_image.h" />
     <ClInclude Include="src\Tick.h" />
     <ClInclude Include="src\Types.h" />
     <ClInclude Include="src\Math.h" />

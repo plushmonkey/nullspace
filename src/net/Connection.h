@@ -1,6 +1,10 @@
 #ifndef NULLSPACE_CONNECTION_H_
 #define NULLSPACE_CONNECTION_H_
 
+// TODO: Remove
+#include "../Render.h"
+//
+
 #include "../ArenaSettings.h"
 #include "../Buffer.h"
 #include "../MapHandler.h"
@@ -67,6 +71,8 @@ struct Connection {
   u32 last_position_tick = 0;
   LoginState login_state = LoginState::EncryptionRequested;
 
+  RenderState render;
+
   size_t player_count = 0;
   Player players[1024];
 
@@ -85,7 +91,7 @@ struct Connection {
 
   void ProcessPacket(u8* pkt, size_t size);
 
-  void OnMapLoad();
+  void OnMapLoad(const char* filename);
   void SendPositionPacket();
   void SendSecurityPacket();
   void SendSyncTimeRequestPacket(bool reliable);

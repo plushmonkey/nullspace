@@ -1,4 +1,9 @@
-#include "Connection.h"
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <WS2tcpip.h>
+#include <Windows.h>
+#endif
 
 #include <cassert>
 #include <chrono>
@@ -6,15 +11,10 @@
 #include <cstdlib>
 #include <thread>
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <WS2tcpip.h>
-#include <Windows.h>
-#endif
-
 #include "../ArenaSettings.h"
 #include "../Checksum.h"
 #include "../Tick.h"
+#include "Connection.h"
 #include "Protocol.h"
 
 //#define PACKET_SHEDDING 20
@@ -482,12 +482,12 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         login_state = LoginState::MapDownload;
 
         if (map_handler.OnMapInformation(*this, pkt, size)) {
-          OnMapLoad();
+          OnMapLoad((char*)(pkt + 1));
         }
       } break;
       case ProtocolS2C::CompressedMap: {
         if (map_handler.OnCompressedMap(*this, pkt, size)) {
-          OnMapLoad();
+          OnMapLoad((char*)(pkt + 1));
         }
       } break;
       case ProtocolS2C::PowerballPosition: {
@@ -529,13 +529,14 @@ Player* Connection::GetPlayerById(u16 id, size_t* index) {
   return nullptr;
 }
 
-void Connection::OnMapLoad() {
+void Connection::OnMapLoad(const char* filename) {
   // I don't think this should ever be set because the server doesn't know that the map was loaded yet
   if (security.checksum_key) {
     SendSecurityPacket();
   }
 
   login_state = LoginState::Complete;
+  render.CreateMapBuffer(temp_arena, filename);
 
   // Send a position packet to let server know that the map is loaded.
   SendPositionPacket();

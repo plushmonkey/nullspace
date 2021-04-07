@@ -437,7 +437,7 @@ inline mat4 Translate(const mat4& M, const Vector3f& translation) {
 // aspect_ratio: width / height
 // near: near plane in camera space
 // far: far plane in camera space
-inline mat4 Perspective(float fov, float aspect_ratio, float near, float far) {
+inline mat4 Perspective(float fov, float aspect_ratio, float near_plane, float far_plane) {
   float half_tan = std::tan(fov / 2.0f);
 
   float values[] = {
@@ -451,12 +451,35 @@ inline mat4 Perspective(float fov, float aspect_ratio, float near, float far) {
       0,
       0,
       0,
-      -(far + near) / (far - near),
+      -(far_plane + near_plane) / (far_plane - near_plane),
       -1.0f,
       0,
       0,
-      -(2.0f * far * near) / (far - near),
+      -(2.0f * far_plane * near_plane) / (far_plane - near_plane),
       0,
+  };
+
+  return mat4(values);
+}
+
+inline mat4 Orthographic(float left, float right, float bottom, float top, float near_plane, float far_plane) {
+  float values[] = {
+      2.0f / (right - left),
+      0,
+      0,
+      0,
+      0,
+      2 / (top - bottom),
+      0,
+      0,
+      0,
+      0,
+      -2.0f / (far_plane - near_plane),
+      0,
+      -(right + left) / (right - left),
+      -(top + bottom) / (top - bottom),
+      -(far_plane + near_plane) / (far_plane - near_plane),
+      1,
   };
 
   return mat4(values);
@@ -539,27 +562,27 @@ struct Frustum {
   Vector3f position;
   Vector3f forward;
 
-  float near;
+  float near_plane;
   float near_width;
   float near_height;
 
-  float far;
+  float far_plane;
   float far_width;
   float far_height;
 
   Plane planes[6];
 
-  Frustum(const Vector3f& position, const Vector3f& forward, float near, float far, float fov, float ratio,
+  Frustum(const Vector3f& position, const Vector3f& forward, float near_plane, float far_plane, float fov, float ratio,
           const Vector3f& up, const Vector3f& right)
-      : position(position), forward(forward), near(near), far(far) {
-    near_height = 2 * std::tan(fov / 2.0f) * near;
+      : position(position), forward(forward), near_plane(near_plane), far_plane(far_plane) {
+    near_height = 2 * std::tan(fov / 2.0f) * near_plane;
     near_width = near_height * ratio;
 
-    far_height = 2 * std::tan(fov / 2.0f) * far;
+    far_height = 2 * std::tan(fov / 2.0f) * far_plane;
     far_width = far_height * ratio;
 
-    Vector3f nc = position + forward * near;
-    Vector3f fc = position + forward * far;
+    Vector3f nc = position + forward * near_plane;
+    Vector3f fc = position + forward * far_plane;
 
     float hnh = near_height / 2.0f;
     float hnw = near_width / 2.0f;

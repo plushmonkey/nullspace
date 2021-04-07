@@ -1,13 +1,16 @@
+#define NOMINMAX
+
 #include <cstdio>
 
 #include "Buffer.h"
 #include "Checksum.h"
 #include "Memory.h"
-#include "net/Connection.h"
 
 #ifdef _WIN32
 #include <Windows.h>
 #endif
+
+#include "net/Connection.h"
 
 // TODO: remove
 #include <chrono>
@@ -149,20 +152,26 @@ void run() {
   using ms_float = std::chrono::duration<float, std::milli>;
   float frame_time = 0.0f;
 
+  if (!connection->render.Initialize(1360, 768)) {
+    fprintf(stderr, "Failed to initialize renderer.\n");
+    return;
+  }
+
   while (connection->connected) {
     auto start = std::chrono::high_resolution_clock::now();
 
     connection->Tick();
 
-    if (frame_time >= 1000.0f / 60.0f) {
 #ifdef SIM_TEST
-      Simulate(*connection, frame_time / 1000.0f);
+    Simulate(*connection, frame_time / 1000.0f);
 #endif
-      frame_time = 0.0f;
+
+    if (!connection->render.Render(frame_time / 1000.0f)) {
+      break;
     }
 
     auto end = std::chrono::high_resolution_clock::now();
-    frame_time += std::chrono::duration_cast<ms_float>(end - start).count();
+    frame_time = std::chrono::duration_cast<ms_float>(end - start).count();
 
     trans_arena.Reset();
   }
