@@ -1,10 +1,6 @@
 #ifndef NULLSPACE_CONNECTION_H_
 #define NULLSPACE_CONNECTION_H_
 
-// TODO: Remove
-#include "../Render.h"
-//
-
 #include "../ArenaSettings.h"
 #include "../Buffer.h"
 #include "../MapHandler.h"
@@ -64,14 +60,13 @@ struct Connection {
 
   u32 packets_sent = 0;
   u32 packets_received = 0;
+  u32 weapons_received = 0;
   s32 time_diff = 0;
   u32 ping = 0;
 
   u32 last_sync_tick = 0;
   u32 last_position_tick = 0;
   LoginState login_state = LoginState::EncryptionRequested;
-
-  RenderState render;
 
   size_t player_count = 0;
   Player players[1024];

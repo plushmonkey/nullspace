@@ -44,7 +44,7 @@ void PacketSequencer::Tick(Connection& connection) {
   u32 current_tick = GetCurrentTick();
 
   // Resend timed out messages from reliable_sent
-  for (int i = 0; i < reliable_sent_count; ++i) {
+  for (size_t i = 0; i < reliable_sent_count; ++i) {
     ReliableMessage* mesg = reliable_sent + i;
 
     if (TICK_DIFF(current_tick, mesg->timestamp) >= kResendDelay) {

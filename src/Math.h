@@ -412,6 +412,20 @@ struct mat4 {
   }
 };
 
+inline mat4 operator*(const mat4& M1, const mat4& M2) {
+  mat4 result = {};
+
+  for (size_t col = 0; col < 4; ++col) {
+    for (size_t row = 0; row < 4; ++row) {
+      for (size_t i = 0; i < 4; ++i) {
+        result.data[col][row] += M1.data[i][row] * M2.data[col][i];
+      }
+    }
+  }
+
+  return result;
+}
+
 inline mat4 LookAt(const Vector3f& eye, const Vector3f& to, Vector3f world_up = Vector3f(0, 1, 0)) {
   // Compute camera axes
   Vector3f forward = Normalize(to - eye);
@@ -430,7 +444,17 @@ inline mat4 Translate(const mat4& M, const Vector3f& translation) {
       1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, translation.x, translation.y, translation.z, 1,
   };
 
-  return mat4((float*)values);
+  mat4 translate_op((float*)values);
+  return translate_op * M;
+}
+
+inline mat4 Scale(const mat4& M, const Vector3f& scale) {
+  float values[] = {
+      scale.x, 0, 0, 0, 0, scale.y, 0, 0, 0, 0, scale.z, 0, 0, 0, 0, 1,
+  };
+
+  mat4 scale_op((float*)values);
+  return scale_op * M;
 }
 
 // fov: field of view for y-axis
@@ -525,20 +549,6 @@ inline Vector4f operator*(const mat4& M, const Vector4f& v) {
 
   for (size_t row = 0; row < 4; ++row) {
     result[row] = v.x * M.data[0][row] + v.y * M.data[1][row] + v.z * M.data[2][row] + v.w * M.data[3][row];
-  }
-
-  return result;
-}
-
-inline mat4 operator*(const mat4& M1, const mat4& M2) {
-  mat4 result = {};
-
-  for (size_t col = 0; col < 4; ++col) {
-    for (size_t row = 0; row < 4; ++row) {
-      for (size_t i = 0; i < 4; ++i) {
-        result.data[col][row] += M1.data[i][row] * M2.data[col][i];
-      }
-    }
   }
 
   return result;

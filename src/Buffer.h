@@ -8,7 +8,8 @@ namespace null {
 
 struct NetworkBuffer {
   NetworkBuffer() : data(nullptr), read(nullptr), write(nullptr), size(0) {}
-  NetworkBuffer(u8* data, size_t size, size_t write_offset = 0) : data(data), read(data), write(data + write_offset), size(size) {}
+  NetworkBuffer(u8* data, size_t size, size_t write_offset = 0)
+      : data(data), read(data), write(data + write_offset), size(size) {}
   NetworkBuffer(MemoryArena& arena, size_t size);
 
   void WriteU8(u8 value);

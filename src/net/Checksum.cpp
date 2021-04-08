@@ -1,8 +1,10 @@
 #include "Checksum.h"
 
 #include <cassert>
+#include <cstdio>
 
-#include "ArenaSettings.h"
+#include "../ArenaSettings.h"
+#include "../Memory.h"
 #include "MD5.h"
 
 namespace null {
@@ -10,9 +12,42 @@ namespace null {
 const char* MemoryChecksumGenerator::text_section_ = nullptr;
 const char* MemoryChecksumGenerator::data_section_ = nullptr;
 
-void MemoryChecksumGenerator::Initialize(const char* text_section, const char* data_section) {
-  text_section_ = text_section;
-  data_section_ = data_section;
+char* LoadFile(MemoryArena& arena, const char* path) {
+#pragma warning(push)
+#pragma warning(disable : 4996)
+  FILE* f = fopen(path, "rb");
+#pragma warning(pop)
+
+  if (!f) {
+    return nullptr;
+  }
+
+  fseek(f, 0, SEEK_END);
+  long size = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  char* data = (char*)arena.Allocate(size);
+
+  fread(data, 1, size, f);
+  fclose(f);
+
+  return data;
+}
+
+bool MemoryChecksumGenerator::Initialize(MemoryArena& arena, const char* text_section_filename,
+                                         const char* data_section_filename) {
+  char* mem_text = LoadFile(arena, "cont_mem_text");
+  char* mem_data = LoadFile(arena, "cont_mem_data");
+
+  if (!mem_text || !mem_data) {
+    fprintf(stderr, "Requires Continuum dumped memory files cont_mem_text and cont_mem_data\n");
+    return false;
+  }
+
+  text_section_ = mem_text;
+  data_section_ = mem_data;
+
+  return true;
 }
 
 u32 MemoryChecksumGenerator::Generate(u32 key) {

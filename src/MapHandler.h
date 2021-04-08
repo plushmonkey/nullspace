@@ -13,6 +13,7 @@ struct MapHandler {
   MemoryArena& perm_arena;
   MemoryArena& temp_arena;
 
+  char filename[20] = {};
   Map map;
   u32 checksum = 0;
 

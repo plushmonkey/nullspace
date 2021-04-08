@@ -1,14 +1,16 @@
 #ifndef NULLSPACE_CHECKSUM_H_
 #define NULLSPACE_CHECKSUM_H_
 
-#include "Types.h"
+#include "../Types.h"
 
 namespace null {
+
+struct MemoryArena;
 
 struct MemoryChecksumGenerator {
   MemoryChecksumGenerator() = delete;
 
-  static void Initialize(const char* text_section, const char* data_section);
+  static bool Initialize(MemoryArena& arena, const char* text_section_filename, const char* data_section_filename);
   static u32 Generate(u32 key);
 
  private:

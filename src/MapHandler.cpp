@@ -3,8 +3,8 @@
 #include <cstdio>
 
 #include "Buffer.h"
-#include "Checksum.h"
 #include "Inflate.h"
+#include "net/Checksum.h"
 #include "net/Connection.h"
 
 // TODO: Is filename always null terminated?
@@ -50,6 +50,8 @@ bool MapHandler::OnMapInformation(Connection& connection, u8* pkt, size_t size) 
     return false;
   }
 
+  strcpy(this->filename, filename);
+
   return true;
 }
 
@@ -89,6 +91,8 @@ bool MapHandler::OnCompressedMap(Connection& connection, u8* pkt, size_t size) {
 
   fwrite(uncompressed, 1, uncompressed_size, file);
   fclose(file);
+
+  strcpy(this->filename, filename);
 
   temp_arena.Revert(snapshot);
 

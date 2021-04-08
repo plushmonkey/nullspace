@@ -8,8 +8,8 @@
 #include <Windows.h>
 #endif
 
-#include "../Checksum.h"
-#include "../MD5.h"
+#include "Checksum.h"
+#include "MD5.h"
 
 namespace null {
 

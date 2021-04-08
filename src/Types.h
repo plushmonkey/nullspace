@@ -22,6 +22,6 @@ using b32 = u32;
 
 constexpr size_t kMaxPacketSize = 520;
 
-} // namespace null
+}  // namespace null
 
 #endif

@@ -12,8 +12,8 @@
 #include <thread>
 
 #include "../ArenaSettings.h"
-#include "../Checksum.h"
 #include "../Tick.h"
+#include "Checksum.h"
 #include "Connection.h"
 #include "Protocol.h"
 
@@ -85,47 +85,49 @@ Connection::TickResult Connection::Tick() {
     last_position_tick = current_tick;
   }
 
-  packet_sequencer.Tick(*this);
-  // Buffer must be reset after packet sequencer runs so the read pointer is reset.
-  buffer.Reset();
+  while (true) {
+    packet_sequencer.Tick(*this);
+    // Buffer must be reset after packet sequencer runs so the read pointer is reset.
+    buffer.Reset();
 
-  socklen_t socklen = sizeof(addr);
-  int bytes_recv = recvfrom(fd, (char*)buffer.read, kMaxPacketSize, 0, (sockaddr*)&addr, &socklen);
+    socklen_t socklen = sizeof(addr);
+    int bytes_recv = recvfrom(fd, (char*)buffer.read, kMaxPacketSize, 0, (sockaddr*)&addr, &socklen);
 
-  if (bytes_recv == 0) {
-    this->connected = false;
-    return TickResult::ConnectionClosed;
-  } else if (bytes_recv < 0) {
-    int err = WSAGetLastError();
+    if (bytes_recv == 0) {
+      this->connected = false;
+      return TickResult::ConnectionClosed;
+    } else if (bytes_recv < 0) {
+      int err = WSAGetLastError();
 
-    if (err == WSAEWOULDBLOCK) {
-      return TickResult::Success;
-    }
+      if (err == WSAEWOULDBLOCK) {
+        return TickResult::Success;
+      }
 
-    fprintf(stderr, "Unexpected socket error: %d\n", err);
-    this->Disconnect();
-    return TickResult::ConnectionError;
-  } else if (bytes_recv > 0) {
-    assert(bytes_recv <= kMaxPacketSize);
+      fprintf(stderr, "Unexpected socket error: %d\n", err);
+      this->Disconnect();
+      return TickResult::ConnectionError;
+    } else if (bytes_recv > 0) {
+      assert(bytes_recv <= kMaxPacketSize);
 
-    ++packets_received;
-    buffer.write += bytes_recv;
+      ++packets_received;
+      buffer.write += bytes_recv;
 
-    u8* pkt = (u8*)buffer.data;
-    size_t size = bytes_recv;
+      u8* pkt = (u8*)buffer.data;
+      size_t size = bytes_recv;
 
-    if (encrypt.key1 != 0 || encrypt.key2 != 0) {
-      size = encrypt.Decrypt(pkt, size);
-    }
+      if (encrypt.key1 != 0 || encrypt.key2 != 0) {
+        size = encrypt.Decrypt(pkt, size);
+      }
 
 #ifdef PACKET_SHEDDING  // packet shedding for testing sequencer
-    srand(GetCurrentTick());
+      srand(GetCurrentTick());
 
-    if (rand() % 100 > PACKET_SHEDDING) {
+      if (rand() % 100 > PACKET_SHEDDING) {
 #else
-    if (1) {
+      if (1) {
 #endif
-      ProcessPacket(pkt, size);
+        ProcessPacket(pkt, size);
+      }
     }
   }
 
@@ -215,6 +217,9 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         if (time_diff >= -10 && time_diff <= 10) {
           time_diff = 0;
         }
+      } break;
+      case ProtocolCore::Disconnect: {
+        this->connected = false;
       } break;
       case ProtocolCore::SmallChunkBody: {
         packet_sequencer.OnSmallChunkBody(*this, pkt, size);
@@ -354,9 +359,9 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         if (player) {
           player->direction = direction;
           player->position.x = x / 16.0f;
-          player->velocity.y = vel_y / 16.0f;
+          player->velocity.y = vel_y / 16.0f / 10000.0f;
 
-          player->velocity.x = buffer.ReadU16() / 16.0f;
+          player->velocity.x = buffer.ReadU16() / 16.0f / 10000.0f;
           u8 checksum = buffer.ReadU8();
           player->togglables = buffer.ReadU8();
           player->ping = buffer.ReadU8();
@@ -365,6 +370,10 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
           u16 weapon = buffer.ReadU16();
           memcpy(&player->weapon, &weapon, sizeof(weapon));
+
+          if (weapon != 0) {
+            ++weapons_received;
+          }
         }
       } break;
       case ProtocolS2C::PlayerDeath: {
@@ -441,6 +450,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
       case ProtocolS2C::DropFlag: {
       } break;
+      case ProtocolS2C::Spectate: {
+      } break;
       case ProtocolS2C::TeamAndShipChange: {
         u8 ship = buffer.ReadU8();
         u16 pid = buffer.ReadU16();
@@ -473,9 +484,9 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           player->bounty = bounty;
           player->position.x = x / 16.0f;
           player->togglables = buffer.ReadU8();
-          player->velocity.y = buffer.ReadU16() / 16.0f;
+          player->velocity.y = buffer.ReadU16() / 16.0f / 10000.0f;
           player->position.y = buffer.ReadU16() / 16.0f;
-          player->velocity.x = buffer.ReadU16() / 16.0f;
+          player->velocity.x = buffer.ReadU16() / 16.0f / 10000.0f;
         }
       } break;
       case ProtocolS2C::MapInformation: {
@@ -536,7 +547,6 @@ void Connection::OnMapLoad(const char* filename) {
   }
 
   login_state = LoginState::Complete;
-  render.CreateMapBuffer(temp_arena, filename);
 
   // Send a position packet to let server know that the map is loaded.
   SendPositionPacket();
@@ -612,7 +622,7 @@ void Connection::SendSecurityPacket() {
   NetworkBuffer buffer(data, kMaxPacketSize);
 
   buffer.WriteU8(0x1A);
-  buffer.WriteU32(0x00);  // Weapon count
+  buffer.WriteU32(weapons_received);  // Weapon count
   buffer.WriteU32(settings_checksum);
   buffer.WriteU32(exe_checksum);
   buffer.WriteU32(map_checksum);
