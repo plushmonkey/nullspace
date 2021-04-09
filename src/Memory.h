@@ -20,13 +20,15 @@ struct MemoryArena {
   u8* current;
   size_t max_size;
 
+  MemoryArena() : base(nullptr), current(nullptr), max_size(0) {}
   MemoryArena(u8* memory, size_t max_size);
 
   u8* Allocate(size_t size, size_t alignment = 4);
+  // Allocate from this arena to create a new arena
+  MemoryArena CreateArena(size_t size, size_t alignment = 4);
   void Reset();
 
   ArenaSnapshot GetSnapshot() { return current; }
-
   void Revert(ArenaSnapshot snapshot) { current = snapshot; }
 };
 

@@ -3,6 +3,7 @@
 #include <cstdio>
 
 #include "Memory.h"
+#include "Tick.h"
 
 namespace null {
 
@@ -14,16 +15,22 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
     : perm_arena(perm_arena),
       temp_arena(temp_arena),
       connection(perm_arena, temp_arena),
-      camera((float)width, (float)(height)) {}
+      camera(Vector2f((float)width, (float)height), Vector2f(512, 512), 1.0f / 16.0f),
+      ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f) {
+  ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -1.0f, 1.0f);
+}
 
 bool Game::Initialize() {
   if (!tile_renderer.Initialize()) {
     return false;
   }
 
-  if (!sprite_renderer.Initialize()) {
+  if (!sprite_renderer.Initialize(perm_arena)) {
     return false;
   }
+
+  int count;
+  ship_sprites = sprite_renderer.LoadSheet("graphics/ships.bm2", Vector2f(36, 36), &count);
 
   return true;
 }
@@ -51,31 +58,65 @@ void Game::Update(float dt) {
 }
 
 void Game::Render() {
+  for (size_t i = 0; i < connection.player_count; ++i) {
+    Player* player = connection.players + i;
+
+    if (player->ship == 8) continue;
+
+    size_t index = player->ship * 40 + player->direction;
+    float radius = connection.settings.ShipSettings[player->ship].Radius / 16.0f;
+    if (radius == 0.0f) {
+      radius = 14.0f / 16.0f;
+    }
+
+    sprite_renderer.Draw(camera, ship_sprites[index], player->position - Vector2f(radius, radius));
+    radius += 2.0f / 16.0f;
+
+    char display[32];
+    sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
+    sprite_renderer.DrawText(camera, display, TextColor::Yellow, player->position + Vector2f(radius, radius));
+  }
+
   tile_renderer.Render(camera);
   sprite_renderer.Render(camera);
+
+  sprite_renderer.DrawText(ui_camera, "Top left", TextColor::Yellow, Vector2f(0, 0));
+  sprite_renderer.DrawText(ui_camera, "Below top left", TextColor::Pink, Vector2f(0, 12));
+  sprite_renderer.Render(ui_camera);
 }
 
 // Test fun code
 void Simulate(Connection& connection, float dt) {
+  static int last_request = 0;
+
   if (connection.login_state != Connection::LoginState::Complete) return;
+
+  for (size_t i = 0; i < connection.player_count; ++i) {
+    Player* player = connection.players + i;
+
+    if (player->ship == 8) continue;
+
+    player->position += player->velocity * dt;
+  }
 
   Player* player = connection.GetPlayerById(connection.player_id);
   if (!player) return;
 
-  if (player->ship != 0) {
-    player->ship = 0;
+  if (player->ship == 8 && TICK_DIFF(GetCurrentTick(), last_request) > 300) {
+    player->ship = 1;
     player->position = Vector2f(512, 512);
 
 #pragma pack(push, 1)
     struct {
       u8 type;
       u8 ship;
-    } request = {0x18, 0};
+    } request = {0x18, player->ship};
 #pragma pack(pop)
 
     printf("Sending ship request packet\n");
 
     connection.packet_sequencer.SendReliableMessage(connection, (u8*)&request, sizeof(request));
+    last_request = GetCurrentTick();
     return;
   }
 
@@ -86,7 +127,6 @@ void Simulate(Connection& connection, float dt) {
   Vector2f target = waypoints[waypoint_index];
 
   player->velocity = Normalize(target - player->position) * 12.0f;
-  player->position += player->velocity * dt;
   player->weapon.level = 1;
   player->weapon.type = 2;
 

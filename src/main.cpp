@@ -55,7 +55,7 @@ struct nullspace {
     constexpr int kWidth = 1360;
     constexpr int kHeight = 768;
 
-    constexpr size_t kPermanentSize = Megabytes(32);
+    constexpr size_t kPermanentSize = Megabytes(64);
     constexpr size_t kTransientSize = Megabytes(32);
 
     u8* perm_memory = (u8*)VirtualAlloc(NULL, kPermanentSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);

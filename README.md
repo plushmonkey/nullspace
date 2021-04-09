@@ -2,6 +2,9 @@
 SubSpace client that I will probably never work on.  
 It can connect to Continuum encrypted zones, download map data, and perform security challenges.  
 
+## Running
+Follow the security requirements listed below and drop the built nullspace.exe into Continuum folder.  
+
 ## Security
 ### Key expansion
 The key expansion generator is not included for game integrity reasons.  

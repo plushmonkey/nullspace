@@ -6,18 +6,19 @@
 namespace null {
 
 struct Camera {
-  Vector2f position = Vector2f(512, 512);
-  float surface_width;
-  float surface_height;
-  float zoom = 1.0f / 16.0f;
+  Vector2f position;
+  mat4 projection;
+  Vector2f surface_dim;
+  float scale;
 
-  Camera(float surface_width, float surface_height) : surface_width(surface_width), surface_height(surface_height) {}
+  Camera(const Vector2f& surface_dim, const Vector2f& position, float scale)
+      : surface_dim(surface_dim), position(position), scale(scale) {
+    projection = Orthographic(-surface_dim.x / 2.0f * scale, surface_dim.x / 2.0f * scale, surface_dim.y / 2.0f * scale,
+                              -surface_dim.y / 2.0f * scale, -1.0f, 1.0f);
+  }
 
   mat4 GetView() { return Translate(mat4::Identity(), Vector3f(-position.x, -position.y, 0.0f)); }
-  mat4 GetProjection() {
-    return Orthographic(-surface_width / 2.0f * zoom, surface_width / 2.0f * zoom, surface_height / 2.0f * zoom,
-                        -surface_height / 2.0f * zoom, -1.0f, 1.0f);
-  }
+  mat4 GetProjection() { return projection; }
 };
 
 }  // namespace null

@@ -25,6 +25,12 @@ u8* MemoryArena::Allocate(size_t size, size_t alignment) {
   return result;
 }
 
+MemoryArena MemoryArena::CreateArena(size_t size, size_t alignment) {
+  u8* base = Allocate(size, alignment);
+  assert(base);
+  return MemoryArena(base, size);
+}
+
 void MemoryArena::Reset() { this->current = this->base; }
 
 u8* AllocateMirroredBuffer(size_t size) {

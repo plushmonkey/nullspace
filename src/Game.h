@@ -15,8 +15,11 @@ struct Game {
   MemoryArena& temp_arena;
   Connection connection;
   Camera camera;
+  Camera ui_camera;
   TileRenderer tile_renderer;
   SpriteRenderer sprite_renderer;
+
+  SpriteRenderable* ship_sprites = nullptr;
 
   Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height);
 
