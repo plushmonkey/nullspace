@@ -148,6 +148,14 @@ void Simulate(Connection& connection, float dt) {
     if (player->ship == 8) continue;
 
     player->position += player->velocity * dt;
+    if (player->lerp_time > 0.0f) {
+      float timestep = dt;
+      if (player->lerp_time < timestep) {
+        timestep = player->lerp_time;
+      }
+      player->position += player->lerp_velocity * timestep;
+      player->lerp_time -= timestep;
+    }
   }
 
   Player* player = connection.GetPlayerById(connection.player_id);

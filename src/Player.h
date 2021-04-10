@@ -30,6 +30,9 @@ struct Player {
   Vector2f position;
   Vector2f velocity;
 
+  Vector2f lerp_velocity;
+  float lerp_time;
+
   u16 wins;
   u16 losses;
 

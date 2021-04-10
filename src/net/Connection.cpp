@@ -329,6 +329,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         player->flags = buffer.ReadU16();
         player->koth = buffer.ReadU8();
         player->timestamp = GetCurrentTick() & 0xFFFF;
+        player->lerp_time = 0.0f;
 
         printf("%s entered arena\n", name);
 
@@ -380,7 +381,10 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
           player->ping += timestamp_diff;
           // TODO: Simulate through map
-          player->position = pkt_position + player->velocity * (player->ping / 100.0f);
+          Vector2f projected_pos = pkt_position + player->velocity * (player->ping / 100.0f);
+
+          player->lerp_time = 30.0f / 1000.0f;
+          player->lerp_velocity = (projected_pos - player->position) * (1.0f / player->lerp_time);
 
           u16 weapon = buffer.ReadU16();
           memcpy(&player->weapon, &weapon, sizeof(weapon));
@@ -514,7 +518,10 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
           player->ping += timestamp_diff;
           // TODO: Simulate through map
-          player->position = pkt_position + player->velocity * (player->ping / 100.0f);
+          Vector2f projected_pos = pkt_position + player->velocity * (player->ping / 100.0f);
+
+          player->lerp_time = 30.0f / 1000.0f;
+          player->lerp_velocity = (projected_pos - player->position) * (1.0f / player->lerp_time);
         }
       } break;
       case ProtocolS2C::MapInformation: {
