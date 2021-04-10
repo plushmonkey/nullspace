@@ -16,7 +16,8 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       temp_arena(temp_arena),
       connection(perm_arena, temp_arena),
       camera(Vector2f((float)width, (float)height), Vector2f(512, 512), 1.0f / 16.0f),
-      ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f) {
+      ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),
+      fps(0.0f) {
   ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -1.0f, 1.0f);
 }
 
@@ -48,6 +49,11 @@ void Game::Update(float dt) {
   Simulate(connection, dt);
 
   Player* me = connection.GetPlayerById(connection.player_id);
+  if (me) {
+    me->position = Vector2f(512 + 35, 512 + 35);
+    camera.position = me->position;
+  }
+
   if (me && me->ship != 8) {
     camera.position = me->position;
   }
@@ -88,7 +94,21 @@ void Game::Render() {
 
   // TODO: Move all of this out
 
-  if (me) {
+  if (connection.login_state == Connection::LoginState::MapDownload) {
+    char downloading[64];
+
+    sprite_renderer.Draw(ui_camera, ship_sprites[0],
+                         ui_camera.surface_dim * 0.5f - Vector2f(14.0f / 16.0f, 14.0f / 16.0f));
+
+    int percent =
+        (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map_handler.compressed_size);
+
+    sprintf(downloading, "Downloading level: %d%%", percent);
+    Vector2f download_pos(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
+    sprite_renderer.DrawText(ui_camera, downloading, TextColor::Blue, download_pos, TextAlignment::Center);
+  }
+
+  if (me && connection.login_state == Connection::LoginState::Complete) {
     char count_text[16];
     sprintf(count_text, "     %zd", connection.player_count);
 
@@ -129,9 +149,9 @@ void Game::Render() {
   }
 
   char fps_text[32];
-  sprintf(fps_text, "FPS: %d", (int)fps);
-  sprite_renderer.DrawText(ui_camera, fps_text, TextColor::Pink,
-                           Vector2f(ui_camera.surface_dim.x - strlen(fps_text) * 8.0f, 0));
+  sprintf(fps_text, "FPS: %d", (int)(fps + 0.5f));
+  sprite_renderer.DrawText(ui_camera, fps_text, TextColor::Pink, Vector2f(ui_camera.surface_dim.x, 0),
+                           TextAlignment::Right);
 
   sprite_renderer.Render(ui_camera);
 }

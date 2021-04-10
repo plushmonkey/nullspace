@@ -380,11 +380,6 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           }
 
           player->ping += timestamp_diff;
-          // TODO: Simulate through map
-          Vector2f projected_pos = pkt_position + player->velocity * (player->ping / 100.0f);
-
-          player->lerp_time = 30.0f / 1000.0f;
-          player->lerp_velocity = (projected_pos - player->position) * (1.0f / player->lerp_time);
 
           u16 weapon = buffer.ReadU16();
           memcpy(&player->weapon, &weapon, sizeof(weapon));
@@ -392,6 +387,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           if (weapon != 0) {
             ++weapons_received;
           }
+
+          OnPositionPacket(*player, pkt_position);
         }
       } break;
       case ProtocolS2C::PlayerDeath: {
@@ -517,11 +514,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           }
 
           player->ping += timestamp_diff;
-          // TODO: Simulate through map
-          Vector2f projected_pos = pkt_position + player->velocity * (player->ping / 100.0f);
-
-          player->lerp_time = 30.0f / 1000.0f;
-          player->lerp_velocity = (projected_pos - player->position) * (1.0f / player->lerp_time);
+          OnPositionPacket(*player, pkt_position);
         }
       } break;
       case ProtocolS2C::MapInformation: {
@@ -557,6 +550,14 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
     }
   }
+}
+
+void Connection::OnPositionPacket(Player& player, const Vector2f& position) {
+  // TODO: Simulate through map
+  Vector2f projected_pos = position + player.velocity * (player.ping / 100.0f);
+
+  player.lerp_time = 100.0f / 1000.0f;
+  player.lerp_velocity = (projected_pos - player.position) * (1.0f / player.lerp_time);
 }
 
 // TODO: Move into player manager

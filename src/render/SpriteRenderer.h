@@ -16,6 +16,7 @@ struct SpriteRenderable {
 };
 
 enum class TextColor { White, Green, Blue, DarkRed, Yellow, Fuschia, Red, Pink };
+enum class TextAlignment { Left, Center, Right };
 
 // TODO: Should there be async lazy texture loading? - No for now. Textures will need to be reloaded later for lvz
 // TODO: Should a texture atlas be generated? - Probably not. I don't think binding performance will be a concern for a
@@ -47,7 +48,8 @@ struct SpriteRenderer {
 
   // Position can be either in world space or screen space depending on renderer setup
   void Draw(Camera& camera, const SpriteRenderable& renderable, const Vector2f& position);
-  void DrawText(Camera& camera, const char* text, TextColor color, const Vector2f& position);
+  void DrawText(Camera& camera, const char* text, TextColor color, const Vector2f& position,
+                TextAlignment alignment = TextAlignment::Left);
 
   void Render(Camera& camera);
 };

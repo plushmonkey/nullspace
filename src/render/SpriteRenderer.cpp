@@ -145,11 +145,30 @@ SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f
   return result;
 }
 
-void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color, const Vector2f& position) {
+void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color, const Vector2f& position,
+                              TextAlignment alignment) {
   constexpr size_t kCountPerColor = 96;
-  char c;
+
   Vector2f current_pos = position;
+  size_t length = strlen(text);
+  float start_x = current_pos.x;
+
+  if (alignment == TextAlignment::Center) {
+    start_x -= (length * 8.0f) / 2.0f;
+  } else if (alignment == TextAlignment::Right) {
+    start_x -= (length * 8.0f);
+  }
+
+  current_pos.x = start_x;
+
+  char c;
   while (c = *text++) {
+    if (c == '\n') {
+      current_pos.x = start_x;
+      current_pos.y += 12.0f;
+      continue;
+    }
+
     if (c < ' ' || c > '~') {
       c = '?';
     }

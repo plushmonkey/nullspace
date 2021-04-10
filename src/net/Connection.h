@@ -91,6 +91,7 @@ struct Connection {
   void SendPositionPacket();
   void SendSecurityPacket();
   void SendSyncTimeRequestPacket(bool reliable);
+  void OnPositionPacket(Player& player, const Vector2f& position);
 
   Player* GetPlayerById(u16 id, size_t* index = nullptr);
 };

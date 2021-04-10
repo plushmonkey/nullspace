@@ -18,7 +18,7 @@ bool MapHandler::OnMapInformation(Connection& connection, u8* pkt, size_t size) 
   char* filename = buffer.ReadString(16);
   this->checksum = buffer.ReadU32();
   // TODO: Store this somewhere so it can be compared while downloading huge chunks for progress percent
-  u32 compressed_size = buffer.ReadU32();
+  compressed_size = buffer.ReadU32();
 
   FILE* file = fopen(filename, "rb");
 
