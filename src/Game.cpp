@@ -7,7 +7,7 @@
 
 namespace null {
 
-#define SIM_TEST 1
+#define SIM_TEST 0
 
 void Simulate(Connection& connection, float dt);
 
@@ -31,6 +31,7 @@ bool Game::Initialize() {
 
   int count;
   ship_sprites = sprite_renderer.LoadSheet("graphics/ships.bm2", Vector2f(36, 36), &count);
+  spectate_sprites = sprite_renderer.LoadSheet("graphics/spectate.bm2", Vector2f(8, 8), &count);
 
   return true;
 }
@@ -40,17 +41,16 @@ void Game::Update(float dt) {
   static float timer = 0.0f;
 
   timer += dt * 0.0375f;
+  if (dt > 0) {
+    fps = fps * 0.99f + (1.0f / dt) * 0.01f;
+  }
 
-#if SIM_TEST
   Simulate(connection, dt);
 
   Player* me = connection.GetPlayerById(connection.player_id);
-  if (me) {
+  if (me && me->ship != 8) {
     camera.position = me->position;
   }
-#else
-  camera.position = kBasePosition + Vector2f(std::cosf(timer) * 350.0f, std::sinf(timer) * 350.0f);
-#endif
 
   if (tile_renderer.tilemap_texture == -1 && connection.login_state == Connection::LoginState::Complete) {
     tile_renderer.CreateMapBuffer(temp_arena, connection.map_handler.filename);
@@ -58,6 +58,8 @@ void Game::Update(float dt) {
 }
 
 void Game::Render() {
+  Player* me = connection.GetPlayerById(connection.player_id);
+
   for (size_t i = 0; i < connection.player_count; ++i) {
     Player* player = connection.players + i;
 
@@ -74,14 +76,63 @@ void Game::Render() {
 
     char display[32];
     sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
-    sprite_renderer.DrawText(camera, display, TextColor::Yellow, player->position + Vector2f(radius, radius));
+
+    if (me) {
+      TextColor color = me->frequency == player->frequency ? TextColor::Yellow : TextColor::Blue;
+      sprite_renderer.DrawText(camera, display, color, player->position + Vector2f(radius, radius));
+    }
   }
 
   tile_renderer.Render(camera);
   sprite_renderer.Render(camera);
 
-  sprite_renderer.DrawText(ui_camera, "Top left", TextColor::Yellow, Vector2f(0, 0));
-  sprite_renderer.DrawText(ui_camera, "Below top left", TextColor::Pink, Vector2f(0, 12));
+  // TODO: Move all of this out
+
+  if (me) {
+    char count_text[16];
+    sprintf(count_text, "     %zd", connection.player_count);
+
+    sprite_renderer.DrawText(ui_camera, count_text, TextColor::Green, Vector2f(0, 0));
+
+    float offset_y = 24.0f;
+
+    for (size_t i = 0; i < connection.player_count; ++i) {
+      Player* player = connection.players + i;
+      if (player->frequency != me->frequency) continue;
+
+      float render_y = offset_y;
+      if (player->id == me->id) {
+        render_y = 12.0f;
+      } else {
+        offset_y += 12.0f;
+      }
+
+      if (player->ship == 8) {
+        size_t index = player->id == me->id ? 2 : 1;
+        sprite_renderer.Draw(ui_camera, spectate_sprites[index], Vector2f(2, render_y + 3.0f));
+      }
+
+      sprite_renderer.DrawText(ui_camera, player->name, TextColor::Yellow, Vector2f(12, render_y));
+    }
+
+    for (size_t i = 0; i < connection.player_count; ++i) {
+      Player* player = connection.players + i;
+      if (player->frequency == me->frequency) continue;
+
+      if (player->ship == 8) {
+        sprite_renderer.Draw(ui_camera, spectate_sprites[1], Vector2f(2, offset_y + 3.0f));
+      }
+
+      sprite_renderer.DrawText(ui_camera, player->name, TextColor::White, Vector2f(12, offset_y));
+      offset_y += 12.0f;
+    }
+  }
+
+  char fps_text[32];
+  sprintf(fps_text, "FPS: %d", (int)fps);
+  sprite_renderer.DrawText(ui_camera, fps_text, TextColor::Pink,
+                           Vector2f(ui_camera.surface_dim.x - strlen(fps_text) * 8.0f, 0));
+
   sprite_renderer.Render(ui_camera);
 }
 
@@ -102,6 +153,7 @@ void Simulate(Connection& connection, float dt) {
   Player* player = connection.GetPlayerById(connection.player_id);
   if (!player) return;
 
+#if SIM_TEST
   if (player->ship == 8 && TICK_DIFF(GetCurrentTick(), last_request) > 300) {
     player->ship = 1;
     player->position = Vector2f(512, 512);
@@ -143,6 +195,9 @@ void Simulate(Connection& connection, float dt) {
   if (target.DistanceSq(player->position) <= 2.0f * 2.0f) {
     waypoint_index = (waypoint_index + 1) % (sizeof(waypoints) / sizeof(*waypoints));
   }
+#else
+  player->position = Vector2f(512, 512);
+#endif
 }
 
 }  // namespace null

@@ -18,8 +18,10 @@ struct Game {
   Camera ui_camera;
   TileRenderer tile_renderer;
   SpriteRenderer sprite_renderer;
+  float fps;
 
   SpriteRenderable* ship_sprites = nullptr;
+  SpriteRenderable* spectate_sprites = nullptr;
 
   Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height);
 

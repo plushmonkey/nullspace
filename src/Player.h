@@ -44,6 +44,7 @@ struct Player {
   u16 attach_parent;
   u16 flags;
 
+  u16 timestamp;
   u8 koth;
 
   WeaponData weapon;

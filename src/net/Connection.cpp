@@ -328,6 +328,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         player->attach_parent = buffer.ReadU16();
         player->flags = buffer.ReadU16();
         player->koth = buffer.ReadU8();
+        player->timestamp = GetCurrentTick() & 0xFFFF;
 
         printf("%s entered arena\n", name);
 
@@ -351,22 +352,35 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         u8 direction = buffer.ReadU8();
         u16 timestamp = buffer.ReadU16();
         u16 x = buffer.ReadU16();
-        u16 vel_y = buffer.ReadU16();
+        s16 vel_y = (s16)buffer.ReadU16();
         u16 pid = buffer.ReadU16();
 
         Player* player = GetPlayerById(pid);
 
         if (player) {
           player->direction = direction;
-          player->position.x = x / 16.0f;
-          player->velocity.y = vel_y / 16.0f / 10000.0f;
-
-          player->velocity.x = buffer.ReadU16() / 16.0f / 10000.0f;
+          player->velocity.y = vel_y / 16.0f / 10.0f;
+          player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
           u8 checksum = buffer.ReadU8();
           player->togglables = buffer.ReadU8();
           player->ping = buffer.ReadU8();
-          player->position.y = buffer.ReadU16() / 16.0f;
+          u16 y = buffer.ReadU16();
           player->bounty = buffer.ReadU16();
+
+          Vector2f pkt_position(x / 16.0f, y / 16.0f);
+          // Put packet timestamp into local time
+          player->timestamp = (timestamp - time_diff) & 0xFFFF;
+          s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), (GetCurrentTick() & 0xFFFF0000) | player->timestamp);
+
+          if (timestamp_diff > 15) {
+            timestamp_diff = 15;
+          } else if (timestamp_diff < -15) {
+            timestamp_diff = -15;
+          }
+
+          player->ping += timestamp_diff;
+          // TODO: Simulate through map
+          player->position = pkt_position + player->velocity * (player->ping / 100.0f);
 
           u16 weapon = buffer.ReadU16();
           memcpy(&player->weapon, &weapon, sizeof(weapon));
@@ -482,11 +496,25 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           player->direction = direction;
           player->ping = ping;
           player->bounty = bounty;
-          player->position.x = x / 16.0f;
           player->togglables = buffer.ReadU8();
-          player->velocity.y = buffer.ReadU16() / 16.0f / 10000.0f;
-          player->position.y = buffer.ReadU16() / 16.0f;
-          player->velocity.x = buffer.ReadU16() / 16.0f / 10000.0f;
+          player->velocity.y = (s16)buffer.ReadU16() / 16.0f / 10.0f;
+          u16 y = buffer.ReadU16();
+          player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
+
+          Vector2f pkt_position(x / 16.0f, y / 16.0f);
+          // Put packet timestamp into local time
+          player->timestamp = (timestamp - time_diff) & 0xFFFF;
+          s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), (GetCurrentTick() & 0xFFFF0000) | player->timestamp);
+
+          if (timestamp_diff > 15) {
+            timestamp_diff = 15;
+          } else if (timestamp_diff < -15) {
+            timestamp_diff = -15;
+          }
+
+          player->ping += timestamp_diff;
+          // TODO: Simulate through map
+          player->position = pkt_position + player->velocity * (player->ping / 100.0f);
         }
       } break;
       case ProtocolS2C::MapInformation: {

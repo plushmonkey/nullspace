@@ -61,6 +61,7 @@ struct Connection {
   u32 packets_sent = 0;
   u32 packets_received = 0;
   u32 weapons_received = 0;
+  // GetCurrentTick() + time_diff = Server tick
   s32 time_diff = 0;
   u32 ping = 0;
 
