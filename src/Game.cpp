@@ -4,10 +4,14 @@
 
 #include "Memory.h"
 #include "Tick.h"
+#include "render/Animation.h"
 
 namespace null {
 
 #define SIM_TEST 0
+
+extern AnimatedSprite explosion_sprite;
+extern AnimatedSprite warp_sprite;
 
 void Simulate(Connection& connection, float dt);
 
@@ -34,6 +38,16 @@ bool Game::Initialize() {
   ship_sprites = sprite_renderer.LoadSheet("graphics/ships.bm2", Vector2f(36, 36), &count);
   spectate_sprites = sprite_renderer.LoadSheet("graphics/spectate.bm2", Vector2f(8, 8), &count);
 
+  SpriteRenderable* warp = sprite_renderer.LoadSheet("graphics/warp.bm2", Vector2f(48, 48), &count);
+  warp_sprite.frames = warp;
+  warp_sprite.frame_count = count;
+  warp_sprite.duration = 0.5f;
+
+  SpriteRenderable* explode = sprite_renderer.LoadSheet("graphics/explode1.bm2", Vector2f(48, 48), &count);
+  explosion_sprite.frames = explode;
+  explosion_sprite.frame_count = count;
+  explosion_sprite.duration = 1.0f;
+
   return true;
 }
 
@@ -50,16 +64,43 @@ void Game::Update(float dt) {
 
   Player* me = connection.GetPlayerById(connection.player_id);
   if (me) {
-    me->position = Vector2f(512, 512);
-    camera.position = me->position;
-  }
+    if (me->ship == 8) {
+      me->position = Vector2f(512, 512);
+    }
 
-  if (me && me->ship != 8) {
     camera.position = me->position;
   }
 
   if (tile_renderer.tilemap_texture == -1 && connection.login_state == Connection::LoginState::Complete) {
     tile_renderer.CreateMapBuffer(temp_arena, connection.map_handler.filename);
+  }
+
+  for (size_t i = 0; i < connection.player_count; ++i) {
+    Player* player = connection.players + i;
+
+    if (player->ship == 8) continue;
+
+    player->position += player->velocity * dt;
+    player->explode_animation.t += dt;
+    player->warp_animation.t += dt;
+
+    if (player->enter_delay > 0.0f) {
+      player->enter_delay -= dt;
+      if (player->enter_delay < 0.0f) {
+        player->position = Vector2f(0, 0);
+        player->velocity = Vector2f(0, 0);
+        player->lerp_time = 0.0f;
+      }
+    }
+
+    if (player->lerp_time > 0.0f) {
+      float timestep = dt;
+      if (player->lerp_time < timestep) {
+        timestep = player->lerp_time;
+      }
+      player->position += player->lerp_velocity * timestep;
+      player->lerp_time -= timestep;
+    }
   }
 }
 
@@ -73,21 +114,29 @@ void Game::Render() {
     if (player->ship == 8) continue;
     if (player->position == Vector2f(0, 0)) continue;
 
-    size_t index = player->ship * 40 + player->direction;
-    float radius = connection.settings.ShipSettings[player->ship].Radius / 16.0f;
-    if (radius == 0.0f) {
-      radius = 14.0f / 16.0f;
-    }
+    if (player->explode_animation.IsAnimating()) {
+      SpriteRenderable& renderable = player->explode_animation.GetFrame();
 
-    sprite_renderer.Draw(camera, ship_sprites[index], player->position - Vector2f(radius, radius));
-    radius += 2.0f / 16.0f;
+      sprite_renderer.Draw(camera, renderable, player->position - renderable.dimensions * (0.5f * 1.0f / 16.0f));
+    } else if (player->enter_delay <= 0.0f) {
+      size_t index = player->ship * 40 + player->direction;
+      float radius = connection.settings.ShipSettings[player->ship].GetRadius();
 
-    char display[32];
-    sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
+      sprite_renderer.Draw(camera, ship_sprites[index], player->position - Vector2f(radius, radius));
+      radius += 2.0f / 16.0f;
 
-    if (me) {
-      TextColor color = me->frequency == player->frequency ? TextColor::Yellow : TextColor::Blue;
-      sprite_renderer.DrawText(camera, display, color, player->position + Vector2f(radius, radius));
+      if (player->warp_animation.IsAnimating()) {
+        SpriteRenderable& renderable = player->warp_animation.GetFrame();
+        sprite_renderer.Draw(camera, renderable, player->position - renderable.dimensions * (0.5f * 1.0f / 16.0f));
+      }
+
+      char display[32];
+      sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
+
+      if (me) {
+        TextColor color = me->frequency == player->frequency ? TextColor::Yellow : TextColor::Blue;
+        sprite_renderer.DrawText(camera, display, color, player->position + Vector2f(radius, radius));
+      }
     }
   }
 
@@ -163,22 +212,6 @@ void Simulate(Connection& connection, float dt) {
   static int last_request = 0;
 
   if (connection.login_state != Connection::LoginState::Complete) return;
-
-  for (size_t i = 0; i < connection.player_count; ++i) {
-    Player* player = connection.players + i;
-
-    if (player->ship == 8) continue;
-
-    player->position += player->velocity * dt;
-    if (player->lerp_time > 0.0f) {
-      float timestep = dt;
-      if (player->lerp_time < timestep) {
-        timestep = player->lerp_time;
-      }
-      player->position += player->lerp_velocity * timestep;
-      player->lerp_time -= timestep;
-    }
-  }
 
   Player* player = connection.GetPlayerById(connection.player_id);
   if (!player) return;

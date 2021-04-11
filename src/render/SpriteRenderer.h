@@ -4,16 +4,11 @@
 #include "../Math.h"
 #include "../Memory.h"
 #include "Shader.h"
+#include "Sprite.h"
 
 namespace null {
 
 struct Camera;
-
-struct SpriteRenderable {
-  Vector2f uvs[4];
-  Vector2f dimensions;
-  GLuint texture;
-};
 
 enum class TextColor { White, Green, Blue, DarkRed, Yellow, Fuschia, Red, Pink };
 enum class TextAlignment { Left, Center, Right };

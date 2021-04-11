@@ -13,6 +13,7 @@
 
 #include "../ArenaSettings.h"
 #include "../Tick.h"
+#include "../render/Animation.h"
 #include "Checksum.h"
 #include "Connection.h"
 #include "Protocol.h"
@@ -20,6 +21,10 @@
 //#define PACKET_SHEDDING 20
 
 namespace null {
+
+// TODO: Move out once packet dispatcher or player manager is implemented
+AnimatedSprite explosion_sprite;
+AnimatedSprite warp_sprite;
 
 extern const char* kPlayerName;
 extern const char* kPlayerPassword;
@@ -330,6 +335,11 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         player->koth = buffer.ReadU8();
         player->timestamp = GetCurrentTick() & 0xFFFF;
         player->lerp_time = 0.0f;
+        player->warp_animation.sprite = &warp_sprite;
+        player->warp_animation.t = warp_sprite.duration;
+        player->explode_animation.sprite = &explosion_sprite;
+        player->explode_animation.t = explosion_sprite.duration;
+        player->enter_delay = 0.0f;
 
         printf("%s entered arena\n", name);
 
@@ -399,9 +409,11 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         Player* player = GetPlayerById(killed_id);
         if (player) {
           // Hide the player until they send a new position packet
-          player->position = Vector2f(0, 0);
-          player->velocity = Vector2f(0, 0);
-          player->lerp_time = 0.0f;
+          // player->position = Vector2f(0, 0);
+          // player->velocity = Vector2f(0, 0);
+          // player->lerp_time = 0.0f;
+          player->enter_delay = settings.EnterDelay / 100.0f;
+          player->explode_animation.t = 0.0f;
         }
       } break;
       case ProtocolS2C::Chat: {
@@ -493,6 +505,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           player->position = Vector2f(0, 0);
           player->velocity = Vector2f(0, 0);
           player->lerp_time = 0.0f;
+          player->warp_animation.t = 0.0f;
         }
       } break;
       case ProtocolS2C::BrickDropped: {
@@ -536,8 +549,22 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       case ProtocolS2C::MapInformation: {
         login_state = LoginState::MapDownload;
 
+        // TODO: Maybe check if this one has .lvl in filename instead.
+        // Is it possible for server to send multiple MapInformation packets with just lvzs in one?
         if (map_handler.OnMapInformation(*this, pkt, size)) {
           OnMapLoad((char*)(pkt + 1));
+        }
+
+        // Skip this entire first one
+        buffer.ReadString(24);
+
+        // TODO: Queue all of these and send out new file request once current one is done.
+        while (buffer.read < buffer.write) {
+          char* lvz_filename = buffer.ReadString(16);
+          u32 lvz_checksum = buffer.ReadU32();
+          u32 lvz_size = buffer.ReadU32();
+
+          printf("Skipping lvz %s\n", lvz_filename);
         }
       } break;
       case ProtocolS2C::CompressedMap: {
@@ -569,6 +596,10 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 }
 
 void Connection::OnPositionPacket(Player& player, const Vector2f& position) {
+  if (player.position == Vector2f(0, 0) && position != Vector2f(0, 0)) {
+    player.warp_animation.t = 0.0f;
+  }
+
   // TODO: Simulate through map
   Vector2f projected_pos = position + player.velocity * (player.ping / 100.0f);
 

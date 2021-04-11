@@ -46,9 +46,9 @@ struct Vector2f {
     return *this;
   }
 
-  inline bool operator==(const Vector2f& other) { return x == other.x && y == other.y; }
+  inline bool operator==(const Vector2f& other) const { return x == other.x && y == other.y; }
 
-  inline bool operator!=(const Vector2f& other) { return !(x == other.x && y == other.y); }
+  inline bool operator!=(const Vector2f& other) const { return !(x == other.x && y == other.y); }
 
   inline float& operator[](size_t index) { return values[index]; }
 

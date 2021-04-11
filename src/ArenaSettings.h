@@ -189,6 +189,14 @@ struct ShipSettings {
     uint32_t padding2 : 3;
   };
   unsigned char _padding[16];
+
+  float GetRadius() {
+    float result = (float)Radius;
+    if (Radius == 0) {
+      result = 14.0f;
+    }
+    return result / 16.0f;
+  }
 };
 
 // Structure to define the starting coordinates for teams 0-3

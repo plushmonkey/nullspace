@@ -3,6 +3,7 @@
 
 #include "Math.h"
 #include "Types.h"
+#include "render/Animation.h"
 
 namespace null {
 
@@ -51,6 +52,11 @@ struct Player {
   u8 koth;
 
   WeaponData weapon;
+
+  float enter_delay;
+
+  Animation warp_animation;
+  Animation explode_animation;
 };
 
 }  // namespace null
