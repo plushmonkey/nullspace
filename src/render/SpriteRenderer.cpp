@@ -1,9 +1,8 @@
 #include "SpriteRenderer.h"
 
-#include <stb_image.h>
-
 #include <cstdio>
 
+#include "../Image.h"
 #include "../Math.h"
 #include "Camera.h"
 
@@ -93,13 +92,9 @@ bool SpriteRenderer::Initialize(MemoryArena& perm_arena) {
 }
 
 SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f& dimensions, int* count) {
-  FILE* file = fopen(filename, "rb");
+  int width, height;
 
-  int width, height, channels;
-
-  stbi_uc* image = stbi_load_from_file(file, &width, &height, &channels, STBI_rgb_alpha);
-
-  fclose(file);
+  u8* image = ImageLoad(filename, &width, &height);
 
   *count = 0;
 
@@ -122,7 +117,7 @@ SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f
 
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
 
-  stbi_image_free(image);
+  ImageFree(image);
 
   SpriteRenderable* result = renderables + renderable_count;
 

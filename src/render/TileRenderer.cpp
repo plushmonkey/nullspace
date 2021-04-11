@@ -1,11 +1,9 @@
 #include "TileRenderer.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
 #include <cassert>
 #include <cstdio>
 
+#include "../Image.h"
 #include "../Map.h"
 #include "../Math.h"
 #include "../Memory.h"
@@ -106,8 +104,6 @@ void TileRenderer::Render(Camera& camera) {
 }
 
 bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename) {
-  FILE* file = fopen(filename, "rb");
-
   // Create and setup tilemap color texture
   glActiveTexture(GL_TEXTURE0);
   glGenTextures(1, &tilemap_texture);
@@ -120,11 +116,18 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
   glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-  int width, height, comp;
+  int width, height;
 
-  // TODO: Load default tilemap if there's none in the map
-  u32* tilemap = (u32*)stbi_load_from_file(file, &width, &height, &comp, STBI_rgb_alpha);
-  assert(tilemap);
+  u32* tilemap = (u32*)ImageLoad(filename, &width, &height);
+
+  if (!tilemap) {
+    tilemap = (u32*)ImageLoad("graphics/tiles.bm2", &width, &height);
+  }
+
+  if (!tilemap) {
+    fprintf(stderr, "Failed to load tilemap.\n");
+    return false;
+  }
 
   // Create a 3d texture to prevent uv bleed
   glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, 16, 16, 190, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
@@ -149,9 +152,7 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
     }
   }
 
-  stbi_image_free(tilemap);
-
-  fclose(file);
+  ImageFree(tilemap);
 
   // Create and setup tile id data
   glActiveTexture(GL_TEXTURE1);
