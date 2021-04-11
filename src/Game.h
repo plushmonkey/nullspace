@@ -1,6 +1,7 @@
 #ifndef NULLSPACE_GAME_H_
 #define NULLSPACE_GAME_H_
 
+#include "InputState.h"
 #include "net/Connection.h"
 #include "render/Camera.h"
 #include "render/SpriteRenderer.h"
@@ -26,7 +27,7 @@ struct Game {
   Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height);
 
   bool Initialize();
-  void Update(float dt);
+  void Update(const InputState& input, float dt);
   void Render();
 };
 

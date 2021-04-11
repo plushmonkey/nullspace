@@ -51,7 +51,7 @@ bool Game::Initialize() {
   return true;
 }
 
-void Game::Update(float dt) {
+void Game::Update(const InputState& input, float dt) {
   static const Vector2f kBasePosition(512.0f, 512.f);
   static float timer = 0.0f;
 
@@ -65,7 +65,27 @@ void Game::Update(float dt) {
   Player* me = connection.GetPlayerById(connection.player_id);
   if (me) {
     if (me->ship == 8) {
-      me->position = Vector2f(512, 512);
+      float spectate_speed = 30.0f;
+
+      if (input.IsDown(InputAction::Afterburner)) {
+        spectate_speed *= 2.0f;
+      }
+
+      if (input.IsDown(InputAction::Left)) {
+        me->position -= Vector2f(spectate_speed, 0) * dt;
+      }
+
+      if (input.IsDown(InputAction::Right)) {
+        me->position += Vector2f(spectate_speed, 0) * dt;
+      }
+
+      if (input.IsDown(InputAction::Forward)) {
+        me->position -= Vector2f(0, spectate_speed) * dt;
+      }
+
+      if (input.IsDown(InputAction::Backward)) {
+        me->position += Vector2f(0, spectate_speed) * dt;
+      }
     }
 
     camera.position = me->position;
@@ -86,7 +106,8 @@ void Game::Update(float dt) {
 
     if (player->enter_delay > 0.0f) {
       player->enter_delay -= dt;
-      if (player->enter_delay < 0.0f) {
+
+      if (!player->explode_animation.IsAnimating()) {
         player->position = Vector2f(0, 0);
         player->velocity = Vector2f(0, 0);
         player->lerp_time = 0.0f;
@@ -259,7 +280,7 @@ void Simulate(Connection& connection, float dt) {
     waypoint_index = (waypoint_index + 1) % (sizeof(waypoints) / sizeof(*waypoints));
   }
 #else
-  player->position = Vector2f(512, 512);
+    // player->position = Vector2f(512, 512);
 #endif
 }
 
