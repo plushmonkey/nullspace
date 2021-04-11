@@ -50,7 +50,7 @@ void Game::Update(float dt) {
 
   Player* me = connection.GetPlayerById(connection.player_id);
   if (me) {
-    me->position = Vector2f(512 + 35, 512 + 35);
+    me->position = Vector2f(512, 512);
     camera.position = me->position;
   }
 
@@ -66,10 +66,12 @@ void Game::Update(float dt) {
 void Game::Render() {
   Player* me = connection.GetPlayerById(connection.player_id);
 
+  // Draw player ships and player names
   for (size_t i = 0; i < connection.player_count; ++i) {
     Player* player = connection.players + i;
 
     if (player->ship == 8) continue;
+    if (player->position == Vector2f(0, 0)) continue;
 
     size_t index = player->ship * 40 + player->direction;
     float radius = connection.settings.ShipSettings[player->ship].Radius / 16.0f;

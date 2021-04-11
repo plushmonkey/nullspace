@@ -392,6 +392,17 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         }
       } break;
       case ProtocolS2C::PlayerDeath: {
+        u8 green_id = buffer.ReadU8();
+        u16 killer_id = buffer.ReadU16();
+        u16 killed_id = buffer.ReadU16();
+
+        Player* player = GetPlayerById(killed_id);
+        if (player) {
+          // Hide the player until they send a new position packet
+          player->position = Vector2f(0, 0);
+          player->velocity = Vector2f(0, 0);
+          player->lerp_time = 0.0f;
+        }
       } break;
       case ProtocolS2C::Chat: {
         u8 type = buffer.ReadU8();
@@ -477,6 +488,11 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         if (player) {
           player->ship = ship;
           player->frequency = freq;
+
+          // Hide the player until they send a new position packet
+          player->position = Vector2f(0, 0);
+          player->velocity = Vector2f(0, 0);
+          player->lerp_time = 0.0f;
         }
       } break;
       case ProtocolS2C::BrickDropped: {
@@ -556,8 +572,17 @@ void Connection::OnPositionPacket(Player& player, const Vector2f& position) {
   // TODO: Simulate through map
   Vector2f projected_pos = position + player.velocity * (player.ping / 100.0f);
 
-  player.lerp_time = 100.0f / 1000.0f;
-  player.lerp_velocity = (projected_pos - player.position) * (1.0f / player.lerp_time);
+  float abs_dx = abs(projected_pos.x - player.position.x);
+  float abs_dy = abs(projected_pos.y - player.position.y);
+
+  // Jump to the position if very out of sync
+  if (abs_dx >= 4.0f || abs_dy >= 4.0f) {
+    player.position = projected_pos;
+    player.lerp_time = 0.0f;
+  } else {
+    player.lerp_time = 200.0f / 1000.0f;
+    player.lerp_velocity = (projected_pos - player.position) * (1.0f / player.lerp_time);
+  }
 }
 
 // TODO: Move into player manager
