@@ -8,7 +8,7 @@ namespace null {
 struct SpriteRenderable {
   Vector2f uvs[4];
   Vector2f dimensions;
-  unsigned int texture;
+  unsigned int texture = -1;
 };
 
 }  // namespace null

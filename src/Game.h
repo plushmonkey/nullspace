@@ -20,6 +20,7 @@ struct Game {
   TileRenderer tile_renderer;
   SpriteRenderer sprite_renderer;
   float fps;
+  bool render_radar = false;
 
   SpriteRenderable* ship_sprites = nullptr;
   SpriteRenderable* spectate_sprites = nullptr;

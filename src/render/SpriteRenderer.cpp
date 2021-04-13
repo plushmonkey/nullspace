@@ -1,5 +1,6 @@
 #include "SpriteRenderer.h"
 
+#include <cassert>
 #include <cstdio>
 
 #include "../Image.h"
@@ -83,6 +84,7 @@ bool SpriteRenderer::Initialize(MemoryArena& perm_arena) {
   mvp_uniform = glGetUniformLocation(shader.program, "mvp");
   color_uniform = glGetUniformLocation(shader.program, "color_sampler");
 
+  shader.Use();
   glUniform1i(color_uniform, 0);
 
   int count = 0;
@@ -101,6 +103,8 @@ SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f
   if (!image) {
     return nullptr;
   }
+
+  assert(glGetError() == 0);
 
   size_t texture_index = texture_count++;
   GLuint* texture_id = textures + texture_index;
@@ -137,6 +141,7 @@ SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f
     }
   }
 
+  assert(glGetError() == 0);
   return result;
 }
 
@@ -200,6 +205,7 @@ void SpriteRenderer::Draw(Camera& camera, const SpriteRenderable& renderable, co
 }
 
 void SpriteRenderer::Render(Camera& camera) {
+  assert(glGetError() == 0);
   shader.Use();
   glBindVertexArray(vao);
 
@@ -241,6 +247,7 @@ void SpriteRenderer::Render(Camera& camera) {
   }
 
   push_buffer.Reset();
+  assert(glGetError() == 0);
 }
 
 }  // namespace null

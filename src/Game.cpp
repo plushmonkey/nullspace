@@ -92,7 +92,13 @@ void Game::Update(const InputState& input, float dt) {
   }
 
   if (tile_renderer.tilemap_texture == -1 && connection.login_state == Connection::LoginState::Complete) {
-    tile_renderer.CreateMapBuffer(temp_arena, connection.map_handler.filename);
+    if (!tile_renderer.CreateMapBuffer(temp_arena, connection.map_handler.filename, ui_camera.surface_dim)) {
+      fprintf(stderr, "Failed to create map/radar.\n");
+    }
+
+    if (me) {
+      me->position = Vector2f(512, 512);
+    }
   }
 
   for (size_t i = 0; i < connection.player_count; ++i) {
@@ -123,6 +129,8 @@ void Game::Update(const InputState& input, float dt) {
       player->lerp_time -= timestep;
     }
   }
+
+  render_radar = input.IsDown(InputAction::DisplayMap);
 }
 
 void Game::Render() {
@@ -163,6 +171,39 @@ void Game::Render() {
 
   tile_renderer.Render(camera);
   sprite_renderer.Render(camera);
+
+  if (tile_renderer.radar_renderable.texture != -1 && me) {
+    SpriteRenderable& radar_renderable = tile_renderer.radar_renderable;
+    float border = 8.0f;
+
+    if (render_radar) {
+      Vector2f position = ui_camera.surface_dim - radar_renderable.dimensions - Vector2f(border, border);
+      sprite_renderer.Draw(ui_camera, radar_renderable, position);
+    } else {
+      // calculate uvs for displayable map
+      SpriteRenderable visible;
+      visible.texture = radar_renderable.texture;
+      // TODO: find real width
+      float dim = ui_camera.surface_dim.x * 0.165f;
+      // TODO: mapzoom
+      float range = 65.0f;
+      Vector2f min = me->position - Vector2f(range, range);
+      Vector2f max = me->position + Vector2f(range, range);
+
+      min = min * (1.0f / 1024.0f);
+      max = max * (1.0f / 1024.0f);
+
+      visible.dimensions = Vector2f(dim, dim);
+      visible.uvs[0] = Vector2f(min.x, min.y);
+      visible.uvs[1] = Vector2f(max.x, min.y);
+      visible.uvs[2] = Vector2f(min.x, max.y);
+      visible.uvs[3] = Vector2f(max.x, max.y);
+
+      Vector2f position = ui_camera.surface_dim - Vector2f(dim, dim) - Vector2f(border, border);
+
+      sprite_renderer.Draw(ui_camera, visible, position);
+    }
+  }
 
   // TODO: Move all of this out
 

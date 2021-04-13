@@ -122,7 +122,7 @@ struct nullspace {
   nullspace() : perm_arena(nullptr, 0), trans_arena(nullptr, 0) {}
 
   bool Initialize() {
-    constexpr int kWidth = 1360;
+    constexpr int kWidth = 1366;
     constexpr int kHeight = 768;
 
     constexpr size_t kPermanentSize = Megabytes(64);
