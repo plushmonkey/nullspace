@@ -163,6 +163,7 @@
     <ClCompile Include="lib\glfw\src\win32_window.c" />
     <ClCompile Include="lib\glfw\src\window.c" />
     <ClCompile Include="src\Buffer.cpp" />
+    <ClCompile Include="src\ChatController.cpp" />
     <ClCompile Include="src\Image.cpp" />
     <ClCompile Include="src\net\Checksum.cpp" />
     <ClCompile Include="src\Game.cpp" />
@@ -174,6 +175,7 @@
     <ClCompile Include="src\Memory.cpp" />
     <ClCompile Include="src\net\Connection.cpp" />
     <ClCompile Include="src\net\Crypt.cpp" />
+    <ClCompile Include="src\net\PacketDispatcher.cpp" />
     <ClCompile Include="src\net\PacketSequencer.cpp" />
     <ClCompile Include="src\render\Shader.cpp" />
     <ClCompile Include="src\render\SpriteRenderer.cpp" />
@@ -183,6 +185,7 @@
   <ItemGroup>
     <ClInclude Include="src\ArenaSettings.h" />
     <ClInclude Include="src\Buffer.h" />
+    <ClInclude Include="src\ChatController.h" />
     <ClInclude Include="src\Image.h" />
     <ClInclude Include="src\InputState.h" />
     <ClInclude Include="src\net\Checksum.h" />
@@ -194,6 +197,7 @@
     <ClInclude Include="src\net\Crypt.h" />
     <ClInclude Include="src\Memory.h" />
     <ClInclude Include="src\net\Connection.h" />
+    <ClInclude Include="src\net\PacketDispatcher.h" />
     <ClInclude Include="src\net\PacketSequencer.h" />
     <ClInclude Include="src\net\Protocol.h" />
     <ClInclude Include="src\Player.h" />

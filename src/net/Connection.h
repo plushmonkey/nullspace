@@ -6,6 +6,7 @@
 #include "../MapHandler.h"
 #include "../Types.h"
 #include "Crypt.h"
+#include "PacketDispatcher.h"
 #include "PacketSequencer.h"
 
 // TODO: Move out of connection
@@ -50,6 +51,7 @@ struct Connection {
   bool connected = false;
   MemoryArena& temp_arena;
   ContinuumEncrypt encrypt;
+  PacketDispatcher& dispatcher;
 
   PacketSequencer packet_sequencer;
   NetworkBuffer buffer;
@@ -74,7 +76,7 @@ struct Connection {
 
   u16 player_id = 0;
 
-  Connection(MemoryArena& perm_arena, MemoryArena& temp_arena);
+  Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, PacketDispatcher& dispatcher);
 
   ConnectResult Connect(const char* ip, u16 port);
   void Disconnect();

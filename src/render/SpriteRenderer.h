@@ -22,6 +22,9 @@ enum class TextAlignment { Left, Center, Right };
 // same sheet together is ideal.
 struct SpriteRenderer {
   MemoryArena push_buffer;
+  // Store the texture and the vertex data in separate push buffers so batch pushing is simplified.
+  MemoryArena texture_push_buffer;
+
   ShaderProgram shader;
 
   GLint color_uniform = -1;

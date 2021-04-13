@@ -38,7 +38,7 @@ ServerInfo kServers[] = {
 
 constexpr size_t kServerIndex = 0;
 
-static_assert(kServerIndex < sizeof(kServers) / sizeof(*kServers), "Bad server index");
+static_assert(kServerIndex < NULLSPACE_ARRAY_SIZE(kServers), "Bad server index");
 
 const char* kServerIp = kServers[kServerIndex].server;
 const u16 kServerPort = kServers[kServerIndex].port;
@@ -85,17 +85,37 @@ const ActionKey kDefaultKeys[] = {
     ActionKey(InputAction::Play, GLFW_KEY_F11),
     ActionKey(InputAction::DisplayMap, GLFW_KEY_LEFT_ALT),
     ActionKey(InputAction::DisplayMap, GLFW_KEY_RIGHT_ALT),
+    ActionKey(InputAction::ChatDisplay, GLFW_KEY_ESCAPE),
 };
 
 struct WindowState {
   InputState input;
 };
 
+void OnCharacter(GLFWwindow* window, unsigned int codepoint) {
+  if (codepoint < 256) {
+    WindowState* window_state = (WindowState*)glfwGetWindowUserPointer(window);
+
+    window_state->input.OnCharacter((char)codepoint);
+  }
+}
+
 void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_action, int mods) {
   WindowState* window_state = (WindowState*)glfwGetWindowUserPointer(window);
 
+  // Specifically handle certain keys for os repeat control
+  if (key == GLFW_KEY_BACKSPACE && key_action != GLFW_RELEASE) {
+    window_state->input.OnCharacter(NULLSPACE_KEY_BACKSPACE, (mods & GLFW_MOD_CONTROL) != 0);
+  } else if (key == GLFW_KEY_ENTER && key_action == GLFW_PRESS) {
+    window_state->input.OnCharacter(NULLSPACE_KEY_ENTER, (mods & GLFW_MOD_CONTROL) != 0);
+  } else if (key == GLFW_KEY_ESCAPE && key_action != GLFW_RELEASE) {
+    window_state->input.OnCharacter(NULLSPACE_KEY_ESCAPE, (mods & GLFW_MOD_CONTROL) != 0);
+  } else if (key == GLFW_KEY_V && key_action != GLFW_RELEASE) {
+    window_state->input.OnCharacter('v', (mods & GLFW_MOD_CONTROL) != 0);
+  }
+
   const ActionKey* action = nullptr;
-  for (size_t i = 0; i < sizeof(kDefaultKeys) / sizeof(*kDefaultKeys); ++i) {
+  for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(kDefaultKeys); ++i) {
     int req_mods = kDefaultKeys[i].mods;
     if (kDefaultKeys[i].key == key && (req_mods & mods) == req_mods) {
       action = kDefaultKeys + i;
@@ -152,7 +172,7 @@ struct nullspace {
 
     game = memory_arena_construct_type(&perm_arena, Game, perm_arena, trans_arena, kWidth, kHeight);
 
-    if (!game->Initialize()) {
+    if (!game->Initialize(window_state.input)) {
       fprintf(stderr, "Failed to create game\n");
       return false;
     }
@@ -250,6 +270,7 @@ struct nullspace {
     glfwSwapInterval(kVerticalSync);
     glfwSetWindowUserPointer(window, &window_state);
     glfwSetKeyCallback(window, OnKeyboardChange);
+    glfwSetCharCallback(window, OnCharacter);
 
     return window;
   }

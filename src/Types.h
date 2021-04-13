@@ -6,6 +6,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#define NULLSPACE_ARRAY_SIZE(a) (sizeof(a) / sizeof(*a))
+
 namespace null {
 
 using s8 = int8_t;

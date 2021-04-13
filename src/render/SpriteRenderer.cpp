@@ -9,8 +9,6 @@
 
 namespace null {
 
-constexpr size_t kPushBufferSize = Megabytes(32);
-
 struct SpriteVertex {
   Vector2f position;
   Vector2f uv;
@@ -19,9 +17,11 @@ struct SpriteVertex {
 };
 
 struct SpritePushElement {
-  GLuint texture;
   SpriteVertex vertices[6];
 };
+
+constexpr size_t kPushBufferSize = Megabytes(16);
+constexpr size_t kTextureBufferSize = kPushBufferSize / sizeof(SpriteVertex);
 
 const char* kSpriteVertexShaderCode = R"(
 #version 330
@@ -59,6 +59,7 @@ void main() {
 
 bool SpriteRenderer::Initialize(MemoryArena& perm_arena) {
   this->push_buffer = perm_arena.CreateArena(kPushBufferSize);
+  this->texture_push_buffer = perm_arena.CreateArena(kTextureBufferSize);
 
   if (!shader.Initialize(kSpriteVertexShaderCode, kSpriteFragmentShaderCode)) {
     fprintf(stderr, "Failed to create sprite shader.\n");
@@ -169,6 +170,7 @@ void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color,
       continue;
     }
 
+    // TODO: fontf
     if (c < ' ' || c > '~') {
       c = '?';
     }
@@ -181,10 +183,11 @@ void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color,
 
 void SpriteRenderer::Draw(Camera& camera, const SpriteRenderable& renderable, const Vector2f& position) {
   SpritePushElement* element = memory_arena_push_type(&push_buffer, SpritePushElement);
+  GLuint* texture_storage = memory_arena_push_type(&texture_push_buffer, GLuint);
+
+  *texture_storage = renderable.texture;
 
   Vector2f dimensions = renderable.dimensions * camera.scale;
-  element->texture = renderable.texture;
-
   element->vertices[0].position = position;
   element->vertices[0].uv = renderable.uvs[0];
 
@@ -219,34 +222,39 @@ void SpriteRenderer::Render(Camera& camera) {
   glUniformMatrix4fv(mvp_uniform, 1, GL_FALSE, (const GLfloat*)mvp.data);
 
   SpritePushElement* element = (SpritePushElement*)push_buffer.base;
-  GLuint current_texture = element->texture;
+  GLuint* texture_ptr = (GLuint*)texture_push_buffer.base;
+
+  GLuint current_texture = *texture_ptr;
   GLsizei vertex_count = 0;
   glBindTexture(GL_TEXTURE_2D, current_texture);
 
-  while (element < (SpritePushElement*)push_buffer.current) {
-    if (element->texture != current_texture) {
-      glDrawArrays(GL_TRIANGLES, 0, vertex_count);
-      glBindTexture(GL_TEXTURE_2D, element->texture);
+  void* draw_base = push_buffer.base;
 
-      current_texture = element->texture;
+  while (element < (SpritePushElement*)push_buffer.current) {
+    GLuint element_texture = *texture_ptr;
+
+    if (element_texture != current_texture) {
+      glBufferSubData(GL_ARRAY_BUFFER, 0, vertex_count * sizeof(SpriteVertex), draw_base);
+      glDrawArrays(GL_TRIANGLES, 0, vertex_count);
+      glBindTexture(GL_TEXTURE_2D, element_texture);
+
+      current_texture = element_texture;
+      draw_base = element;
       vertex_count = 0;
     }
 
-    GLintptr offset = vertex_count * sizeof(SpriteVertex);
-    // TODO: Is it legal to overwrite the buffer immediately after calling glDrawArrays?
-    // Does the driver always copy during glDrawArrays?
-    // It seems to work for this low workload and my specific driver setup.
-    glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(SpriteVertex) * 6, element->vertices);
-
     vertex_count += 6;
     ++element;
+    ++texture_ptr;
   }
 
   if (vertex_count > 0) {
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertex_count * sizeof(SpriteVertex), draw_base);
     glDrawArrays(GL_TRIANGLES, 0, vertex_count);
   }
 
   push_buffer.Reset();
+  texture_push_buffer.Reset();
   assert(glGetError() == 0);
 }
 

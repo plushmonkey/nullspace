@@ -51,8 +51,9 @@ const char* kLoginResponses[] = {"Ok",
                                  "Demo versions not allowed",
                                  "Restricted zone, mod access required"};
 
-Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena)
-    : remote_addr(),
+Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, PacketDispatcher& dispatcher)
+    : dispatcher(dispatcher),
+      remote_addr(),
       buffer(perm_arena, kMaxPacketSize),
       temp_arena(temp_arena),
       packet_sequencer(perm_arena, temp_arena),
@@ -593,6 +594,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
     }
   }
+
+  dispatcher.Dispatch(pkt, size);
 }
 
 void Connection::OnPositionPacket(Player& player, const Vector2f& position) {
