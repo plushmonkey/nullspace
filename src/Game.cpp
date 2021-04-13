@@ -193,8 +193,8 @@ void Game::Render() {
       visible.texture = radar_renderable.texture;
       // TODO: find real width
       float dim = ui_camera.surface_dim.x * 0.165f;
-      // TODO: mapzoom
-      float range = 65.0f;
+      u16 map_zoom = connection.settings.MapZoomFactor;
+      float range = (map_zoom / 48.0f) * 512.0f;
 
       Vector2f center = me->position;
 
@@ -227,8 +227,7 @@ void Game::Render() {
   if (connection.login_state == Connection::LoginState::MapDownload) {
     char downloading[64];
 
-    sprite_renderer.Draw(ui_camera, ship_sprites[0],
-                         ui_camera.surface_dim * 0.5f - Vector2f(14.0f / 16.0f, 14.0f / 16.0f));
+    sprite_renderer.Draw(ui_camera, ship_sprites[0], ui_camera.surface_dim * 0.5f - ship_sprites[0].dimensions * 0.5f);
 
     int percent =
         (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map_handler.compressed_size);
@@ -236,6 +235,12 @@ void Game::Render() {
     sprintf(downloading, "Downloading level: %d%%", percent);
     Vector2f download_pos(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
     sprite_renderer.DrawText(ui_camera, downloading, TextColor::Blue, download_pos, TextAlignment::Center);
+  } else if (connection.login_state < Connection::LoginState::MapDownload) {
+    sprite_renderer.Draw(ui_camera, ship_sprites[0], ui_camera.surface_dim * 0.5f - ship_sprites[0].dimensions * 0.5f);
+
+    Vector2f position(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
+
+    sprite_renderer.DrawText(ui_camera, "Entering arena", TextColor::Blue, position, TextAlignment::Center);
   }
 
   if (me && connection.login_state == Connection::LoginState::Complete) {
