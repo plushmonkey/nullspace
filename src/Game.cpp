@@ -130,6 +130,14 @@ void Game::Update(const InputState& input, float dt) {
     }
   }
 
+  // Cap player and spectator camera to playable area
+  if (me) {
+    if (me->position.x < 0) me->position.x = 0;
+    if (me->position.y < 0) me->position.y = 0;
+    if (me->position.x > 1023) me->position.x = 1023;
+    if (me->position.y > 1023) me->position.y = 1023;
+  }
+
   render_radar = input.IsDown(InputAction::DisplayMap);
 }
 
@@ -187,8 +195,17 @@ void Game::Render() {
       float dim = ui_camera.surface_dim.x * 0.165f;
       // TODO: mapzoom
       float range = 65.0f;
-      Vector2f min = me->position - Vector2f(range, range);
-      Vector2f max = me->position + Vector2f(range, range);
+
+      Vector2f center = me->position;
+
+      // Cap the radar to map range
+      if (center.x - range < 0) center.x = range;
+      if (center.y - range < 0) center.y = range;
+      if (center.x + range > 1024) center.x = 1024 - range;
+      if (center.y + range > 1024) center.y = 1024 - range;
+
+      Vector2f min = center - Vector2f(range, range);
+      Vector2f max = center + Vector2f(range, range);
 
       min = min * (1.0f / 1024.0f);
       max = max * (1.0f / 1024.0f);
