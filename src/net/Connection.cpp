@@ -294,6 +294,9 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         printf("Successfully joined game.\n");
       } break;
       case ProtocolS2C::PlayerEntering: {
+        // Skip the entire packet so the next one can be read if it exists
+        buffer.ReadString(63);
+
         if (buffer.read < buffer.write) {
           ProcessPacket(buffer.read, (size_t)(buffer.write - buffer.read));
         }
