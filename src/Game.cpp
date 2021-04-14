@@ -24,9 +24,11 @@ void OnCharacterPress(void* user, char c, bool control) {
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height)
     : perm_arena(perm_arena),
       temp_arena(temp_arena),
+      animation(),
       dispatcher(),
       connection(perm_arena, temp_arena, dispatcher),
       player_manager(connection, dispatcher),
+      weapon_manager(connection, player_manager, dispatcher, animation),
       camera(Vector2f((float)width, (float)height), Vector2f(512, 512), 1.0f / 16.0f),
       ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),
       fps(60.0f),
@@ -57,6 +59,8 @@ bool Game::Initialize(InputState& input) {
   explosion_sprite.frame_count = count;
   explosion_sprite.duration = 1.0f;
 
+  weapon_manager.Initialize(sprite_renderer);
+
   input.SetCallback(OnCharacterPress, this);
 
   return true;
@@ -71,7 +75,10 @@ void Game::Update(const InputState& input, float dt) {
     fps = fps * 0.99f + (1.0f / dt) * 0.01f;
   }
 
+  animation.Update(dt);
+
   player_manager.Update(dt);
+  weapon_manager.Update(dt);
 
   Simulate(connection, player_manager, dt);
 
@@ -156,6 +163,8 @@ void Game::Update(const InputState& input, float dt) {
 }
 
 void Game::Render() {
+  tile_renderer.Render(camera);
+
   Player* me = player_manager.GetSelf();
 
   // Draw player ships
@@ -171,10 +180,9 @@ void Game::Render() {
       sprite_renderer.Draw(camera, renderable, player->position - renderable.dimensions * (0.5f * 1.0f / 16.0f));
     } else if (player->enter_delay <= 0.0f) {
       size_t index = player->ship * 40 + player->direction;
-      float radius = connection.settings.ShipSettings[player->ship].GetRadius();
 
-      sprite_renderer.Draw(camera, ship_sprites[index], player->position - Vector2f(radius, radius));
-      radius += 2.0f / 16.0f;
+      sprite_renderer.Draw(camera, ship_sprites[index],
+                           player->position - ship_sprites[index].dimensions * (0.5f / 16.0f));
 
       if (player->warp_animation.IsAnimating()) {
         SpriteRenderable& renderable = player->warp_animation.GetFrame();
@@ -203,7 +211,9 @@ void Game::Render() {
     }
   }
 
-  tile_renderer.Render(camera);
+  animation.Render(camera, sprite_renderer);
+  weapon_manager.Render(camera, sprite_renderer);
+
   sprite_renderer.Render(camera);
 
   if (tile_renderer.radar_renderable.texture != -1 && me) {

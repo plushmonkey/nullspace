@@ -5,12 +5,28 @@
 
 #include "Buffer.h"
 #include "Inflate.h"
+#include "Platform.h"
 #include "net/Checksum.h"
 #include "net/Connection.h"
 
 // TODO: Is filename always null terminated?
 
 namespace null {
+
+extern const char* kServerName;
+const char* zone_folder = "zones";
+
+void GetFilePath(char* buffer, const char* filename) {
+  sprintf(buffer, "%s/%s/%s", zone_folder, kServerName, filename);
+}
+
+void CreateZoneFolder() {
+  char path[260];
+
+  CreateFolder(zone_folder);
+  sprintf(path, "%s/%s", zone_folder, kServerName);
+  CreateFolder(path);
+}
 
 bool MapHandler::OnMapInformation(Connection& connection, u8* pkt, size_t size) {
   NetworkBuffer buffer(pkt, size, size);
@@ -21,7 +37,12 @@ bool MapHandler::OnMapInformation(Connection& connection, u8* pkt, size_t size) 
   // TODO: Store this somewhere so it can be compared while downloading huge chunks for progress percent
   compressed_size = buffer.ReadU32();
 
-  FILE* file = fopen(filename, "rb");
+  char path[260];
+
+  CreateZoneFolder();
+  GetFilePath(path, filename);
+
+  FILE* file = fopen(path, "rb");
 
   if (file) {
     // Read the file and check crc against server-provided checksum.
@@ -39,19 +60,19 @@ bool MapHandler::OnMapInformation(Connection& connection, u8* pkt, size_t size) 
     u32 crc = crc32(file_data, file_size);
 
     if (crc != checksum) {
-      remove(filename);
+      remove(path);
     }
   }
 
   // Try to load the file. If the crc didn't match above then it will request the map data
-  if (!map.Load(perm_arena, filename)) {
+  if (!map.Load(perm_arena, path)) {
     u8 request = 0x0c;
     connection.Send(&request, 1);
     printf("Downloading map.\n");
     return false;
   }
 
-  strcpy(this->filename, filename);
+  strcpy(this->filename, path);
 
   return true;
 }
@@ -83,21 +104,24 @@ bool MapHandler::OnCompressedMap(Connection& connection, u8* pkt, size_t size) {
     return false;
   }
 
-  FILE* file = fopen(filename, "wb");
+  char path[260];
+  GetFilePath(path, filename);
+
+  FILE* file = fopen(path, "wb");
 
   if (!file) {
-    fprintf(stderr, "Failed to open map %s for writing.\n", filename);
+    fprintf(stderr, "Failed to open map %s for writing.\n", path);
     return false;
   }
 
   fwrite(uncompressed, 1, uncompressed_size, file);
   fclose(file);
 
-  strcpy(this->filename, filename);
+  strcpy(this->filename, path);
 
   temp_arena.Revert(snapshot);
 
-  return map.Load(perm_arena, filename);
+  return map.Load(perm_arena, path);
 }
 
 }  // namespace null

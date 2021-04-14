@@ -177,11 +177,14 @@
     <ClCompile Include="src\net\Crypt.cpp" />
     <ClCompile Include="src\net\PacketDispatcher.cpp" />
     <ClCompile Include="src\net\PacketSequencer.cpp" />
+    <ClCompile Include="src\Platform.cpp" />
     <ClCompile Include="src\PlayerManager.cpp" />
+    <ClCompile Include="src\render\Animation.cpp" />
     <ClCompile Include="src\render\Shader.cpp" />
     <ClCompile Include="src\render\SpriteRenderer.cpp" />
     <ClCompile Include="src\render\TileRenderer.cpp" />
     <ClCompile Include="src\Tick.cpp" />
+    <ClCompile Include="src\WeaponManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\ArenaSettings.h" />
@@ -201,6 +204,7 @@
     <ClInclude Include="src\net\PacketDispatcher.h" />
     <ClInclude Include="src\net\PacketSequencer.h" />
     <ClInclude Include="src\net\Protocol.h" />
+    <ClInclude Include="src\Platform.h" />
     <ClInclude Include="src\Player.h" />
     <ClInclude Include="lib\stb_image.h" />
     <ClInclude Include="src\PlayerManager.h" />
@@ -213,6 +217,7 @@
     <ClInclude Include="src\Tick.h" />
     <ClInclude Include="src\Types.h" />
     <ClInclude Include="src\Math.h" />
+    <ClInclude Include="src\WeaponManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

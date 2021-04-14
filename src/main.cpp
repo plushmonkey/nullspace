@@ -25,21 +25,23 @@ const char* kPlayerName = "nullspace";
 const char* kPlayerPassword = "none";
 
 struct ServerInfo {
+  const char* name;
   const char* server;
   u16 port;
 };
 
 ServerInfo kServers[] = {
-    {"127.0.0.1", 5000},       // Local
-    {"192.168.0.13", 5001},    // Subgame
-    {"162.248.95.143", 5005},  // Hyperspace
-    {"69.164.220.203", 7022},  // Devastation
+    {"local", "127.0.0.1", 5000},
+    {"subgame", "192.168.0.13", 5001},
+    {"SSCE Hyperspace", "162.248.95.143", 5005},
+    {"SSCJ Devastation", "69.164.220.203", 7022},
 };
 
 constexpr size_t kServerIndex = 0;
 
 static_assert(kServerIndex < NULLSPACE_ARRAY_SIZE(kServers), "Bad server index");
 
+const char* kServerName = kServers[kServerIndex].name;
 const char* kServerIp = kServers[kServerIndex].server;
 const u16 kServerPort = kServers[kServerIndex].port;
 

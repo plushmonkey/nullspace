@@ -15,37 +15,37 @@ namespace null {
 extern AnimatedSprite explosion_sprite;
 extern AnimatedSprite warp_sprite;
 
-void OnPlayerIdPkt(void* user, u8* pkt, size_t size) {
+static void OnPlayerIdPkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
   manager->OnPlayerIdChange(pkt, size);
 }
 
-void OnPlayerEnterPkt(void* user, u8* pkt, size_t size) {
+static void OnPlayerEnterPkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
   manager->OnPlayerEnter(pkt, size);
 }
 
-void OnPlayerLeavePkt(void* user, u8* pkt, size_t size) {
+static void OnPlayerLeavePkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
   manager->OnPlayerLeave(pkt, size);
 }
 
-void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
+static void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
   manager->OnPlayerFreqAndShipChange(pkt, size);
 }
 
-void OnLargePositionPkt(void* user, u8* pkt, size_t size) {
+static void OnLargePositionPkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
   manager->OnLargePositionPacket(pkt, size);
 }
 
-void OnSmallPositionPkt(void* user, u8* pkt, size_t size) {
+static void OnSmallPositionPkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
   manager->OnSmallPositionPacket(pkt, size);
 }
 
-void OnPlayerDeathPkt(void* user, u8* pkt, size_t size) {
+static void OnPlayerDeathPkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
   manager->OnPlayerDeath(pkt, size);
 }

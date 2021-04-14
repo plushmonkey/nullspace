@@ -156,6 +156,13 @@ inline Vector2f Normalize(const Vector2f& v) {
   return v;
 }
 
+inline Vector2f Rotate(const Vector2f& vec, float rads) {
+  float cosA = cos(rads);
+  float sinA = sin(rads);
+
+  return Vector2f(cosA * vec.x - sinA * vec.y, sinA * vec.x + cosA * vec.y);
+}
+
 struct Vector3f {
   union {
     struct {

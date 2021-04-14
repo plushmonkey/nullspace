@@ -3,14 +3,13 @@
 #include <cstdio>
 #include <cstring>
 
+#include "Platform.h"
 #include "PlayerManager.h"
 #include "Tick.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
 #include "render/Camera.h"
 #include "render/SpriteRenderer.h"
-
-void PasteClipboard(char* dest, size_t available_size);
 
 namespace null {
 
@@ -19,7 +18,7 @@ constexpr u32 namelen = 10;
 constexpr float kFontWidth = 8.0f;
 constexpr float kFontHeight = 12.0f;
 
-void OnChatPacketRaw(void* user, u8* packet, size_t size) {
+static void OnChatPacketRaw(void* user, u8* packet, size_t size) {
   ChatController* controller = (ChatController*)user;
 
   controller->OnChatPacket(packet, size);
@@ -419,43 +418,4 @@ ChatType ChatController::GetInputType() {
   return ChatType::Public;
 }
 
-inline bool IsValidCharacter(char c) {
-  // TODO: fontf
-  return c >= ' ' && c <= '~';
-}
-
 }  // namespace null
-
-#ifdef _WIN32
-#ifdef APIENTRY
-// Fix warning with glad definition
-#undef APIENTRY
-#endif
-
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-
-void PasteClipboard(char* dest, size_t available_size) {
-  if (OpenClipboard(NULL)) {
-    if (IsClipboardFormatAvailable(CF_TEXT)) {
-      HANDLE handle = GetClipboardData(CF_TEXT);
-      char* data = (char*)GlobalLock(handle);
-
-      if (data) {
-        for (size_t i = 0; i < available_size && data[i]; ++i, ++dest) {
-          if (null::IsValidCharacter(data[i])) {
-            *dest = data[i];
-          }
-        }
-        *dest = 0;
-
-        GlobalUnlock(data);
-      }
-    }
-
-    CloseClipboard();
-  }
-}
-#else
-void PasteClipboard(char* dest, size_t available_size) {}
-#endif

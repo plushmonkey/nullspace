@@ -13,7 +13,7 @@ struct MapHandler {
   MemoryArena& perm_arena;
   MemoryArena& temp_arena;
 
-  char filename[20] = {};
+  char filename[260] = {};
   Map map;
   u32 checksum = 0;
   u32 compressed_size = 0;
