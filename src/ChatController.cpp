@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "PlayerManager.h"
 #include "Tick.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
@@ -24,14 +25,15 @@ void OnChatPacketRaw(void* user, u8* packet, size_t size) {
   controller->OnChatPacket(packet, size);
 }
 
-ChatController::ChatController(PacketDispatcher& dispatcher, Connection& connection) : connection(connection) {
+ChatController::ChatController(PacketDispatcher& dispatcher, Connection& connection, PlayerManager& player_manager)
+    : connection(connection), player_manager(player_manager) {
   dispatcher.Register(ProtocolS2C::Chat, OnChatPacketRaw, this);
 }
 
 void ChatController::SendInput() {
   if (input[0] == 0) return;
 
-  Player* player = connection.GetPlayerById(connection.player_id);
+  Player* player = player_manager.GetSelf();
   if (player == nullptr) return;
 
   u8 data[kMaxPacketSize];
@@ -277,9 +279,9 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
           float skip = strlen(output) * kFontWidth;
           renderer.DrawText(camera, output, TextColor::Green, Vector2f(0, y + j * kFontHeight));
 
-          sprintf(output, "%*s> %.*s", namelen, entry->sender, length, span->begin);
+          sprintf(output, "%.*s", length, span->begin);
 
-          renderer.DrawText(camera, output, TextColor::Blue, Vector2f(0, y + j * kFontHeight));
+          renderer.DrawText(camera, output, TextColor::Blue, Vector2f(skip, y + j * kFontHeight));
         }
       } break;
       case ChatType::Private: {
@@ -364,7 +366,7 @@ void ChatController::OnChatPacket(u8* packet, size_t size) {
 
   ChatEntry* entry = PushEntry((char*)packet + 5, size - 5, type);
 
-  Player* player = connection.GetPlayerById(sender_id);
+  Player* player = player_manager.GetPlayerById(sender_id);
   if (player) {
     memcpy(entry->sender, player->name, 20);
   }

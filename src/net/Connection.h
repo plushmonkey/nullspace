@@ -9,9 +9,6 @@
 #include "PacketDispatcher.h"
 #include "PacketSequencer.h"
 
-// TODO: Move out of connection
-#include "../Player.h"
-
 namespace null {
 enum class ConnectResult { Success, ErrorSocket, ErrorAddrInfo, ErrorConnect };
 
@@ -71,11 +68,6 @@ struct Connection {
   u32 last_position_tick = 0;
   LoginState login_state = LoginState::EncryptionRequested;
 
-  size_t player_count = 0;
-  Player players[1024];
-
-  u16 player_id = 0;
-
   Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, PacketDispatcher& dispatcher);
 
   ConnectResult Connect(const char* ip, u16 port);
@@ -90,12 +82,8 @@ struct Connection {
   void ProcessPacket(u8* pkt, size_t size);
 
   void OnMapLoad(const char* filename);
-  void SendPositionPacket();
   void SendSecurityPacket();
   void SendSyncTimeRequestPacket(bool reliable);
-  void OnPositionPacket(Player& player, const Vector2f& position);
-
-  Player* GetPlayerById(u16 id, size_t* index = nullptr);
 };
 
 }  // namespace null

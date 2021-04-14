@@ -177,6 +177,7 @@
     <ClCompile Include="src\net\Crypt.cpp" />
     <ClCompile Include="src\net\PacketDispatcher.cpp" />
     <ClCompile Include="src\net\PacketSequencer.cpp" />
+    <ClCompile Include="src\PlayerManager.cpp" />
     <ClCompile Include="src\render\Shader.cpp" />
     <ClCompile Include="src\render\SpriteRenderer.cpp" />
     <ClCompile Include="src\render\TileRenderer.cpp" />
@@ -202,6 +203,7 @@
     <ClInclude Include="src\net\Protocol.h" />
     <ClInclude Include="src\Player.h" />
     <ClInclude Include="lib\stb_image.h" />
+    <ClInclude Include="src\PlayerManager.h" />
     <ClInclude Include="src\render\Animation.h" />
     <ClInclude Include="src\render\Camera.h" />
     <ClInclude Include="src\render\Shader.h" />

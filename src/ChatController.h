@@ -10,6 +10,7 @@ struct Camera;
 struct Connection;
 struct SpriteRenderer;
 struct PacketDispatcher;
+struct PlayerManager;
 
 enum class ChatType {
   Arena,
@@ -33,6 +34,7 @@ struct ChatEntry {
 
 struct ChatController {
   Connection& connection;
+  PlayerManager& player_manager;
 
   size_t entry_index = 0;
   ChatEntry entries[64] = {};
@@ -41,7 +43,7 @@ struct ChatController {
   // Limiting to 250 to make the chat work exactly as would send instead of emulating Continuum's bad behavior
   char input[250] = {0};
 
-  ChatController(PacketDispatcher& dispatcher, Connection& connection);
+  ChatController(PacketDispatcher& dispatcher, Connection& connection, PlayerManager& player_manager);
 
   void Render(Camera& camera, SpriteRenderer& renderer);
   ChatEntry* PushEntry(const char* mesg, size_t size, ChatType type);

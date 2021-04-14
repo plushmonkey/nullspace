@@ -1,3 +1,5 @@
+#include "Connection.h"
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -13,18 +15,12 @@
 
 #include "../ArenaSettings.h"
 #include "../Tick.h"
-#include "../render/Animation.h"
 #include "Checksum.h"
-#include "Connection.h"
 #include "Protocol.h"
 
 //#define PACKET_SHEDDING 20
 
 namespace null {
-
-// TODO: Move out once packet dispatcher or player manager is implemented
-AnimatedSprite explosion_sprite;
-AnimatedSprite warp_sprite;
 
 extern const char* kPlayerName;
 extern const char* kPlayerPassword;
@@ -74,21 +70,6 @@ Connection::TickResult Connection::Tick() {
   // Continuum client seems to send sync request every 5 seconds
   if (TICK_DIFF(current_tick, last_sync_tick) >= kSyncDelay) {
     SendSyncTimeRequestPacket(false);
-  }
-
-  s32 kPositionDelay = 100;
-
-  // TODO: varying delay based on movement
-  Player* player = GetPlayerById(player_id);
-  if (player && player->ship != 8) {
-    kPositionDelay = 10;
-  }
-
-  // Continuum client seems to send position update every second while spectating.
-  // Subgame will kick the client if they stop sending packets for too long.
-  if (login_state == LoginState::Complete && TICK_DIFF(current_tick, last_position_tick) >= kPositionDelay) {
-    SendPositionPacket();
-    last_position_tick = current_tick;
   }
 
   while (true) {
@@ -308,136 +289,22 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
     switch (type) {
       case ProtocolS2C::PlayerId: {
-        player_id = buffer.ReadU16();
-        printf("Player id: %d\n", player_id);
       } break;
       case ProtocolS2C::JoinGame: {
         printf("Successfully joined game.\n");
       } break;
       case ProtocolS2C::PlayerEntering: {
-        Player* player = players + player_count++;
-
-        player->ship = buffer.ReadU8();
-        u8 audio = buffer.ReadU8();
-        char* name = buffer.ReadString(20);
-        char* squad = buffer.ReadString(20);
-
-        memcpy(player->name, name, 20);
-        memcpy(player->squad, squad, 20);
-
-        player->kill_points = buffer.ReadU32();
-        player->flag_points = buffer.ReadU32();
-        player->id = buffer.ReadU16();
-        player->frequency = buffer.ReadU16();
-        player->wins = buffer.ReadU16();
-        player->losses = buffer.ReadU16();
-        player->attach_parent = buffer.ReadU16();
-        player->flags = buffer.ReadU16();
-        player->koth = buffer.ReadU8();
-        player->timestamp = GetCurrentTick() & 0xFFFF;
-        player->lerp_time = 0.0f;
-        player->warp_animation.sprite = &warp_sprite;
-        player->warp_animation.t = warp_sprite.duration;
-        player->explode_animation.sprite = &explosion_sprite;
-        player->explode_animation.t = explosion_sprite.duration;
-        player->enter_delay = 0.0f;
-
-        printf("%s entered arena\n", name);
-
         if (buffer.read < buffer.write) {
           ProcessPacket(buffer.read, (size_t)(buffer.write - buffer.read));
         }
       } break;
       case ProtocolS2C::PlayerLeaving: {
-        u16 pid = buffer.ReadU16();
-
-        size_t index;
-        Player* player = GetPlayerById(pid, &index);
-
-        if (player) {
-          printf("%s left arena\n", player->name);
-
-          players[index] = players[--player_count];
-        }
       } break;
       case ProtocolS2C::LargePosition: {
-        u8 direction = buffer.ReadU8();
-        u16 timestamp = buffer.ReadU16();
-        u16 x = buffer.ReadU16();
-        s16 vel_y = (s16)buffer.ReadU16();
-        u16 pid = buffer.ReadU16();
-
-        Player* player = GetPlayerById(pid);
-
-        if (player) {
-          player->direction = direction;
-          player->velocity.y = vel_y / 16.0f / 10.0f;
-          player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
-          u8 checksum = buffer.ReadU8();
-          player->togglables = buffer.ReadU8();
-          player->ping = buffer.ReadU8();
-          u16 y = buffer.ReadU16();
-          player->bounty = buffer.ReadU16();
-
-          Vector2f pkt_position(x / 16.0f, y / 16.0f);
-          // Put packet timestamp into local time
-          player->timestamp = (timestamp - time_diff) & 0xFFFF;
-          s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), (GetCurrentTick() & 0xFFFF0000) | player->timestamp);
-
-          if (timestamp_diff > 15) {
-            timestamp_diff = 15;
-          } else if (timestamp_diff < -15) {
-            timestamp_diff = -15;
-          }
-
-          player->ping += timestamp_diff;
-
-          u16 weapon = buffer.ReadU16();
-          memcpy(&player->weapon, &weapon, sizeof(weapon));
-
-          if (weapon != 0) {
-            ++weapons_received;
-          }
-
-          OnPositionPacket(*player, pkt_position);
-        }
       } break;
       case ProtocolS2C::PlayerDeath: {
-        u8 green_id = buffer.ReadU8();
-        u16 killer_id = buffer.ReadU16();
-        u16 killed_id = buffer.ReadU16();
-
-        Player* player = GetPlayerById(killed_id);
-        if (player) {
-          // Hide the player until they send a new position packet
-          // player->position = Vector2f(0, 0);
-          // player->velocity = Vector2f(0, 0);
-          // player->lerp_time = 0.0f;
-          player->enter_delay = settings.EnterDelay / 100.0f;
-          player->explode_animation.t = 0.0f;
-        }
       } break;
       case ProtocolS2C::Chat: {
-        u8 type = buffer.ReadU8();
-        u8 sound = buffer.ReadU8();
-        u16 sender_id = buffer.ReadU16();
-
-        size_t len = (size_t)(buffer.write - buffer.read);
-        char* mesg = buffer.ReadString(len);
-
-        Player* player = GetPlayerById(sender_id);
-
-        if (player) {
-          if (type == 0x03) {  // Team
-            printf("T  ");
-          } else if (type == 0x05) {  // Private
-            printf("P  ");
-          }
-
-          printf("%s> ", player->name);
-        }
-
-        printf("%s\n", mesg);
       } break;
       case ProtocolS2C::PlayerPrize: {
       } break;
@@ -492,60 +359,12 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       case ProtocolS2C::Spectate: {
       } break;
       case ProtocolS2C::TeamAndShipChange: {
-        u8 ship = buffer.ReadU8();
-        u16 pid = buffer.ReadU16();
-        u16 freq = buffer.ReadU16();
-
-        Player* player = GetPlayerById(pid);
-
-        if (player) {
-          player->ship = ship;
-          player->frequency = freq;
-
-          // Hide the player until they send a new position packet
-          player->position = Vector2f(0, 0);
-          player->velocity = Vector2f(0, 0);
-          player->lerp_time = 0.0f;
-          player->warp_animation.t = 0.0f;
-        }
       } break;
       case ProtocolS2C::BrickDropped: {
       } break;
       case ProtocolS2C::KeepAlive: {
       } break;
       case ProtocolS2C::SmallPosition: {
-        u8 direction = buffer.ReadU8();
-        u16 timestamp = buffer.ReadU16();
-        u16 x = buffer.ReadU16();
-        u8 ping = buffer.ReadU8();
-        u8 bounty = buffer.ReadU8();
-        u16 pid = buffer.ReadU8();
-
-        Player* player = GetPlayerById(pid);
-
-        if (player) {
-          player->direction = direction;
-          player->ping = ping;
-          player->bounty = bounty;
-          player->togglables = buffer.ReadU8();
-          player->velocity.y = (s16)buffer.ReadU16() / 16.0f / 10.0f;
-          u16 y = buffer.ReadU16();
-          player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
-
-          Vector2f pkt_position(x / 16.0f, y / 16.0f);
-          // Put packet timestamp into local time
-          player->timestamp = (timestamp - time_diff) & 0xFFFF;
-          s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), (GetCurrentTick() & 0xFFFF0000) | player->timestamp);
-
-          if (timestamp_diff > 15) {
-            timestamp_diff = 15;
-          } else if (timestamp_diff < -15) {
-            timestamp_diff = -15;
-          }
-
-          player->ping += timestamp_diff;
-          OnPositionPacket(*player, pkt_position);
-        }
       } break;
       case ProtocolS2C::MapInformation: {
         login_state = LoginState::MapDownload;
@@ -598,43 +417,6 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
   dispatcher.Dispatch(pkt, size);
 }
 
-void Connection::OnPositionPacket(Player& player, const Vector2f& position) {
-  if (player.position == Vector2f(0, 0) && position != Vector2f(0, 0)) {
-    player.warp_animation.t = 0.0f;
-  }
-
-  // TODO: Simulate through map
-  Vector2f projected_pos = position + player.velocity * (player.ping / 100.0f);
-
-  float abs_dx = abs(projected_pos.x - player.position.x);
-  float abs_dy = abs(projected_pos.y - player.position.y);
-
-  // Jump to the position if very out of sync
-  if (abs_dx >= 4.0f || abs_dy >= 4.0f) {
-    player.position = projected_pos;
-    player.lerp_time = 0.0f;
-  } else {
-    player.lerp_time = 200.0f / 1000.0f;
-    player.lerp_velocity = (projected_pos - player.position) * (1.0f / player.lerp_time);
-  }
-}
-
-// TODO: Move into player manager
-Player* Connection::GetPlayerById(u16 id, size_t* index) {
-  for (size_t i = 0; i < player_count; ++i) {
-    Player* player = players + i;
-
-    if (player->id == id) {
-      if (index) {
-        *index = i;
-      }
-      return player;
-    }
-  }
-
-  return nullptr;
-}
-
 void Connection::OnMapLoad(const char* filename) {
   // I don't think this should ever be set because the server doesn't know that the map was loaded yet
   if (security.checksum_key) {
@@ -642,46 +424,6 @@ void Connection::OnMapLoad(const char* filename) {
   }
 
   login_state = LoginState::Complete;
-
-  // Send a position packet to let server know that the map is loaded.
-  SendPositionPacket();
-  printf("Map loaded. Sending initial position packet\n");
-}
-
-void Connection::SendPositionPacket() {
-  u8 data[kMaxPacketSize];
-  NetworkBuffer buffer(data, kMaxPacketSize);
-
-  Player* player = GetPlayerById(player_id);
-
-  assert(player);
-
-  u16 x = (u16)(player->position.x * 16.0f);
-  u16 y = (u16)(player->position.y * 16.0f);
-
-  u16 vel_x = (u16)(player->velocity.x * 16.0f * 10.0f);
-  u16 vel_y = (u16)(player->velocity.y * 16.0f * 10.0f);
-
-  u16 weapon = *(u16*)&player->weapon;
-  u16 energy = settings.ShipSettings[player->ship].MaximumEnergy;
-
-  buffer.WriteU8(0x03);                           // Type
-  buffer.WriteU8(player->direction);              // Direction
-  buffer.WriteU32(GetCurrentTick() + time_diff);  // Timestamp
-  buffer.WriteU16(vel_x);                         // X velocity
-  buffer.WriteU16(y);                             // Y
-  buffer.WriteU8(0);                              // Checksum
-  buffer.WriteU8(player->togglables);             // Togglables
-  buffer.WriteU16(x);                             // X
-  buffer.WriteU16(vel_y);                         // Y velocity
-  buffer.WriteU16(player->bounty);                // Bounty
-  buffer.WriteU16(energy);                        // Energy
-  buffer.WriteU16(weapon);                        // Weapon info
-
-  u8 checksum = WeaponChecksum(buffer.data, buffer.GetSize());
-  buffer.data[10] = checksum;
-
-  Send(buffer);
 }
 
 void Connection::SendSyncTimeRequestPacket(bool reliable) {

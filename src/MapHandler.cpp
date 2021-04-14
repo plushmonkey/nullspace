@@ -1,6 +1,7 @@
 #include "MapHandler.h"
 
 #include <cstdio>
+#include <cstring>
 
 #include "Buffer.h"
 #include "Inflate.h"

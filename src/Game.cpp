@@ -10,10 +10,10 @@ namespace null {
 
 #define SIM_TEST 0
 
-extern AnimatedSprite explosion_sprite;
-extern AnimatedSprite warp_sprite;
+AnimatedSprite explosion_sprite;
+AnimatedSprite warp_sprite;
 
-void Simulate(Connection& connection, float dt);
+void Simulate(Connection& connection, PlayerManager& player_manager, float dt);
 
 void OnCharacterPress(void* user, char c, bool control) {
   Game* game = (Game*)user;
@@ -26,10 +26,11 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       temp_arena(temp_arena),
       dispatcher(),
       connection(perm_arena, temp_arena, dispatcher),
+      player_manager(connection, dispatcher),
       camera(Vector2f((float)width, (float)height), Vector2f(512, 512), 1.0f / 16.0f),
       ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),
-      fps(0.0f),
-      chat(dispatcher, connection) {
+      fps(60.0f),
+      chat(dispatcher, connection, player_manager) {
   ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -1.0f, 1.0f);
 }
 
@@ -70,9 +71,11 @@ void Game::Update(const InputState& input, float dt) {
     fps = fps * 0.99f + (1.0f / dt) * 0.01f;
   }
 
-  Simulate(connection, dt);
+  player_manager.Update(dt);
 
-  Player* me = connection.GetPlayerById(connection.player_id);
+  Simulate(connection, player_manager, dt);
+
+  Player* me = player_manager.GetSelf();
   if (me) {
     if (me->ship == 8) {
       float spectate_speed = 30.0f;
@@ -111,8 +114,8 @@ void Game::Update(const InputState& input, float dt) {
     }
   }
 
-  for (size_t i = 0; i < connection.player_count; ++i) {
-    Player* player = connection.players + i;
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.players + i;
 
     if (player->ship == 8) continue;
 
@@ -153,11 +156,11 @@ void Game::Update(const InputState& input, float dt) {
 }
 
 void Game::Render() {
-  Player* me = connection.GetPlayerById(connection.player_id);
+  Player* me = player_manager.GetSelf();
 
   // Draw player ships
-  for (size_t i = 0; i < connection.player_count; ++i) {
-    Player* player = connection.players + i;
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.players + i;
 
     if (player->ship == 8) continue;
     if (player->position == Vector2f(0, 0)) continue;
@@ -181,8 +184,8 @@ void Game::Render() {
   }
 
   // Draw player names - This is done in separate loop to batch sprite sheet renderables
-  for (size_t i = 0; i < connection.player_count; ++i) {
-    Player* player = connection.players + i;
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.players + i;
 
     if (player->ship == 8) continue;
     if (player->position == Vector2f(0, 0)) continue;
@@ -270,14 +273,14 @@ void Game::Render() {
 
   if (me && connection.login_state == Connection::LoginState::Complete) {
     char count_text[16];
-    sprintf(count_text, "     %zd", connection.player_count);
+    sprintf(count_text, "     %zd", player_manager.player_count);
 
     sprite_renderer.DrawText(ui_camera, count_text, TextColor::Green, Vector2f(0, 0));
 
     float offset_y = 24.0f;
 
-    for (size_t i = 0; i < connection.player_count; ++i) {
-      Player* player = connection.players + i;
+    for (size_t i = 0; i < player_manager.player_count; ++i) {
+      Player* player = player_manager.players + i;
       if (player->frequency != me->frequency) continue;
 
       float render_y = offset_y;
@@ -295,8 +298,8 @@ void Game::Render() {
       sprite_renderer.DrawText(ui_camera, player->name, TextColor::Yellow, Vector2f(12, render_y));
     }
 
-    for (size_t i = 0; i < connection.player_count; ++i) {
-      Player* player = connection.players + i;
+    for (size_t i = 0; i < player_manager.player_count; ++i) {
+      Player* player = player_manager.players + i;
       if (player->frequency == me->frequency) continue;
 
       if (player->ship == 8) {
@@ -317,12 +320,12 @@ void Game::Render() {
 }
 
 // Test fun code
-void Simulate(Connection& connection, float dt) {
+void Simulate(Connection& connection, PlayerManager& player_manager, float dt) {
   static int last_request = 0;
 
   if (connection.login_state != Connection::LoginState::Complete) return;
 
-  Player* player = connection.GetPlayerById(connection.player_id);
+  Player* player = player_manager.GetSelf();
   if (!player) return;
 
 #if SIM_TEST

@@ -8,6 +8,7 @@
 #include "render/Camera.h"
 #include "render/SpriteRenderer.h"
 #include "render/TileRenderer.h"
+#include "PlayerManager.h"
 
 namespace null {
 
@@ -18,6 +19,7 @@ struct Game {
   MemoryArena& temp_arena;
   PacketDispatcher dispatcher;
   Connection connection;
+  PlayerManager player_manager;
   Camera camera;
   Camera ui_camera;
   TileRenderer tile_renderer;
