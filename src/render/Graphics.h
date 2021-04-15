@@ -1,6 +1,7 @@
 #ifndef NULLSPACE_RENDER_GRAPHICS_H_
 #define NULLSPACE_RENDER_GRAPHICS_H_
 
+#include "../Math.h"
 #include "Animation.h"
 #include "Sprite.h"
 
@@ -29,6 +30,8 @@ struct Graphics {
 
   static SpriteRenderable* repel_sprites;
 
+  static SpriteRenderable* color_sprites;
+
   static AnimatedSprite anim_bombs[4];
   static AnimatedSprite anim_bomb_trails[4];
   static AnimatedSprite anim_emp_bombs[4];
@@ -48,8 +51,13 @@ struct Graphics {
 
   static bool Initialize(SpriteRenderer& renderer);
 
+  static void DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector2f& center, const Vector2f& half_extents);
+
  private:
   Graphics() {}
+
+  static bool InitializeFont(SpriteRenderer& renderer);
+  static bool InitializeWeapons(SpriteRenderer& renderer);
 };
 
 }  // namespace null

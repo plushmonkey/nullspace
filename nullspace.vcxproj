@@ -184,6 +184,8 @@
     <ClCompile Include="src\render\Shader.cpp" />
     <ClCompile Include="src\render\SpriteRenderer.cpp" />
     <ClCompile Include="src\render\TileRenderer.cpp" />
+    <ClCompile Include="src\SpectateView.cpp" />
+    <ClCompile Include="src\StatBox.cpp" />
     <ClCompile Include="src\Tick.cpp" />
     <ClCompile Include="src\WeaponManager.cpp" />
   </ItemGroup>
@@ -216,6 +218,8 @@
     <ClInclude Include="src\render\Sprite.h" />
     <ClInclude Include="src\render\SpriteRenderer.h" />
     <ClInclude Include="src\render\TileRenderer.h" />
+    <ClInclude Include="src\SpectateView.h" />
+    <ClInclude Include="src\StatBox.h" />
     <ClInclude Include="src\Tick.h" />
     <ClInclude Include="src\Types.h" />
     <ClInclude Include="src\Math.h" />

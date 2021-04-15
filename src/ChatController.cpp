@@ -325,9 +325,9 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 }
 
 void ChatController::OnCharacterPress(int codepoint, bool control) {
-  size_t size = strlen(input);
-
   if (codepoint == NULLSPACE_KEY_BACKSPACE) {
+    size_t size = strlen(input);
+
     if (control) {
       input[0] = 0;
     } else if (size > 0) {
@@ -341,12 +341,13 @@ void ChatController::OnCharacterPress(int codepoint, bool control) {
     display_full = !display_full;
     return;
   } else if (codepoint == 'v' && control) {
+    size_t size = strlen(input);
     PasteClipboard(input + size, NULLSPACE_ARRAY_SIZE(input) - size);
     return;
   }
 
   if (codepoint < ' ') {
-    codepoint = '?';
+    return;
   } else if (codepoint > '~' && codepoint != 0xDF) {
     switch (codepoint) {
       case 0x160: {
@@ -375,6 +376,8 @@ void ChatController::OnCharacterPress(int codepoint, bool control) {
       return;
     }
   }
+
+  size_t size = strlen(input);
 
   if (size >= NULLSPACE_ARRAY_SIZE(input) - 1) {
     return;

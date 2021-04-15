@@ -4,6 +4,8 @@
 #include "ChatController.h"
 #include "InputState.h"
 #include "PlayerManager.h"
+#include "SpectateView.h"
+#include "StatBox.h"
 #include "WeaponManager.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
@@ -31,12 +33,16 @@ struct Game {
   float fps;
   bool render_radar = false;
   ChatController chat;
+  StatBox statbox;
+  SpectateView specview;
 
   Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height);
 
   bool Initialize(InputState& input);
   void Update(const InputState& input, float dt);
+
   void Render();
+  void RenderRadar(Player* player);
 };
 
 }  // namespace null

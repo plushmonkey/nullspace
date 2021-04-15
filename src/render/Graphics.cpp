@@ -25,6 +25,8 @@ SpriteRenderable* Graphics::bullet_trail_sprites = nullptr;
 
 SpriteRenderable* Graphics::repel_sprites = nullptr;
 
+SpriteRenderable* Graphics::color_sprites = nullptr;
+
 AnimatedSprite Graphics::anim_bombs[4];
 AnimatedSprite Graphics::anim_bomb_trails[4];
 AnimatedSprite Graphics::anim_emp_bombs[4];
@@ -45,6 +47,43 @@ AnimatedSprite Graphics::anim_ship_warp;
 SpriteRenderable* Graphics::character_set[256] = {};
 
 bool Graphics::Initialize(SpriteRenderer& renderer) {
+  int count;
+
+  if (!InitializeFont(renderer)) {
+    return false;
+  }
+
+  if (!InitializeWeapons(renderer)) {
+    return false;
+  }
+
+  color_sprites = renderer.LoadSheet("graphics/colors.bm2", Vector2f(128, 1), &count);
+  if (!color_sprites) return false;
+
+  ship_sprites = renderer.LoadSheet("graphics/ships.bm2", Vector2f(36, 36), &count);
+  if (!ship_sprites) return false;
+
+  spectate_sprites = renderer.LoadSheet("graphics/spectate.bm2", Vector2f(8, 8), &count);
+  if (!spectate_sprites) return false;
+
+  warp_sprites = renderer.LoadSheet("graphics/warp.bm2", Vector2f(48, 48), &count);
+  if (!warp_sprites) return false;
+
+  anim_ship_warp.frames = warp_sprites;
+  anim_ship_warp.frame_count = count;
+  anim_ship_warp.duration = 0.5f;
+
+  explode1_sprites = renderer.LoadSheet("graphics/explode1.bm2", Vector2f(48, 48), &count);
+  if (!explode1_sprites) return false;
+
+  anim_ship_explode.frames = explode1_sprites;
+  anim_ship_explode.frame_count = count;
+  anim_ship_explode.duration = 1.0f;
+
+  return true;
+}
+
+bool Graphics::InitializeFont(SpriteRenderer& renderer) {
   int count;
 
   text_sprites = renderer.LoadSheet("graphics/tallfont.bm2", Vector2f(8, 12), &count);
@@ -82,25 +121,11 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
   character_set[0x9E] = Graphics::textf_sprites + 3;
   character_set[0x9F] = Graphics::textf_sprites + 4;
 
-  ship_sprites = renderer.LoadSheet("graphics/ships.bm2", Vector2f(36, 36), &count);
-  if (!ship_sprites) return false;
+  return true;
+}
 
-  spectate_sprites = renderer.LoadSheet("graphics/spectate.bm2", Vector2f(8, 8), &count);
-  if (!spectate_sprites) return false;
-
-  warp_sprites = renderer.LoadSheet("graphics/warp.bm2", Vector2f(48, 48), &count);
-  if (!warp_sprites) return false;
-
-  anim_ship_warp.frames = warp_sprites;
-  anim_ship_warp.frame_count = count;
-  anim_ship_warp.duration = 0.5f;
-
-  explode1_sprites = renderer.LoadSheet("graphics/explode1.bm2", Vector2f(48, 48), &count);
-  if (!explode1_sprites) return false;
-
-  anim_ship_explode.frames = explode1_sprites;
-  anim_ship_explode.frame_count = count;
-  anim_ship_explode.duration = 1.0f;
+bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
+  int count;
 
   bomb_sprites = renderer.LoadSheet("graphics/bombs.bm2", Vector2f(16, 16), &count);
   if (!bomb_sprites) return false;
@@ -166,7 +191,7 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
   for (size_t i = 0; i < 3; ++i) {
     anim_bullet_trails[2 - i].frames = bullet_trail_sprites + i * 14;
     anim_bullet_trails[2 - i].frame_count = 7;
-    anim_bullet_trails[2 - i].duration = 0.1f;
+    anim_bullet_trails[2 - i].duration = 0.15f;
   }
   anim_bullet_trails[3] = anim_bullet_trails[2];
 
@@ -178,6 +203,54 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
   anim_repel.frame_count = count;
 
   return true;
+}
+
+void Graphics::DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector2f& center,
+                            const Vector2f& half_extents) {
+  SpriteRenderable renderable;
+
+  renderable.texture = Graphics::color_sprites[1].texture;
+  renderable.dimensions = Vector2f(1, half_extents.y * 2 + 2);
+
+  for (size_t i = 0; i < 4; ++i) {
+    renderable.uvs[i] = Graphics::color_sprites[1].uvs[i];
+  }
+
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, -half_extents.y - 1));
+  renderer.Draw(camera, renderable, center + Vector2f(half_extents.x, -half_extents.y - 1));
+
+  renderable.dimensions = Vector2f(half_extents.x * 2 + 2, 1);
+
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, -half_extents.y - 1));
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, half_extents.y));
+
+  renderable.texture = Graphics::color_sprites[2].texture;
+  for (size_t i = 0; i < 4; ++i) {
+    renderable.uvs[i] = Graphics::color_sprites[2].uvs[i];
+  }
+  renderable.dimensions = Vector2f(1, half_extents.y * 2 + 4);
+
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, -half_extents.y - 2));
+  renderer.Draw(camera, renderable, center + Vector2f(half_extents.x + 1, -half_extents.y - 2));
+
+  renderable.dimensions = Vector2f(half_extents.x * 2 + 4, 1);
+
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, -half_extents.y - 2));
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, half_extents.y + 1));
+
+  renderable.texture = Graphics::color_sprites[3].texture;
+  for (size_t i = 0; i < 4; ++i) {
+    renderable.uvs[i] = Graphics::color_sprites[3].uvs[i];
+  }
+  renderable.dimensions = Vector2f(1, half_extents.y * 2 + 2);
+
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 3, -half_extents.y - 1));
+  renderer.Draw(camera, renderable, center + Vector2f(half_extents.x + 2, -half_extents.y - 1));
+
+  renderable.dimensions = Vector2f(half_extents.x * 2 + 2, 1);
+
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, -half_extents.y - 3));
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, half_extents.y + 2));
 }
 
 }  // namespace null

@@ -114,6 +114,14 @@ void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_action,
     window_state->input.OnCharacter(NULLSPACE_KEY_ESCAPE, (mods & GLFW_MOD_CONTROL) != 0);
   } else if (key == GLFW_KEY_V && key_action != GLFW_RELEASE) {
     window_state->input.OnCharacter('v', (mods & GLFW_MOD_CONTROL) != 0);
+  } else if (key == GLFW_KEY_PAGE_DOWN && key_action != GLFW_RELEASE) {
+    window_state->input.OnCharacter(NULLSPACE_KEY_PAGE_DOWN, (mods & GLFW_MOD_CONTROL) != 0);
+  } else if (key == GLFW_KEY_PAGE_UP && key_action != GLFW_RELEASE) {
+    window_state->input.OnCharacter(NULLSPACE_KEY_PAGE_UP, (mods & GLFW_MOD_CONTROL) != 0);
+  } else if (key == GLFW_KEY_LEFT_CONTROL && key_action != GLFW_RELEASE) {
+    window_state->input.OnCharacter(NULLSPACE_KEY_CONTROL, (mods & GLFW_MOD_CONTROL) != 0);
+  } else if (key == GLFW_KEY_RIGHT_CONTROL && key_action != GLFW_RELEASE) {
+    window_state->input.OnCharacter(NULLSPACE_KEY_CONTROL, (mods & GLFW_MOD_CONTROL) != 0);
   }
 
   const ActionKey* action = nullptr;

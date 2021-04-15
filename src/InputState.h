@@ -8,6 +8,9 @@ namespace null {
 #define NULLSPACE_KEY_BACKSPACE 8
 #define NULLSPACE_KEY_ENTER 10
 #define NULLSPACE_KEY_ESCAPE 27
+#define NULLSPACE_KEY_PAGE_UP 28
+#define NULLSPACE_KEY_PAGE_DOWN 29
+#define NULLSPACE_KEY_CONTROL 30
 
 enum class InputAction {
   Left,

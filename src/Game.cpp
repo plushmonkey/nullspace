@@ -17,6 +17,8 @@ void OnCharacterPress(void* user, int codepoint, bool control) {
   Game* game = (Game*)user;
 
   game->chat.OnCharacterPress(codepoint, control);
+  game->statbox.OnCharacterPress(codepoint, control);
+  game->specview.OnCharacterPress(codepoint, control);
 }
 
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height)
@@ -30,7 +32,9 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       camera(Vector2f((float)width, (float)height), Vector2f(512, 512), 1.0f / 16.0f),
       ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),
       fps(60.0f),
-      chat(dispatcher, connection, player_manager) {
+      chat(dispatcher, connection, player_manager),
+      statbox(player_manager, dispatcher),
+      specview(connection, statbox) {
   ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -1.0f, 1.0f);
 }
 
@@ -68,33 +72,10 @@ void Game::Update(const InputState& input, float dt) {
   weapon_manager.Update(dt);
 
   Simulate(connection, player_manager, dt);
+  specview.Update(input, dt);
 
   Player* me = player_manager.GetSelf();
   if (me) {
-    if (me->ship == 8) {
-      float spectate_speed = 30.0f;
-
-      if (input.IsDown(InputAction::Afterburner)) {
-        spectate_speed *= 2.0f;
-      }
-
-      if (input.IsDown(InputAction::Left)) {
-        me->position -= Vector2f(spectate_speed, 0) * dt;
-      }
-
-      if (input.IsDown(InputAction::Right)) {
-        me->position += Vector2f(spectate_speed, 0) * dt;
-      }
-
-      if (input.IsDown(InputAction::Forward)) {
-        me->position -= Vector2f(0, spectate_speed) * dt;
-      }
-
-      if (input.IsDown(InputAction::Backward)) {
-        me->position += Vector2f(0, spectate_speed) * dt;
-      }
-    }
-
     camera.position = me->position;
   }
 
@@ -196,8 +177,14 @@ void Game::Render() {
       char display[32];
       sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
 
+      u32 team_freq = me->frequency;
+
+      if (me->ship == 8) {
+        team_freq = specview.spectate_frequency;
+      }
+
       if (me) {
-        TextColor color = me->frequency == player->frequency ? TextColor::Yellow : TextColor::Blue;
+        TextColor color = team_freq == player->frequency ? TextColor::Yellow : TextColor::Blue;
         sprite_renderer.DrawText(camera, display, color, player->position + Vector2f(radius, radius));
       }
     }
@@ -205,47 +192,7 @@ void Game::Render() {
 
   sprite_renderer.Render(camera);
 
-  if (tile_renderer.radar_renderable.texture != -1 && me) {
-    SpriteRenderable& radar_renderable = tile_renderer.radar_renderable;
-    float border = 8.0f;
-
-    if (render_radar) {
-      Vector2f position = ui_camera.surface_dim - radar_renderable.dimensions - Vector2f(border, border);
-      sprite_renderer.Draw(ui_camera, radar_renderable, position);
-    } else {
-      // calculate uvs for displayable map
-      SpriteRenderable visible;
-      visible.texture = radar_renderable.texture;
-      // TODO: find real width
-      float dim = ui_camera.surface_dim.x * 0.165f;
-      u16 map_zoom = connection.settings.MapZoomFactor;
-      float range = (map_zoom / 48.0f) * 512.0f;
-
-      Vector2f center = me->position;
-
-      // Cap the radar to map range
-      if (center.x - range < 0) center.x = range;
-      if (center.y - range < 0) center.y = range;
-      if (center.x + range > 1024) center.x = 1024 - range;
-      if (center.y + range > 1024) center.y = 1024 - range;
-
-      Vector2f min = center - Vector2f(range, range);
-      Vector2f max = center + Vector2f(range, range);
-
-      min = min * (1.0f / 1024.0f);
-      max = max * (1.0f / 1024.0f);
-
-      visible.dimensions = Vector2f(dim, dim);
-      visible.uvs[0] = Vector2f(min.x, min.y);
-      visible.uvs[1] = Vector2f(max.x, min.y);
-      visible.uvs[2] = Vector2f(min.x, max.y);
-      visible.uvs[3] = Vector2f(max.x, max.y);
-
-      Vector2f position = ui_camera.surface_dim - Vector2f(dim, dim) - Vector2f(border, border);
-
-      sprite_renderer.Draw(ui_camera, visible, position);
-    }
-  }
+  RenderRadar(me);
 
   chat.Render(ui_camera, sprite_renderer);
 
@@ -273,43 +220,7 @@ void Game::Render() {
   }
 
   if (me && connection.login_state == Connection::LoginState::Complete) {
-    char count_text[16];
-    sprintf(count_text, "     %zd", player_manager.player_count);
-
-    sprite_renderer.DrawText(ui_camera, count_text, TextColor::Green, Vector2f(0, 0));
-
-    float offset_y = 24.0f;
-
-    for (size_t i = 0; i < player_manager.player_count; ++i) {
-      Player* player = player_manager.players + i;
-      if (player->frequency != me->frequency) continue;
-
-      float render_y = offset_y;
-      if (player->id == me->id) {
-        render_y = 12.0f;
-      } else {
-        offset_y += 12.0f;
-      }
-
-      if (player->ship == 8) {
-        size_t index = player->id == me->id ? 2 : 1;
-        sprite_renderer.Draw(ui_camera, Graphics::spectate_sprites[index], Vector2f(2, render_y + 3.0f));
-      }
-
-      sprite_renderer.DrawText(ui_camera, player->name, TextColor::Yellow, Vector2f(12, render_y));
-    }
-
-    for (size_t i = 0; i < player_manager.player_count; ++i) {
-      Player* player = player_manager.players + i;
-      if (player->frequency == me->frequency) continue;
-
-      if (player->ship == 8) {
-        sprite_renderer.Draw(ui_camera, Graphics::spectate_sprites[1], Vector2f(2, offset_y + 3.0f));
-      }
-
-      sprite_renderer.DrawText(ui_camera, player->name, TextColor::White, Vector2f(12, offset_y));
-      offset_y += 12.0f;
-    }
+    statbox.Render(ui_camera, sprite_renderer);
   }
 
   char fps_text[32];
@@ -318,6 +229,78 @@ void Game::Render() {
                            TextAlignment::Right);
 
   sprite_renderer.Render(ui_camera);
+}
+
+void Game::RenderRadar(Player* player) {
+  if (tile_renderer.radar_renderable.texture != -1 && player) {
+    SpriteRenderable& radar_renderable = tile_renderer.radar_renderable;
+    float border = 6.0f;
+
+    if (render_radar) {
+      Vector2f position = ui_camera.surface_dim - radar_renderable.dimensions - Vector2f(border, border);
+      sprite_renderer.Draw(ui_camera, radar_renderable, position);
+
+      Vector2f half_extents = radar_renderable.dimensions * 0.5f;
+      Graphics::DrawBorder(sprite_renderer, ui_camera, position + half_extents, half_extents);
+
+      if (sin(GetCurrentTick() / 5) < 0) {
+        Vector2f percent = player->position * (1.0f / 1024.0f);
+        Vector2f start =
+            position + Vector2f(percent.x * radar_renderable.dimensions.x, percent.y * radar_renderable.dimensions.y);
+
+        SpriteRenderable self_renderable = Graphics::color_sprites[25];
+        self_renderable.dimensions = Vector2f(2, 2);
+
+        sprite_renderer.Draw(ui_camera, self_renderable, start);
+      }
+    } else {
+      // calculate uvs for displayable map
+      SpriteRenderable visible;
+      visible.texture = radar_renderable.texture;
+      // TODO: find real width
+      float dim = ui_camera.surface_dim.x * 0.165f;
+      u16 map_zoom = connection.settings.MapZoomFactor;
+      float range = (map_zoom / 48.0f) * 512.0f;
+
+      Vector2f center = player->position;
+
+      // Cap the radar to map range
+      if (center.x - range < 0) center.x = range;
+      if (center.y - range < 0) center.y = range;
+      if (center.x + range > 1024) center.x = 1024 - range;
+      if (center.y + range > 1024) center.y = 1024 - range;
+
+      Vector2f min = center - Vector2f(range, range);
+      Vector2f max = center + Vector2f(range, range);
+
+      min = min * (1.0f / 1024.0f);
+      max = max * (1.0f / 1024.0f);
+
+      visible.dimensions = Vector2f(dim, dim);
+      visible.uvs[0] = Vector2f(min.x, min.y);
+      visible.uvs[1] = Vector2f(max.x, min.y);
+      visible.uvs[2] = Vector2f(min.x, max.y);
+      visible.uvs[3] = Vector2f(max.x, max.y);
+
+      Vector2f position = ui_camera.surface_dim - Vector2f(dim, dim) - Vector2f(border, border);
+
+      sprite_renderer.Draw(ui_camera, visible, position);
+
+      Vector2f half_extents(dim * 0.5f, dim * 0.5f);
+
+      if (specview.follow_player || player->ship != 8) {
+        if (sin(GetCurrentTick() / 5) < 0) {
+          SpriteRenderable self_renderable = Graphics::color_sprites[25];
+          Vector2f start = position + half_extents - Vector2f(1, 1);
+          self_renderable.dimensions = Vector2f(2, 2);
+
+          sprite_renderer.Draw(ui_camera, self_renderable, start);
+        }
+      }
+
+      Graphics::DrawBorder(sprite_renderer, ui_camera, position + half_extents, half_extents);
+    }
+  }
 }
 
 // Test fun code
