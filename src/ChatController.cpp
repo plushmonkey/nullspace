@@ -324,37 +324,63 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
   }
 }
 
-void ChatController::OnCharacterPress(char c, bool control) {
+void ChatController::OnCharacterPress(int codepoint, bool control) {
   size_t size = strlen(input);
 
-  if (c == NULLSPACE_KEY_BACKSPACE) {
+  if (codepoint == NULLSPACE_KEY_BACKSPACE) {
     if (control) {
       input[0] = 0;
     } else if (size > 0) {
       input[size - 1] = 0;
     }
     return;
-  } else if (c == NULLSPACE_KEY_ENTER) {
+  } else if (codepoint == NULLSPACE_KEY_ENTER) {
     SendInput();
     return;
-  } else if (c == NULLSPACE_KEY_ESCAPE) {
+  } else if (codepoint == NULLSPACE_KEY_ESCAPE) {
     display_full = !display_full;
     return;
-  } else if (c == 'v' && control) {
+  } else if (codepoint == 'v' && control) {
     PasteClipboard(input + size, NULLSPACE_ARRAY_SIZE(input) - size);
     return;
   }
 
-  // TODO: fontf
-  if (c < ' ' || c > '~') {
-    c = '?';
+  if (codepoint < ' ') {
+    codepoint = '?';
+  } else if (codepoint > '~' && codepoint != 0xDF) {
+    switch (codepoint) {
+      case 0x160: {
+        codepoint = 0x8A;
+      } break;
+      case 0x161: {
+        codepoint = 0x9A;
+      } break;
+      case 0x178: {
+        codepoint = 0x9F;
+      } break;
+      case 0x17D: {
+        codepoint = 0x8E;
+      } break;
+      case 0x17E: {
+        codepoint = 0x9E;
+      } break;
+      case 0x20AC: {
+        codepoint = 0x80;
+      } break;
+      default: {
+      } break;
+    }
+
+    if (codepoint > 0xFF) {
+      return;
+    }
   }
 
   if (size >= NULLSPACE_ARRAY_SIZE(input) - 1) {
     return;
   }
 
-  input[size] = c;
+  input[size] = codepoint;
   input[size + 1] = 0;
 }
 

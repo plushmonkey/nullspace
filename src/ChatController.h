@@ -49,7 +49,7 @@ struct ChatController {
   ChatEntry* PushEntry(const char* mesg, size_t size, ChatType type);
 
   void OnChatPacket(u8* packet, size_t size);
-  void OnCharacterPress(char c, bool control);
+  void OnCharacterPress(int codepoint, bool control);
 
   void SendInput();
   ChatType GetInputType();

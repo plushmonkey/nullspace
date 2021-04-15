@@ -42,7 +42,7 @@ enum class InputAction {
   ChatDisplay,
 };
 
-using CharacterCallback = void (*)(void* user, char c, bool control);
+using CharacterCallback = void (*)(void* user, int codepoint, bool control);
 
 struct InputState {
   u32 actions = 0;
@@ -61,9 +61,9 @@ struct InputState {
     }
   }
 
-  void OnCharacter(char c, bool control = false) {
+  void OnCharacter(int codepoint, bool control = false) {
     if (callback) {
-      callback(user, c, control);
+      callback(user, codepoint, control);
     }
   }
 

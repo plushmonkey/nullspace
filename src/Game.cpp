@@ -13,10 +13,10 @@ namespace null {
 
 void Simulate(Connection& connection, PlayerManager& player_manager, float dt);
 
-void OnCharacterPress(void* user, char c, bool control) {
+void OnCharacterPress(void* user, int codepoint, bool control) {
   Game* game = (Game*)user;
 
-  game->chat.OnCharacterPress(c, control);
+  game->chat.OnCharacterPress(codepoint, control);
 }
 
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height)

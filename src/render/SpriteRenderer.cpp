@@ -5,6 +5,7 @@
 
 #include "../Math.h"
 #include "Camera.h"
+#include "Graphics.h"
 #include "Image.h"
 
 namespace null {
@@ -88,9 +89,6 @@ bool SpriteRenderer::Initialize(MemoryArena& perm_arena) {
   shader.Use();
   glUniform1i(color_uniform, 0);
 
-  int count = 0;
-  text_renderables = LoadSheet("graphics/tallfont.bm2", Vector2f(8, 12), &count);
-
   return true;
 }
 
@@ -149,6 +147,7 @@ SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f
 void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color, const Vector2f& position,
                               TextAlignment alignment) {
   constexpr size_t kCountPerColor = 96;
+  constexpr size_t kForeignCountPerColor = 24 * 3;
 
   Vector2f current_pos = position;
   size_t length = strlen(text);
@@ -162,7 +161,7 @@ void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color,
 
   current_pos.x = start_x;
 
-  char c;
+  u8 c;
   while (c = *text++) {
     if (c == '\n') {
       current_pos.x = start_x;
@@ -170,13 +169,22 @@ void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color,
       continue;
     }
 
-    // TODO: fontf
-    if (c < ' ' || c > '~') {
-      c = '?';
+    SpriteRenderable* base_renderable = Graphics::character_set[c];
+
+    if (base_renderable) {
+      SpriteRenderable* renderable = base_renderable;
+
+      if (base_renderable >= Graphics::textf_sprites) {
+        size_t index = (base_renderable - Graphics::textf_sprites);
+        renderable = Graphics::textf_sprites + index + kForeignCountPerColor * (size_t)color;
+      } else {
+        size_t index = (base_renderable - Graphics::text_sprites);
+        renderable = Graphics::text_sprites + index + kCountPerColor * (size_t)color;
+      }
+
+      Draw(camera, *renderable, current_pos);
     }
 
-    size_t index = c - ' ' + kCountPerColor * (size_t)color;
-    Draw(camera, text_renderables[index], current_pos);
     current_pos += Vector2f(8.0f * camera.scale, 0);
   }
 }

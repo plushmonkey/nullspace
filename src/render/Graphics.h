@@ -9,6 +9,11 @@ namespace null {
 struct SpriteRenderer;
 
 struct Graphics {
+  static SpriteRenderable* character_set[256];
+
+  static SpriteRenderable* text_sprites;
+  static SpriteRenderable* textf_sprites;
+
   static SpriteRenderable* ship_sprites;
   static SpriteRenderable* spectate_sprites;
 

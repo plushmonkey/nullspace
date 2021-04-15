@@ -7,6 +7,9 @@ namespace null {
 constexpr float kBombAnimDuration = 1.0f;
 constexpr float kMineAnimDuration = 1.0f;
 
+SpriteRenderable* Graphics::text_sprites = nullptr;
+SpriteRenderable* Graphics::textf_sprites = nullptr;
+
 SpriteRenderable* Graphics::ship_sprites = nullptr;
 SpriteRenderable* Graphics::spectate_sprites = nullptr;
 
@@ -39,8 +42,45 @@ AnimatedSprite Graphics::anim_repel;
 AnimatedSprite Graphics::anim_ship_explode;
 AnimatedSprite Graphics::anim_ship_warp;
 
+SpriteRenderable* Graphics::character_set[256] = {};
+
 bool Graphics::Initialize(SpriteRenderer& renderer) {
   int count;
+
+  text_sprites = renderer.LoadSheet("graphics/tallfont.bm2", Vector2f(8, 12), &count);
+  if (!text_sprites) return false;
+
+  textf_sprites = renderer.LoadSheet("graphics/tallfontf.bm2", Vector2f(8, 12), &count);
+  if (!textf_sprites) return false;
+
+  for (size_t i = ' '; i < '~'; ++i) {
+    character_set[i] = Graphics::text_sprites + i - ' ';
+  }
+
+  for (size_t i = 0xC0; i < 0xD7; ++i) {
+    character_set[i] = Graphics::textf_sprites + i - 0xC0 + 5;
+  }
+
+  size_t index = 28;
+  for (size_t i = 0xD8; i < 0xF7; ++i) {
+    character_set[i] = Graphics::textf_sprites + index++;
+  }
+
+  index = 59;
+  // Continuum seems to have a bug where 0xFF ('small Y with diaeresis') maps to '_', but I'm not replicating that.
+  for (size_t i = 0xF8; i <= 0xFF; ++i) {
+    character_set[i] = Graphics::textf_sprites + index++;
+  }
+
+  character_set[0xDF] = Graphics::text_sprites + '~' - ' ' + 1;
+
+  // windows-1252 encoding
+  character_set[0x80] = Graphics::textf_sprites + 35;
+  character_set[0x8A] = Graphics::textf_sprites;
+  character_set[0x8E] = Graphics::textf_sprites + 1;
+  character_set[0x9A] = Graphics::textf_sprites + 2;
+  character_set[0x9E] = Graphics::textf_sprites + 3;
+  character_set[0x9F] = Graphics::textf_sprites + 4;
 
   ship_sprites = renderer.LoadSheet("graphics/ships.bm2", Vector2f(36, 36), &count);
   if (!ship_sprites) return false;

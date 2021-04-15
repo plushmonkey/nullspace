@@ -39,8 +39,6 @@ struct SpriteRenderer {
   size_t texture_count = 0;
   GLuint textures[1024];
 
-  SpriteRenderable* text_renderables = nullptr;
-
   bool Initialize(MemoryArena& perm_arena);
   SpriteRenderable* LoadSheet(const char* filename, const Vector2f& dimensions, int* count);
 
