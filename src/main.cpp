@@ -107,21 +107,21 @@ void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_action,
 
   // Specifically handle certain keys for os repeat control
   if (key == GLFW_KEY_BACKSPACE && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_BACKSPACE, (mods & GLFW_MOD_CONTROL) != 0);
+    window_state->input.OnCharacter(NULLSPACE_KEY_BACKSPACE, mods);
   } else if (key == GLFW_KEY_ENTER && key_action == GLFW_PRESS) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_ENTER, (mods & GLFW_MOD_CONTROL) != 0);
+    window_state->input.OnCharacter(NULLSPACE_KEY_ENTER, mods);
   } else if (key == GLFW_KEY_ESCAPE && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_ESCAPE, (mods & GLFW_MOD_CONTROL) != 0);
+    window_state->input.OnCharacter(NULLSPACE_KEY_ESCAPE, mods);
   } else if (key == GLFW_KEY_V && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter('v', (mods & GLFW_MOD_CONTROL) != 0);
+    window_state->input.OnCharacter('v', mods);
   } else if (key == GLFW_KEY_PAGE_DOWN && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_PAGE_DOWN, (mods & GLFW_MOD_CONTROL) != 0);
+    window_state->input.OnCharacter(NULLSPACE_KEY_PAGE_DOWN, mods);
   } else if (key == GLFW_KEY_PAGE_UP && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_PAGE_UP, (mods & GLFW_MOD_CONTROL) != 0);
+    window_state->input.OnCharacter(NULLSPACE_KEY_PAGE_UP, mods);
   } else if (key == GLFW_KEY_LEFT_CONTROL && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_CONTROL, (mods & GLFW_MOD_CONTROL) != 0);
+    window_state->input.OnCharacter(NULLSPACE_KEY_CONTROL, mods);
   } else if (key == GLFW_KEY_RIGHT_CONTROL && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_CONTROL, (mods & GLFW_MOD_CONTROL) != 0);
+    window_state->input.OnCharacter(NULLSPACE_KEY_CONTROL, mods);
   }
 
   const ActionKey* action = nullptr;

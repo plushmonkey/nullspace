@@ -13,12 +13,12 @@ namespace null {
 
 void Simulate(Connection& connection, PlayerManager& player_manager, float dt);
 
-void OnCharacterPress(void* user, int codepoint, bool control) {
+void OnCharacterPress(void* user, int codepoint, int mods) {
   Game* game = (Game*)user;
 
-  game->chat.OnCharacterPress(codepoint, control);
-  game->statbox.OnCharacterPress(codepoint, control);
-  game->specview.OnCharacterPress(codepoint, control);
+  game->chat.OnCharacterPress(codepoint, mods);
+  game->statbox.OnCharacterPress(codepoint, mods);
+  game->specview.OnCharacterPress(codepoint, mods);
 }
 
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height)
@@ -32,8 +32,8 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       camera(Vector2f((float)width, (float)height), Vector2f(512, 512), 1.0f / 16.0f),
       ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),
       fps(60.0f),
-      chat(dispatcher, connection, player_manager),
       statbox(player_manager, dispatcher),
+      chat(dispatcher, connection, player_manager, statbox),
       specview(connection, statbox) {
   ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -1.0f, 1.0f);
 }
@@ -231,8 +231,8 @@ void Game::Render() {
   sprite_renderer.Render(ui_camera);
 }
 
-void Game::RenderRadar(Player* player) {
-  if (tile_renderer.radar_renderable.texture != -1 && player) {
+void Game::RenderRadar(Player* me) {
+  if (tile_renderer.radar_renderable.texture != -1 && me) {
     SpriteRenderable& radar_renderable = tile_renderer.radar_renderable;
     float border = 6.0f;
 
@@ -244,7 +244,7 @@ void Game::RenderRadar(Player* player) {
       Graphics::DrawBorder(sprite_renderer, ui_camera, position + half_extents, half_extents);
 
       if (sin(GetCurrentTick() / 5) < 0) {
-        Vector2f percent = player->position * (1.0f / 1024.0f);
+        Vector2f percent = me->position * (1.0f / 1024.0f);
         Vector2f start =
             position + Vector2f(percent.x * radar_renderable.dimensions.x, percent.y * radar_renderable.dimensions.y);
 
@@ -262,7 +262,7 @@ void Game::RenderRadar(Player* player) {
       u16 map_zoom = connection.settings.MapZoomFactor;
       float range = (map_zoom / 48.0f) * 512.0f;
 
-      Vector2f center = player->position;
+      Vector2f center = me->position;
 
       // Cap the radar to map range
       if (center.x - range < 0) center.x = range;
@@ -273,14 +273,14 @@ void Game::RenderRadar(Player* player) {
       Vector2f min = center - Vector2f(range, range);
       Vector2f max = center + Vector2f(range, range);
 
-      min = min * (1.0f / 1024.0f);
-      max = max * (1.0f / 1024.0f);
+      Vector2f min_uv = min * (1.0f / 1024.0f);
+      Vector2f max_uv = max * (1.0f / 1024.0f);
 
       visible.dimensions = Vector2f(dim, dim);
-      visible.uvs[0] = Vector2f(min.x, min.y);
-      visible.uvs[1] = Vector2f(max.x, min.y);
-      visible.uvs[2] = Vector2f(min.x, max.y);
-      visible.uvs[3] = Vector2f(max.x, max.y);
+      visible.uvs[0] = Vector2f(min_uv.x, min_uv.y);
+      visible.uvs[1] = Vector2f(max_uv.x, min_uv.y);
+      visible.uvs[2] = Vector2f(min_uv.x, max_uv.y);
+      visible.uvs[3] = Vector2f(max_uv.x, max_uv.y);
 
       Vector2f position = ui_camera.surface_dim - Vector2f(dim, dim) - Vector2f(border, border);
 
@@ -288,13 +288,49 @@ void Game::RenderRadar(Player* player) {
 
       Vector2f half_extents(dim * 0.5f, dim * 0.5f);
 
-      if (specview.follow_player || player->ship != 8) {
-        if (sin(GetCurrentTick() / 5) < 0) {
-          SpriteRenderable self_renderable = Graphics::color_sprites[25];
-          Vector2f start = position + half_extents - Vector2f(1, 1);
-          self_renderable.dimensions = Vector2f(2, 2);
+      u32 team_freq = me->frequency;
 
-          sprite_renderer.Draw(ui_camera, self_renderable, start);
+      if (me->ship >= 8) {
+        team_freq = specview.spectate_frequency;
+      }
+
+      for (size_t i = 0; i < player_manager.player_count; ++i) {
+        Player* player = player_manager.players + i;
+
+        if (player->ship >= 8) continue;
+
+        if (player->id == specview.spectate_id || (player == me && me->ship != 8)) {
+          if (sin(GetCurrentTick() / 5) < 0) {
+            SpriteRenderable self_renderable = Graphics::color_sprites[25];
+            Vector2f start = position + half_extents - Vector2f(1, 1);
+            self_renderable.dimensions = Vector2f(2, 2);
+
+            sprite_renderer.Draw(ui_camera, self_renderable, start);
+          }
+
+          continue;
+        }
+
+        Vector2f p = player->position;
+        if (p.x >= min.x && p.x < max.x && p.y >= min.y && p.y < max.y) {
+          Vector2f percent = (p - center) * (1.0f / range);
+          size_t sprite_index = 34;
+
+          if (player->bounty > 100) {
+            sprite_index = 33;
+          }
+
+          if (player->frequency == team_freq) {
+            sprite_index = 25;
+          }
+
+          SpriteRenderable renderable = Graphics::color_sprites[sprite_index];
+          Vector2f center_radar = position + half_extents;
+          Vector2f start = center_radar + Vector2f(percent.x * half_extents.x, percent.y * half_extents.y);
+
+          renderable.dimensions = Vector2f(2, 2);
+
+          sprite_renderer.Draw(ui_camera, renderable, start);
         }
       }
 

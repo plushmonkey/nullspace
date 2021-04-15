@@ -30,11 +30,11 @@ struct Game {
   Camera ui_camera;
   TileRenderer tile_renderer;
   SpriteRenderer sprite_renderer;
+  StatBox statbox;
+  ChatController chat;
+  SpectateView specview;
   float fps;
   bool render_radar = false;
-  ChatController chat;
-  StatBox statbox;
-  SpectateView specview;
 
   Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height);
 

@@ -16,7 +16,6 @@ struct StatBox {
   StatViewType view_type = StatViewType::Names;
 
   size_t selected_index = 0;
-  Player* selected_player = nullptr;
 
   // PlayerId view into the player list
   u16 player_view[1024];
@@ -25,9 +24,11 @@ struct StatBox {
 
   void Render(Camera& camera, SpriteRenderer& renderer);
 
-  void OnCharacterPress(int codepoint, bool control);
+  void OnCharacterPress(int codepoint, int mods);
   void SortView();
   void UpdateView();
+
+  Player* GetSelectedPlayer();
 
   void OnPlayerEnter(u8* pkt, size_t size);
   void OnPlayerLeave(u8* pkt, size_t size);

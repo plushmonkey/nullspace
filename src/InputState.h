@@ -12,6 +12,10 @@ namespace null {
 #define NULLSPACE_KEY_PAGE_DOWN 29
 #define NULLSPACE_KEY_CONTROL 30
 
+#define NULLSPACE_KEY_MOD_SHIFT (1 << 0)
+#define NULLSPACE_KEY_MOD_CONTROL (1 << 1)
+#define NULLSPACE_KEY_MOD_ALT (1 << 2)
+
 enum class InputAction {
   Left,
   Right,
@@ -45,7 +49,7 @@ enum class InputAction {
   ChatDisplay,
 };
 
-using CharacterCallback = void (*)(void* user, int codepoint, bool control);
+using CharacterCallback = void (*)(void* user, int codepoint, int mods);
 
 struct InputState {
   u32 actions = 0;
@@ -64,9 +68,9 @@ struct InputState {
     }
   }
 
-  void OnCharacter(int codepoint, bool control = false) {
+  void OnCharacter(int codepoint, int mods = 0) {
     if (callback) {
-      callback(user, codepoint, control);
+      callback(user, codepoint, mods);
     }
   }
 

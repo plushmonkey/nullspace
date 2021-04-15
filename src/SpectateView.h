@@ -11,17 +11,19 @@ struct InputState;
 struct Player;
 struct StatBox;
 
+constexpr u16 kInvalidSpectateId = -1;
+
 struct SpectateView {
   Connection& connection;
   StatBox& statbox;
 
-  Player* follow_player = nullptr;
+  u16 spectate_id = kInvalidSpectateId;
   u32 spectate_frequency = 0;
 
   SpectateView(Connection& connection, StatBox& statbox);
 
   void Update(const InputState& input, float dt);
-  void OnCharacterPress(int codepoint, bool control);
+  void OnCharacterPress(int codepoint, int mods);
 
   void SpectateSelected();
 };

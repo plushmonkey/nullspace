@@ -41,11 +41,22 @@ StatBox::StatBox(PlayerManager& player_manager, PacketDispatcher& dispatcher) : 
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
 }
 
-void StatBox::OnCharacterPress(int codepoint, bool control) {
+void StatBox::OnCharacterPress(int codepoint, int mods) {
+  bool shift = mods & NULLSPACE_KEY_MOD_SHIFT;
+
   if (codepoint == NULLSPACE_KEY_PAGE_UP && selected_index > 0) {
-    --selected_index;
+    if (shift) {
+      selected_index = 0;
+    } else {
+      --selected_index;
+    }
   } else if (codepoint == NULLSPACE_KEY_PAGE_DOWN && selected_index < player_manager.player_count - 1) {
-    ++selected_index;
+    if (shift) {
+      // TODO: Full page skips instead of directly to the end
+      selected_index = player_manager.player_count - 1;
+    } else {
+      ++selected_index;
+    }
   }
 }
 
@@ -110,11 +121,6 @@ void StatBox::RenderName(Camera& camera, SpriteRenderer& renderer, Player* playe
 
   TextColor color = same_freq ? TextColor::Yellow : TextColor::White;
   renderer.DrawText(camera, name, color, Vector2f(kBorder + kSpectateWidth + 2.0f, y));
-
-  // TODO: This is hacked in. Fix it when player manager is sorted by view.
-  if (selected) {
-    selected_player = player;
-  }
 }
 
 void StatBox::OnPlayerEnter(u8* pkt, size_t size) { UpdateView(); }
@@ -122,6 +128,11 @@ void StatBox::OnPlayerEnter(u8* pkt, size_t size) { UpdateView(); }
 void StatBox::OnPlayerLeave(u8* pkt, size_t size) { UpdateView(); }
 
 void StatBox::OnPlayerFreqAndShipChange(u8* pkt, size_t size) { UpdateView(); }
+
+Player* StatBox::GetSelectedPlayer() {
+  u16 selected_id = player_view[selected_index];
+  return player_manager.GetPlayerById(selected_id);
+}
 
 void StatBox::UpdateView() {
   u16 selected_id = player_view[selected_index];

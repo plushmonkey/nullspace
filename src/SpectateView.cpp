@@ -13,7 +13,10 @@ void SpectateView::Update(const InputState& input, float dt) {
   Player* me = statbox.player_manager.GetSelf();
 
   if (!me) return;
-  if (me->ship != 8) return;
+  if (me->ship != 8) {
+    spectate_id = kInvalidSpectateId;
+    return;
+  }
 
   float spectate_speed = 30.0f;
 
@@ -27,37 +30,45 @@ void SpectateView::Update(const InputState& input, float dt) {
 
   if (input.IsDown(InputAction::Left)) {
     me->position -= Vector2f(spectate_speed, 0) * dt;
-    follow_player = nullptr;
+    spectate_id = kInvalidSpectateId;
   }
 
   if (input.IsDown(InputAction::Right)) {
     me->position += Vector2f(spectate_speed, 0) * dt;
-    follow_player = nullptr;
+    spectate_id = kInvalidSpectateId;
   }
 
   if (input.IsDown(InputAction::Forward)) {
     me->position -= Vector2f(0, spectate_speed) * dt;
-    follow_player = nullptr;
+    spectate_id = kInvalidSpectateId;
   }
 
   if (input.IsDown(InputAction::Backward)) {
     me->position += Vector2f(0, spectate_speed) * dt;
-    follow_player = nullptr;
+    spectate_id = kInvalidSpectateId;
   }
 
-  if (follow_player) {
-    me->position = follow_player->position;
+  if (spectate_id != -1) {
+    Player* follow_player = statbox.player_manager.GetPlayerById(spectate_id);
+
+    if (follow_player) {
+      me->position = follow_player->position;
+    } else {
+      spectate_id = kInvalidSpectateId;
+    }
   }
 }
 
 void SpectateView::SpectateSelected() {
-  if (statbox.selected_player && statbox.selected_player->ship != 8) {
-    follow_player = statbox.selected_player;
-    spectate_frequency = follow_player->frequency;
+  Player* selected = statbox.GetSelectedPlayer();
+
+  if (selected && selected->ship != 8) {
+    spectate_id = selected->id;
+    spectate_frequency = selected->frequency;
   }
 }
 
-void SpectateView::OnCharacterPress(int codepoint, bool control) {
+void SpectateView::OnCharacterPress(int codepoint, int mods) {
   if (codepoint == NULLSPACE_KEY_CONTROL) {
     SpectateSelected();
   }

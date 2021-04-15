@@ -5,6 +5,7 @@
 
 #include "Platform.h"
 #include "PlayerManager.h"
+#include "StatBox.h"
 #include "Tick.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
@@ -24,8 +25,9 @@ static void OnChatPacketRaw(void* user, u8* packet, size_t size) {
   controller->OnChatPacket(packet, size);
 }
 
-ChatController::ChatController(PacketDispatcher& dispatcher, Connection& connection, PlayerManager& player_manager)
-    : connection(connection), player_manager(player_manager) {
+ChatController::ChatController(PacketDispatcher& dispatcher, Connection& connection, PlayerManager& player_manager,
+                               StatBox& statbox)
+    : connection(connection), player_manager(player_manager), statbox(statbox) {
   dispatcher.Register(ProtocolS2C::Chat, OnChatPacketRaw, this);
 }
 
@@ -45,7 +47,11 @@ void ChatController::SendInput() {
   int channel = 1;
 
   if (type == ChatType::Private) {
-    // TODO: Get id
+    Player* selected = statbox.GetSelectedPlayer();
+
+    if (selected) {
+      target = selected->id;
+    }
 
     if (mesg[0] == '/') {
       ++mesg;
@@ -58,7 +64,11 @@ void ChatController::SendInput() {
       }
     }
   } else if (type == ChatType::OtherTeam) {
-    // TODO: Get id
+    Player* selected = statbox.GetSelectedPlayer();
+
+    if (selected) {
+      target = selected->id;
+    }
 
     ++mesg;
   } else if (type == ChatType::Channel) {
@@ -109,8 +119,6 @@ struct ChatSpan {
   const char* begin;
   const char* end;
 };
-
-using namespace null;
 
 void WrapChat(const char* mesg, s32 linesize, ChatSpan* lines, size_t* linecount) {
   // Trim front
@@ -292,7 +300,7 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 
           sprintf(output, "%*s> %.*s", namelen, entry->sender, length, span->begin);
 
-          renderer.DrawText(camera, output, TextColor::Blue, Vector2f(0, y + j * kFontHeight));
+          renderer.DrawText(camera, output, TextColor::Green, Vector2f(0, y + j * kFontHeight));
         }
       } break;
       case ChatType::RedWarning:
@@ -324,7 +332,9 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
   }
 }
 
-void ChatController::OnCharacterPress(int codepoint, bool control) {
+void ChatController::OnCharacterPress(int codepoint, int mods) {
+  bool control = mods & NULLSPACE_KEY_MOD_CONTROL;
+
   if (codepoint == NULLSPACE_KEY_BACKSPACE) {
     size_t size = strlen(input);
 
