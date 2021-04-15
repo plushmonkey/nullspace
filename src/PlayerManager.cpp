@@ -9,11 +9,9 @@
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
 #include "render/Animation.h"
+#include "render/Graphics.h"
 
 namespace null {
-
-extern AnimatedSprite explosion_sprite;
-extern AnimatedSprite warp_sprite;
 
 static void OnPlayerIdPkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
@@ -165,10 +163,10 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   player->koth = buffer.ReadU8();
   player->timestamp = GetCurrentTick() & 0xFFFF;
   player->lerp_time = 0.0f;
-  player->warp_animation.sprite = &warp_sprite;
-  player->warp_animation.t = warp_sprite.duration;
-  player->explode_animation.sprite = &explosion_sprite;
-  player->explode_animation.t = explosion_sprite.duration;
+  player->warp_animation.sprite = &Graphics::anim_ship_warp;
+  player->warp_animation.t = Graphics::anim_ship_warp.duration;
+  player->explode_animation.sprite = &Graphics::anim_ship_explode;
+  player->explode_animation.t = Graphics::anim_ship_explode.duration;
   player->enter_delay = 0.0f;
 
   printf("%s entered arena\n", name);

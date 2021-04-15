@@ -3,11 +3,11 @@
 #include <cassert>
 #include <cstdio>
 
-#include "../Image.h"
 #include "../Map.h"
 #include "../Math.h"
 #include "../Memory.h"
 #include "Camera.h"
+#include "Image.h"
 
 namespace null {
 

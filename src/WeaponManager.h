@@ -29,7 +29,6 @@ struct Camera;
 struct Connection;
 struct PacketDispatcher;
 struct PlayerManager;
-struct SpriteRenderable;
 struct SpriteRenderer;
 
 struct WeaponManager {
@@ -37,20 +36,13 @@ struct WeaponManager {
   PlayerManager& player_manager;
   AnimationSystem& animation;
   u32 next_link_id = 0;
-  size_t weapon_count = 0;
-  Weapon weapons[65535] = {};
   u32 last_trail_tick = 0;
 
-  SpriteRenderable* bullet_renderables = nullptr;
-  SpriteRenderable* bullet_trail_renderables = nullptr;
-  AnimatedSprite anim_bullets[4] = {};
-  AnimatedSprite anim_bullets_bounce[4] = {};
-  AnimatedSprite anim_bullet_trails[4] = {};
+  size_t weapon_count = 0;
+  Weapon weapons[65535];
 
   WeaponManager(Connection& connection, PlayerManager& player_manager, PacketDispatcher& dispatcher,
                 AnimationSystem& animation);
-
-  void Initialize(SpriteRenderer& renderer);
 
   void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer);

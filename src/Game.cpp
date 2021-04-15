@@ -5,13 +5,11 @@
 #include "Memory.h"
 #include "Tick.h"
 #include "render/Animation.h"
+#include "render/Graphics.h"
 
 namespace null {
 
 #define SIM_TEST 0
-
-AnimatedSprite explosion_sprite;
-AnimatedSprite warp_sprite;
 
 void Simulate(Connection& connection, PlayerManager& player_manager, float dt);
 
@@ -45,21 +43,10 @@ bool Game::Initialize(InputState& input) {
     return false;
   }
 
-  int count;
-  ship_sprites = sprite_renderer.LoadSheet("graphics/ships.bm2", Vector2f(36, 36), &count);
-  spectate_sprites = sprite_renderer.LoadSheet("graphics/spectate.bm2", Vector2f(8, 8), &count);
-
-  SpriteRenderable* warp = sprite_renderer.LoadSheet("graphics/warp.bm2", Vector2f(48, 48), &count);
-  warp_sprite.frames = warp;
-  warp_sprite.frame_count = count;
-  warp_sprite.duration = 0.5f;
-
-  SpriteRenderable* explode = sprite_renderer.LoadSheet("graphics/explode1.bm2", Vector2f(48, 48), &count);
-  explosion_sprite.frames = explode;
-  explosion_sprite.frame_count = count;
-  explosion_sprite.duration = 1.0f;
-
-  weapon_manager.Initialize(sprite_renderer);
+  if (!Graphics::Initialize(sprite_renderer)) {
+    fprintf(stderr, "Failed to initialize graphics.\n");
+    return false;
+  }
 
   input.SetCallback(OnCharacterPress, this);
 
@@ -167,6 +154,11 @@ void Game::Render() {
 
   Player* me = player_manager.GetSelf();
 
+  // TODO: Formalize layers
+  // Draw animations and weapons before ships and names so they are below
+  animation.Render(camera, sprite_renderer);
+  weapon_manager.Render(camera, sprite_renderer);
+
   // Draw player ships
   for (size_t i = 0; i < player_manager.player_count; ++i) {
     Player* player = player_manager.players + i;
@@ -181,8 +173,8 @@ void Game::Render() {
     } else if (player->enter_delay <= 0.0f) {
       size_t index = player->ship * 40 + player->direction;
 
-      sprite_renderer.Draw(camera, ship_sprites[index],
-                           player->position - ship_sprites[index].dimensions * (0.5f / 16.0f));
+      sprite_renderer.Draw(camera, Graphics::ship_sprites[index],
+                           player->position - Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f));
 
       if (player->warp_animation.IsAnimating()) {
         SpriteRenderable& renderable = player->warp_animation.GetFrame();
@@ -210,9 +202,6 @@ void Game::Render() {
       }
     }
   }
-
-  animation.Render(camera, sprite_renderer);
-  weapon_manager.Render(camera, sprite_renderer);
 
   sprite_renderer.Render(camera);
 
@@ -265,7 +254,8 @@ void Game::Render() {
   if (connection.login_state == Connection::LoginState::MapDownload) {
     char downloading[64];
 
-    sprite_renderer.Draw(ui_camera, ship_sprites[0], ui_camera.surface_dim * 0.5f - ship_sprites[0].dimensions * 0.5f);
+    sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
+                         ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f);
 
     int percent =
         (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map_handler.compressed_size);
@@ -274,7 +264,8 @@ void Game::Render() {
     Vector2f download_pos(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
     sprite_renderer.DrawText(ui_camera, downloading, TextColor::Blue, download_pos, TextAlignment::Center);
   } else if (connection.login_state < Connection::LoginState::MapDownload) {
-    sprite_renderer.Draw(ui_camera, ship_sprites[0], ui_camera.surface_dim * 0.5f - ship_sprites[0].dimensions * 0.5f);
+    sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
+                         ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f);
 
     Vector2f position(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
 
@@ -302,7 +293,7 @@ void Game::Render() {
 
       if (player->ship == 8) {
         size_t index = player->id == me->id ? 2 : 1;
-        sprite_renderer.Draw(ui_camera, spectate_sprites[index], Vector2f(2, render_y + 3.0f));
+        sprite_renderer.Draw(ui_camera, Graphics::spectate_sprites[index], Vector2f(2, render_y + 3.0f));
       }
 
       sprite_renderer.DrawText(ui_camera, player->name, TextColor::Yellow, Vector2f(12, render_y));
@@ -313,7 +304,7 @@ void Game::Render() {
       if (player->frequency == me->frequency) continue;
 
       if (player->ship == 8) {
-        sprite_renderer.Draw(ui_camera, spectate_sprites[1], Vector2f(2, offset_y + 3.0f));
+        sprite_renderer.Draw(ui_camera, Graphics::spectate_sprites[1], Vector2f(2, offset_y + 3.0f));
       }
 
       sprite_renderer.DrawText(ui_camera, player->name, TextColor::White, Vector2f(12, offset_y));

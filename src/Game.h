@@ -32,9 +32,6 @@ struct Game {
   bool render_radar = false;
   ChatController chat;
 
-  SpriteRenderable* ship_sprites = nullptr;
-  SpriteRenderable* spectate_sprites = nullptr;
-
   Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height);
 
   bool Initialize(InputState& input);

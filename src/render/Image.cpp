@@ -1,6 +1,6 @@
 #include "Image.h"
 
-#include "Types.h"
+#include "../Types.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <memory.h>

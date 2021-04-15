@@ -9,11 +9,12 @@
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
 #include "render/Camera.h"
+#include "render/Graphics.h"
 #include "render/SpriteRenderer.h"
 
 namespace null {
 
-constexpr s32 kTrailDelayTicks = 3;
+constexpr s32 kTrailDelayTicks = 4;
 
 static Vector2f GetHeading(u8 discrete_rotation) {
   const float kToRads = (3.14159f / 180.0f);
@@ -34,31 +35,6 @@ WeaponManager::WeaponManager(Connection& connection, PlayerManager& player_manag
                              AnimationSystem& animation)
     : connection(connection), player_manager(player_manager), animation(animation) {
   dispatcher.Register(ProtocolS2C::LargePosition, OnLargePositionPkt, this);
-}
-
-void WeaponManager::Initialize(SpriteRenderer& renderer) {
-  int count = 0;
-
-  bullet_renderables = renderer.LoadSheet("graphics/bullets.bm2", Vector2f(5, 5), &count);
-  for (size_t i = 0; i < 4; ++i) {
-    anim_bullets[i].frames = bullet_renderables + i * 4;
-    anim_bullets[i].frame_count = 4;
-    anim_bullets[i].duration = 0.1f;
-  }
-
-  for (size_t i = 0; i < 4; ++i) {
-    anim_bullets_bounce[i].frames = bullet_renderables + i * 4 + 20;
-    anim_bullets_bounce[i].frame_count = 4;
-    anim_bullets_bounce[i].duration = 0.1f;
-  }
-
-  bullet_trail_renderables = renderer.LoadSheet("graphics/gradient.bm2", Vector2f(1, 1), &count);
-  for (size_t i = 0; i < 3; ++i) {
-    anim_bullet_trails[2 - i].frames = bullet_trail_renderables + i * 14;
-    anim_bullet_trails[2 - i].frame_count = 7;
-    anim_bullet_trails[2 - i].duration = 0.1f;
-  }
-  anim_bullet_trails[3] = anim_bullet_trails[2];
 }
 
 void WeaponManager::Update(float dt) {
@@ -86,15 +62,24 @@ void WeaponManager::Update(float dt) {
     if (weapon->animation.sprite) {
       weapon->animation.t += dt;
 
-      if (!weapon->animation.IsAnimating()) {
+      if (!weapon->animation.IsAnimating() && weapon->animation.repeat) {
         weapon->animation.t -= weapon->animation.sprite->duration;
       }
 
       if (drop_tail) {
-        SpriteRenderable& frame = anim_bullet_trails[weapon->data.level].frames[0];
-        Vector2f offset = frame.dimensions * (0.5f / 16.0f);
+        if (weapon->data.type == (u16)WeaponType::Bullet || weapon->data.type == (u16)WeaponType::BouncingBullet) {
+          SpriteRenderable& frame = Graphics::anim_bullet_trails[weapon->data.level].frames[0];
+          Vector2f offset = frame.dimensions * (0.5f / 16.0f);
 
-        animation.AddAnimation(anim_bullet_trails[weapon->data.level], weapon->position - offset);
+          animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], weapon->position - offset);
+        } else if ((weapon->data.type == (u16)WeaponType::Bomb ||
+                    weapon->data.type == (u16)WeaponType::ProximityBomb) &&
+                   !weapon->data.alternate) {
+          SpriteRenderable& frame = Graphics::anim_bomb_trails[weapon->data.level].frames[0];
+          Vector2f offset = frame.dimensions * (0.5f / 16.0f);
+
+          animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], weapon->position - offset);
+        }
       }
     }
   }
@@ -104,12 +89,22 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer) {
   for (size_t i = 0; i < weapon_count; ++i) {
     Weapon* weapon = weapons + i;
 
-    if (weapon->animation.sprite == nullptr) continue;
+    if (weapon->animation.IsAnimating()) {
+      SpriteRenderable& frame = weapon->animation.GetFrame();
+      Vector2f offset = frame.dimensions * (0.5f / 16.0f);
 
-    SpriteRenderable& frame = weapon->animation.GetFrame();
-    Vector2f offset = frame.dimensions * (0.5f / 16.0f);
+      renderer.Draw(camera, frame, weapon->position - offset);
+    } else if (weapon->data.type == (u16)WeaponType::Decoy) {
+      Player* player = player_manager.GetPlayerById(weapon->player_id);
+      if (player) {
+        // TODO: Render opposite rotation based on initial orientation
+        size_t index = player->ship * 40 + player->direction;
+        SpriteRenderable& frame = Graphics::ship_sprites[index];
+        Vector2f offset = frame.dimensions * (0.5f / 16.0f);
 
-    renderer.Draw(camera, frame, weapon->position - offset);
+        renderer.Draw(camera, frame, weapon->position - offset);
+      }
+    }
   }
 }
 
@@ -202,11 +197,15 @@ void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 lo
       weapon->end_tick = local_timestamp + connection.settings.BulletAliveTime;
       speed = connection.settings.ShipSettings[player->ship].BulletSpeed;
     } break;
-    case WeaponType::Thor:  // TODO: I can't remember if thor has a timeout
+    case WeaponType::Thor:
     case WeaponType::Bomb:
     case WeaponType::ProximityBomb: {
-      weapon->end_tick = local_timestamp + connection.settings.BombAliveTime;
-      speed = connection.settings.ShipSettings[player->ship].BombSpeed;
+      if (weapon->data.alternate) {
+        weapon->end_tick = local_timestamp + connection.settings.MineAliveTime;
+      } else {
+        weapon->end_tick = local_timestamp + connection.settings.BombAliveTime;
+        speed = connection.settings.ShipSettings[player->ship].BombSpeed;
+      }
     } break;
     case WeaponType::Repel: {
       weapon->end_tick = local_timestamp + connection.settings.RepelTime;
@@ -214,9 +213,13 @@ void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 lo
     case WeaponType::Decoy: {
       weapon->end_tick = local_timestamp + connection.settings.DecoyAliveTime;
     } break;
+    default: {
+    } break;
   }
 
-  if (type != WeaponType::Repel) {
+  bool is_mine = (type == WeaponType::Bomb || type == WeaponType::ProximityBomb) && weapon->data.alternate;
+
+  if (type != WeaponType::Repel && !is_mine) {
     weapon->velocity = velocity + heading * (speed / 16.0f / 10.0f);
   } else {
     weapon->velocity = Vector2f(0, 0);
@@ -231,13 +234,41 @@ void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 lo
 
   weapon->animation.t = 0.0f;
   weapon->animation.sprite = nullptr;
+  weapon->animation.repeat = true;
 
   switch (type) {
     case WeaponType::Bullet: {
-      weapon->animation.sprite = this->anim_bullets + weapon->data.level;
+      weapon->animation.sprite = Graphics::anim_bullets + weapon->data.level;
     } break;
     case WeaponType::BouncingBullet: {
-      weapon->animation.sprite = this->anim_bullets_bounce + weapon->data.level;
+      weapon->animation.sprite = Graphics::anim_bullets_bounce + weapon->data.level;
+    } break;
+    case WeaponType::ProximityBomb:
+    case WeaponType::Bomb: {
+      bool emp = connection.settings.ShipSettings[player->ship].EmpBomb;
+
+      if (weapon->data.alternate) {
+        if (emp) {
+          weapon->animation.sprite = Graphics::anim_emp_mines + weapon->data.level;
+        } else {
+          weapon->animation.sprite = Graphics::anim_mines + weapon->data.level;
+        }
+      } else {
+        if (emp) {
+          weapon->animation.sprite = Graphics::anim_emp_bombs + weapon->data.level;
+        } else {
+          weapon->animation.sprite = Graphics::anim_bombs + weapon->data.level;
+        }
+      }
+    } break;
+    case WeaponType::Thor: {
+      weapon->animation.sprite = &Graphics::anim_thor;
+    } break;
+    case WeaponType::Repel: {
+      weapon->animation.sprite = &Graphics::anim_repel;
+      weapon->animation.repeat = false;
+    } break;
+    default: {
     } break;
   }
 }

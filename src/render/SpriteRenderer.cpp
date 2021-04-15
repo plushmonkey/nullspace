@@ -3,9 +3,9 @@
 #include <cassert>
 #include <cstdio>
 
-#include "../Image.h"
 #include "../Math.h"
 #include "Camera.h"
+#include "Image.h"
 
 namespace null {
 

@@ -164,7 +164,8 @@
     <ClCompile Include="lib\glfw\src\window.c" />
     <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\ChatController.cpp" />
-    <ClCompile Include="src\Image.cpp" />
+    <ClCompile Include="src\render\Graphics.cpp" />
+    <ClCompile Include="src\render\Image.cpp" />
     <ClCompile Include="src\net\Checksum.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\Inflate.cpp" />
@@ -190,7 +191,8 @@
     <ClInclude Include="src\ArenaSettings.h" />
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\ChatController.h" />
-    <ClInclude Include="src\Image.h" />
+    <ClInclude Include="src\render\Graphics.h" />
+    <ClInclude Include="src\render\Image.h" />
     <ClInclude Include="src\InputState.h" />
     <ClInclude Include="src\net\Checksum.h" />
     <ClInclude Include="src\Game.h" />

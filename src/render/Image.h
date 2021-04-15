@@ -1,5 +1,5 @@
-#ifndef NULLSPACE_IMAGE_H_
-#define NULLSPACE_IMAGE_H_
+#ifndef NULLSPACE_RENDER_IMAGE_H_
+#define NULLSPACE_RENDER_IMAGE_H_
 
 namespace null {
 
@@ -8,6 +8,6 @@ namespace null {
 unsigned char* ImageLoad(const char* filename, int* width, int* height);
 void ImageFree(void* data);
 
-}
+}  // namespace null
 
 #endif
