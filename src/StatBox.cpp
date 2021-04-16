@@ -10,6 +10,8 @@
 #include "render/Graphics.h"
 #include "render/SpriteRenderer.h"
 
+// TODO: Scale the windows by max points and make room for banner
+
 namespace null {
 
 constexpr float kBorder = 3.0f;
@@ -19,7 +21,7 @@ constexpr float kSpectateWidth = 8.0f;
 constexpr size_t kSeparatorColorIndex = 1;
 constexpr size_t kBackgroundColorIndex = 16;
 
-constexpr float kViewWidth[] = {108, 172, 172, 172, 380, 268};
+constexpr float kViewWidth[] = {108, 172, 172, 172, 428, 268};
 
 static void OnPlayerEnterPkt(void* user, u8* pkt, size_t size) {
   StatBox* statbox = (StatBox*)user;
@@ -51,6 +53,7 @@ void StatBox::OnCharacterPress(int codepoint, int mods) {
     } else {
       --selected_index;
     }
+    RecordView();
   } else if (codepoint == NULLSPACE_KEY_PAGE_DOWN && selected_index < player_manager.player_count - 1) {
     if (shift) {
       // TODO: Full page skips instead of directly to the end
@@ -58,49 +61,227 @@ void StatBox::OnCharacterPress(int codepoint, int mods) {
     } else {
       ++selected_index;
     }
+    RecordView();
+  } else if (codepoint == NULLSPACE_KEY_F2) {
+    view_type = (StatViewType)(((int)view_type + 1) % 7);
+    UpdateView();
   }
 }
 
 void StatBox::Render(Camera& camera, SpriteRenderer& renderer) {
   Player* me = player_manager.GetSelf();
 
-  if (!me) return;
-
-  float box_height = kHeaderHeight + player_manager.player_count * 12.0f;
-  Vector2f dimensions(kViewWidth[(size_t)view_type], box_height);
+  if (!me || view_type == StatViewType::None) return;
 
   // Render background
   SpriteRenderable background = Graphics::color_sprites[kBackgroundColorIndex];
-  background.dimensions = dimensions;
+  background.dimensions = Vector2f(kViewWidth[(size_t)view_type], view_height);
 
   renderer.Draw(camera, background, Vector2f(3, 3));
 
-  char count_text[16];
-  sprintf(count_text, "%zd", player_manager.player_count);
+  for (size_t i = 0; i < renderable_count; ++i) {
+    StatRenderableOutput* output = renderable_outputs + i;
+    SpriteRenderable renderable = *output->renderable;
+    renderable.dimensions = output->dimensions;
 
-  renderer.DrawText(camera, count_text, TextColor::Green, Vector2f(dimensions.x * 0.5f - 5.0f, kBorder + 1),
-                    TextAlignment::Center);
+    renderer.Draw(camera, renderable, output->position);
+  }
 
-  // Render header separator
-  SpriteRenderable separator = Graphics::color_sprites[kSeparatorColorIndex];
-  separator.dimensions = Vector2f(dimensions.x, 1);
+  for (size_t i = 0; i < text_count; ++i) {
+    StatTextOutput* output = text_outputs + i;
 
-  renderer.Draw(camera, separator, Vector2f(kBorder, kBorder + 13));
+    renderer.DrawText(camera, output->text, output->color, output->position, output->alignment);
+  }
 
-  Graphics::DrawBorder(renderer, camera, dimensions * 0.5f + Vector2f(kBorder, kBorder), dimensions * 0.5f);
+  Graphics::DrawBorder(renderer, camera, background.dimensions * 0.5f + Vector2f(kBorder, kBorder),
+                       background.dimensions * 0.5f);
+}
+
+void StatBox::RecordNamesView(const Player& me) {
+  float width = kViewWidth[(size_t)view_type];
+
+  StatTextOutput* count_output = AddTextOutput(Vector2f(49, kBorder + 1), TextColor::Green, TextAlignment::Center);
+  sprintf(count_output->text, "%zd", player_manager.player_count);
+
+  StatRenderableOutput* separator_outout = AddRenderableOutput(Graphics::color_sprites[kSeparatorColorIndex],
+                                                               Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.GetPlayerById(player_view[i]);
+
+    float y = kBorder + kHeaderHeight + 1.0f + i * 12.0f;
+    RecordName(player, y, selected_index == i, player->frequency == me.frequency);
+  }
+
+  view_height = kHeaderHeight + 1.0f + player_manager.player_count * 12.0f;
+}
+
+void StatBox::RecordPointsView(const Player& me) {
+  float width = kViewWidth[(size_t)view_type];
+
+  StatTextOutput* count_output = AddTextOutput(Vector2f(49, kBorder + 1), TextColor::Green, TextAlignment::Center);
+  sprintf(count_output->text, "%zd", player_manager.player_count);
+
+  StatTextOutput* header_points_output =
+      AddTextOutput(Vector2f(width, kBorder + 1), TextColor::Green, TextAlignment::Right);
+
+  if (view_type == StatViewType::PointSort) {
+    sprintf(header_points_output->text, "Point Sort");
+  } else {
+    sprintf(header_points_output->text, "Points");
+  }
+
+  StatRenderableOutput* separator_outout = AddRenderableOutput(Graphics::color_sprites[kSeparatorColorIndex],
+                                                               Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.GetPlayerById(player_view[i]);
+
+    float y = kBorder + kHeaderHeight + 1.0f + i * 12.0f;
+    RecordName(player, y, selected_index == i, player->frequency == me.frequency);
+
+    TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;
+
+    StatTextOutput* points_output = AddTextOutput(Vector2f(width, y), color, TextAlignment::Right);
+    sprintf(points_output->text, "%d", player->flag_points + player->kill_points);
+  }
+
+  view_height = kHeaderHeight + 1.0f + player_manager.player_count * 12.0f;
+}
+
+void StatBox::RecordTeamSortView(const Player& me) {
+  float width = kViewWidth[(size_t)view_type];
+
+  StatTextOutput* count_output = AddTextOutput(Vector2f(49, kBorder + 1), TextColor::Green, TextAlignment::Center);
+  sprintf(count_output->text, "%zd", player_manager.player_count);
+
+  StatTextOutput* header_sort_output =
+      AddTextOutput(Vector2f(width, kBorder + 1), TextColor::Green, TextAlignment::Right);
+  sprintf(header_sort_output->text, "Team Sort");
+
+  StatRenderableOutput* separator_outout = AddRenderableOutput(Graphics::color_sprites[kSeparatorColorIndex],
+                                                               Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+
+  float y = kBorder + kHeaderHeight + 1.0f;
+  s32 previous_freq = player_manager.GetPlayerById(player_view[0])->frequency;
+  float freq_output_y = y;
+  int freq_count = 0;
+
+  y += 12.0f;
 
   for (size_t i = 0; i < player_manager.player_count; ++i) {
     u16 player_id = player_view[i];
-
     Player* player = player_manager.GetPlayerById(player_id);
 
-    float y = kBorder + kHeaderHeight + 1.0f + i * 12.0f;
-    RenderName(camera, renderer, player, y, selected_index == i, player->frequency == me->frequency);
+    if (player->frequency != previous_freq) {
+      StatTextOutput* freq_output =
+          AddTextOutput(Vector2f(kBorder + 1, freq_output_y), TextColor::DarkRed, TextAlignment::Left);
+      sprintf(freq_output->text, "%.4d-------------", previous_freq);
+
+      StatTextOutput* freqcount_output =
+          AddTextOutput(Vector2f(width - 8, freq_output_y), TextColor::DarkRed, TextAlignment::Right);
+      sprintf(freqcount_output->text, "%d", freq_count);
+
+      freq_count = 0;
+      previous_freq = player->frequency;
+      freq_output_y = y;
+      y += 12.0f;
+    }
+
+    ++freq_count;
+
+    RecordName(player, y, selected_index == i, player->frequency == me.frequency);
+
+    TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;
+
+    StatTextOutput* points_output = AddTextOutput(Vector2f(width, y), color, TextAlignment::Right);
+    sprintf(points_output->text, "%d", player->flag_points + player->kill_points);
+
+    y += 12.0f;
   }
+
+  StatTextOutput* freq_output =
+      AddTextOutput(Vector2f(kBorder + 1, freq_output_y), TextColor::DarkRed, TextAlignment::Left);
+  sprintf(freq_output->text, "%.4d-------------", previous_freq);
+
+  StatTextOutput* freqcount_output =
+      AddTextOutput(Vector2f(width - 8, freq_output_y), TextColor::DarkRed, TextAlignment::Right);
+  sprintf(freqcount_output->text, "%d", freq_count);
+
+  view_height = y - 4.0f;
 }
 
-void StatBox::RenderName(Camera& camera, SpriteRenderer& renderer, Player* player, float y, bool selected,
-                         bool same_freq) {
+void StatBox::RecordFullView(const Player& me) {
+  // TODO: Does this scale out or adjust headings based on values?
+  float width = kViewWidth[(size_t)view_type];
+
+  constexpr float kSquadX = 133.0f;
+
+  constexpr float kWX = kSquadX + (10 + 6) * 8;
+  constexpr float kLX = kWX + 6 * 8;
+  constexpr float kRX = kLX + 6 * 8;
+
+  StatTextOutput* count_output = AddTextOutput(Vector2f(49, kBorder + 1), TextColor::Green, TextAlignment::Center);
+  sprintf(count_output->text, "%zd", player_manager.player_count);
+
+  StatTextOutput* header_squad_output =
+      AddTextOutput(Vector2f(kSquadX, kBorder + 1), TextColor::Green, TextAlignment::Left);
+  sprintf(header_squad_output->text, "Squad");
+
+  StatTextOutput* header_w_output = AddTextOutput(Vector2f(kWX, kBorder + 1), TextColor::Green, TextAlignment::Left);
+  sprintf(header_w_output->text, "W");
+
+  StatTextOutput* header_l_output = AddTextOutput(Vector2f(kLX, kBorder + 1), TextColor::Green, TextAlignment::Left);
+  sprintf(header_l_output->text, "L");
+
+  StatTextOutput* header_r_output = AddTextOutput(Vector2f(kRX, kBorder + 1), TextColor::Green, TextAlignment::Left);
+  sprintf(header_r_output->text, "R");
+
+  StatTextOutput* header_ave_output =
+      AddTextOutput(Vector2f(width, kBorder + 1), TextColor::Green, TextAlignment::Right);
+  sprintf(header_ave_output->text, "Ave");
+
+  StatRenderableOutput* separator_outout = AddRenderableOutput(Graphics::color_sprites[kSeparatorColorIndex],
+                                                               Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.GetPlayerById(player_view[i]);
+
+    float y = kBorder + kHeaderHeight + 1.0f + i * 12.0f;
+    RecordName(player, y, selected_index == i, player->frequency == me.frequency);
+
+    TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;
+
+    StatTextOutput* squad_output = AddTextOutput(Vector2f(kSquadX, y), color, TextAlignment::Left);
+    sprintf(squad_output->text, "%.10s", player->squad);
+
+    StatTextOutput* w_output = AddTextOutput(Vector2f(kWX + 8, y), color, TextAlignment::Right);
+    sprintf(w_output->text, "%d", player->wins);
+
+    StatTextOutput* l_output = AddTextOutput(Vector2f(kLX + 8, y), color, TextAlignment::Right);
+    sprintf(l_output->text, "%d", player->losses);
+
+    // TODO: Calculate stats
+    float r = 0.0f;
+    float ave = 0.0f;
+
+    if (player->wins > 0) {
+      ave = player->kill_points / (float)player->wins;
+    }
+
+    StatTextOutput* r_output = AddTextOutput(Vector2f(kRX + 8, y), color, TextAlignment::Right);
+    sprintf(r_output->text, "%d", (int)r);
+
+    StatTextOutput* ave_output = AddTextOutput(Vector2f(width, y), color, TextAlignment::Right);
+    sprintf(ave_output->text, "%.1f", ave);
+  }
+
+  view_height = kHeaderHeight + 1.0f + player_manager.player_count * 12.0f;
+}
+
+void StatBox::RecordFrequencyView(const Player& me) {}
+
+void StatBox::RecordName(Player* player, float y, bool selected, bool same_freq) {
   size_t spec_index = -1;
 
   if (selected) {
@@ -114,14 +295,14 @@ void StatBox::RenderName(Camera& camera, SpriteRenderer& renderer, Player* playe
   }
 
   if (spec_index != -1) {
-    renderer.Draw(camera, Graphics::spectate_sprites[spec_index], Vector2f(kBorder, y + 3.0f));
+    AddRenderableOutput(Graphics::spectate_sprites[spec_index], Vector2f(kBorder, y + 3.0f),
+                        Graphics::spectate_sprites[spec_index].dimensions);
   }
 
-  char name[20];
-  sprintf(name, "%.12s", player->name);
-
   TextColor color = same_freq ? TextColor::Yellow : TextColor::White;
-  renderer.DrawText(camera, name, color, Vector2f(kBorder + kSpectateWidth + 2.0f, y));
+  StatTextOutput* output = AddTextOutput(Vector2f(kBorder + kSpectateWidth + 2.0f, y), color, TextAlignment::Left);
+
+  sprintf(output->text, "%.12s", player->name);
 }
 
 void StatBox::OnPlayerEnter(u8* pkt, size_t size) { UpdateView(); }
@@ -133,6 +314,38 @@ void StatBox::OnPlayerFreqAndShipChange(u8* pkt, size_t size) { UpdateView(); }
 Player* StatBox::GetSelectedPlayer() {
   u16 selected_id = player_view[selected_index];
   return player_manager.GetPlayerById(selected_id);
+}
+
+void StatBox::RecordView() {
+  Player* self = player_manager.GetSelf();
+  if (!self) return;
+
+  text_count = 0;
+  renderable_count = 0;
+  view_height = 0;
+
+  switch (view_type) {
+    case StatViewType::Names: {
+      RecordNamesView(*self);
+    } break;
+    case StatViewType::Points: {
+      RecordPointsView(*self);
+    } break;
+    case StatViewType::PointSort: {
+      RecordPointsView(*self);
+    } break;
+    case StatViewType::TeamSort: {
+      RecordTeamSortView(*self);
+    } break;
+    case StatViewType::Full: {
+      RecordFullView(*self);
+    } break;
+    case StatViewType::Frequency: {
+      RecordFrequencyView(*self);
+    } break;
+    default: {
+    } break;
+  }
 }
 
 void StatBox::UpdateView() {
@@ -159,6 +372,8 @@ void StatBox::UpdateView() {
   if (selected_index >= player_manager.player_count) {
     selected_index = player_manager.player_count - 1;
   }
+
+  RecordView();
 }
 
 // TODO: Other sort methods
@@ -166,6 +381,20 @@ void StatBox::SortView() {
   Player* self = player_manager.GetSelf();
   if (!self) return;
 
+  switch (view_type) {
+    case StatViewType::Full:
+    case StatViewType::TeamSort:
+    case StatViewType::Points:
+    case StatViewType::Names: {
+      SortByName(*self);
+    } break;
+    case StatViewType::PointSort: {
+      SortByPoints(*self);
+    } break;
+  }
+}
+
+void StatBox::SortByName(const Player& self) {
   size_t count = player_manager.player_count;
 
   size_t index = 0;
@@ -176,7 +405,7 @@ void StatBox::SortView() {
     Player* player = player_manager.players + i;
 
     if (player->id == player_manager.player_id) continue;
-    if (player->frequency != self->frequency) continue;
+    if (player->frequency != self.frequency) continue;
 
     player_view[index++] = player->id;
   }
@@ -195,7 +424,7 @@ void StatBox::SortView() {
   for (size_t i = 0; i < count; ++i) {
     Player* player = player_manager.players + i;
 
-    if (player->frequency == self->frequency) continue;
+    if (player->frequency == self.frequency) continue;
 
     player_view[index++] = player->id;
   }
@@ -206,6 +435,47 @@ void StatBox::SortView() {
 
     return null_stricmp(lplayer->name, rplayer->name) < 0;
   });
+}
+
+void StatBox::SortByPoints(const Player& self) {
+  size_t count = player_manager.player_count;
+
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.players + i;
+
+    player_view[i] = player->id;
+  }
+
+  std::sort(player_view, player_view + count, [&](u16 left, u16 right) {
+    Player* lplayer = player_manager.GetPlayerById(left);
+    Player* rplayer = player_manager.GetPlayerById(right);
+
+    s32 lpoints = lplayer->flag_points + lplayer->kill_points;
+    s32 rpoints = rplayer->flag_points + rplayer->kill_points;
+
+    return lpoints > rpoints;
+  });
+}
+
+StatTextOutput* StatBox::AddTextOutput(const Vector2f& position, TextColor color, TextAlignment alignment) {
+  StatTextOutput* output = text_outputs + text_count++;
+
+  output->position = position;
+  output->color = color;
+  output->alignment = alignment;
+
+  return output;
+}
+
+StatRenderableOutput* StatBox::AddRenderableOutput(SpriteRenderable& renderable, const Vector2f& position,
+                                                   const Vector2f& dimensions) {
+  StatRenderableOutput* output = renderable_outputs + renderable_count++;
+
+  output->renderable = &renderable;
+  output->position = position;
+  output->dimensions = dimensions;
+
+  return output;
 }
 
 }  // namespace null
