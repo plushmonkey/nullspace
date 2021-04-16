@@ -145,7 +145,7 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
   WeaponType type = (WeaponType)data.type;
 
   Player* player = player_manager.GetPlayerById(pid);
-  assert(player);
+  if (!player) return;
 
   Vector2i position(x * 1000, y * 1000);
 

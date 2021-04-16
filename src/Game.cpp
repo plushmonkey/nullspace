@@ -131,75 +131,77 @@ void Game::Render(float dt) {
 
   Player* me = player_manager.GetSelf();
 
-  // TODO: Formalize layers
-  // Draw animations and weapons before ships and names so they are below
-  animation.Render(camera, sprite_renderer);
-  weapon_manager.Render(camera, sprite_renderer);
+  if (me) {
+    // TODO: Formalize layers
+    // Draw animations and weapons before ships and names so they are below
+    animation.Render(camera, sprite_renderer);
+    weapon_manager.Render(camera, sprite_renderer);
 
-  // Draw player ships
-  for (size_t i = 0; i < player_manager.player_count; ++i) {
-    Player* player = player_manager.players + i;
+    // Draw player ships
+    for (size_t i = 0; i < player_manager.player_count; ++i) {
+      Player* player = player_manager.players + i;
 
-    if (player->ship == 8) continue;
-    if (player->position.x == 0 && player->position.y == 0) continue;
+      if (player->ship == 8) continue;
+      if (player->position.x == 0 && player->position.y == 0) continue;
 
-    if (player->explode_animation.IsAnimating()) {
-      SpriteRenderable& renderable = player->explode_animation.GetFrame();
-      Vector2f position =
-          Vector2f(player->position.x / 1000.0f, player->position.y / 1000.0f) - renderable.dimensions * 0.5f;
-
-      sprite_renderer.Draw(camera, renderable, position);
-    } else if (player->enter_delay <= 0.0f) {
-      size_t index = player->ship * 40 + player->direction;
-
-      Vector2f position = Vector2f(player->position.x / 1000.0f, player->position.y / 1000.0f) -
-                          Graphics::ship_sprites[index].dimensions * 0.5f;
-
-      sprite_renderer.Draw(camera, Graphics::ship_sprites[index], position);
-
-      if (player->warp_animation.IsAnimating()) {
-        SpriteRenderable& renderable = player->warp_animation.GetFrame();
+      if (player->explode_animation.IsAnimating()) {
+        SpriteRenderable& renderable = player->explode_animation.GetFrame();
         Vector2f position =
             Vector2f(player->position.x / 1000.0f, player->position.y / 1000.0f) - renderable.dimensions * 0.5f;
 
         sprite_renderer.Draw(camera, renderable, position);
+      } else if (player->enter_delay <= 0.0f) {
+        size_t index = player->ship * 40 + player->direction;
+
+        Vector2f position = Vector2f(player->position.x / 1000.0f, player->position.y / 1000.0f) -
+                            Graphics::ship_sprites[index].dimensions * 0.5f;
+
+        sprite_renderer.Draw(camera, Graphics::ship_sprites[index], position);
+
+        if (player->warp_animation.IsAnimating()) {
+          SpriteRenderable& renderable = player->warp_animation.GetFrame();
+          Vector2f position =
+              Vector2f(player->position.x / 1000.0f, player->position.y / 1000.0f) - renderable.dimensions * 0.5f;
+
+          sprite_renderer.Draw(camera, renderable, position);
+        }
       }
     }
-  }
 
-  // Draw player names - This is done in separate loop to batch sprite sheet renderables
-  for (size_t i = 0; i < player_manager.player_count; ++i) {
-    Player* player = player_manager.players + i;
+    // Draw player names - This is done in separate loop to batch sprite sheet renderables
+    for (size_t i = 0; i < player_manager.player_count; ++i) {
+      Player* player = player_manager.players + i;
 
-    if (player->ship == 8) continue;
-    if (player->position.x == 0 && player->position.y == 0) continue;
+      if (player->ship == 8) continue;
+      if (player->position.x == 0 && player->position.y == 0) continue;
 
-    if (player->enter_delay <= 0.0f) {
-      float radius = connection.settings.ShipSettings[player->ship].GetRadius();
+      if (player->enter_delay <= 0.0f) {
+        float radius = connection.settings.ShipSettings[player->ship].GetRadius();
 
-      char display[32];
-      sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
+        char display[32];
+        sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
 
-      u32 team_freq = me->frequency;
+        u32 team_freq = me->frequency;
 
-      if (me->ship == 8) {
-        team_freq = specview.spectate_frequency;
-      }
+        if (me->ship == 8) {
+          team_freq = specview.spectate_frequency;
+        }
 
-      if (me) {
-        TextColor color = team_freq == player->frequency ? TextColor::Yellow : TextColor::Blue;
-        Vector2f position(player->position.x / 1000.0f + radius, player->position.y / 1000.0f + radius);
+        if (me) {
+          TextColor color = team_freq == player->frequency ? TextColor::Yellow : TextColor::Blue;
+          Vector2f position(player->position.x / 1000.0f + radius, player->position.y / 1000.0f + radius);
 
-        sprite_renderer.DrawText(camera, display, color, position);
+          sprite_renderer.DrawText(camera, display, color, position);
+        }
       }
     }
+
+    sprite_renderer.Render(camera);
+
+    RenderRadar(me);
+
+    chat.Render(ui_camera, sprite_renderer);
   }
-
-  sprite_renderer.Render(camera);
-
-  RenderRadar(me);
-
-  chat.Render(ui_camera, sprite_renderer);
 
   // TODO: Move all of this out
 
