@@ -35,7 +35,7 @@ struct StatBox {
   // PlayerId view into the player list
   u16 player_view[1024];
 
-  float view_height = 0.0f;
+  Vector2f view_dimensions;
 
   size_t text_count = 0;
   StatTextOutput text_outputs[256];
@@ -62,6 +62,8 @@ struct StatBox {
   void SortByPoints(const Player& self);
 
   Player* GetSelectedPlayer();
+  float GetPointsWidth();
+  float GetPointsSumWidth();
 
   void OnPlayerEnter(u8* pkt, size_t size);
   void OnPlayerLeave(u8* pkt, size_t size);

@@ -10,8 +10,6 @@
 #include "render/Graphics.h"
 #include "render/SpriteRenderer.h"
 
-// TODO: Scale the windows by max points and make room for banner
-
 namespace null {
 
 constexpr float kBorder = 3.0f;
@@ -20,8 +18,6 @@ constexpr float kSpectateWidth = 8.0f;
 
 constexpr size_t kSeparatorColorIndex = 1;
 constexpr size_t kBackgroundColorIndex = 16;
-
-constexpr float kViewWidth[] = {108, 172, 172, 172, 428, 268};
 
 static void OnPlayerEnterPkt(void* user, u8* pkt, size_t size) {
   StatBox* statbox = (StatBox*)user;
@@ -75,7 +71,7 @@ void StatBox::Render(Camera& camera, SpriteRenderer& renderer) {
 
   // Render background
   SpriteRenderable background = Graphics::color_sprites[kBackgroundColorIndex];
-  background.dimensions = Vector2f(kViewWidth[(size_t)view_type], view_height);
+  background.dimensions = view_dimensions;
 
   renderer.Draw(camera, background, Vector2f(3, 3));
 
@@ -93,12 +89,12 @@ void StatBox::Render(Camera& camera, SpriteRenderer& renderer) {
     renderer.DrawText(camera, output->text, output->color, output->position, output->alignment);
   }
 
-  Graphics::DrawBorder(renderer, camera, background.dimensions * 0.5f + Vector2f(kBorder, kBorder),
-                       background.dimensions * 0.5f);
+  Graphics::DrawBorder(renderer, camera, view_dimensions * 0.5f + Vector2f(kBorder, kBorder), view_dimensions * 0.5f);
 }
 
 void StatBox::RecordNamesView(const Player& me) {
-  float width = kViewWidth[(size_t)view_type];
+  constexpr float kNamesWidth = 108.0f;
+  float width = kNamesWidth;
 
   StatTextOutput* count_output = AddTextOutput(Vector2f(49, kBorder + 1), TextColor::Green, TextAlignment::Center);
   sprintf(count_output->text, "%zd", player_manager.player_count);
@@ -113,11 +109,12 @@ void StatBox::RecordNamesView(const Player& me) {
     RecordName(player, y, selected_index == i, player->frequency == me.frequency);
   }
 
-  view_height = kHeaderHeight + 1.0f + player_manager.player_count * 12.0f;
+  view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + player_manager.player_count * 12.0f);
 }
 
 void StatBox::RecordPointsView(const Player& me) {
-  float width = kViewWidth[(size_t)view_type];
+  constexpr float kBaseWidth = 124;
+  float width = kBaseWidth + GetPointsWidth();
 
   StatTextOutput* count_output = AddTextOutput(Vector2f(49, kBorder + 1), TextColor::Green, TextAlignment::Center);
   sprintf(count_output->text, "%zd", player_manager.player_count);
@@ -146,11 +143,12 @@ void StatBox::RecordPointsView(const Player& me) {
     sprintf(points_output->text, "%d", player->flag_points + player->kill_points);
   }
 
-  view_height = kHeaderHeight + 1.0f + player_manager.player_count * 12.0f;
+  view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + player_manager.player_count * 12.0f);
 }
 
 void StatBox::RecordTeamSortView(const Player& me) {
-  float width = kViewWidth[(size_t)view_type];
+  constexpr float kBaseWidth = 124;
+  float width = kBaseWidth + GetPointsWidth();
 
   StatTextOutput* count_output = AddTextOutput(Vector2f(49, kBorder + 1), TextColor::Green, TextAlignment::Center);
   sprintf(count_output->text, "%zd", player_manager.player_count);
@@ -179,7 +177,7 @@ void StatBox::RecordTeamSortView(const Player& me) {
       sprintf(freq_output->text, "%.4d-------------", previous_freq);
 
       StatTextOutput* freqcount_output =
-          AddTextOutput(Vector2f(width - 8, freq_output_y), TextColor::DarkRed, TextAlignment::Right);
+          AddTextOutput(Vector2f(kBorder + 1 + 18 * 8, freq_output_y), TextColor::DarkRed, TextAlignment::Left);
       sprintf(freqcount_output->text, "%d", freq_count);
 
       freq_count = 0;
@@ -205,21 +203,21 @@ void StatBox::RecordTeamSortView(const Player& me) {
   sprintf(freq_output->text, "%.4d-------------", previous_freq);
 
   StatTextOutput* freqcount_output =
-      AddTextOutput(Vector2f(width - 8, freq_output_y), TextColor::DarkRed, TextAlignment::Right);
+      AddTextOutput(Vector2f(kBorder + 1 + 18 * 8, freq_output_y), TextColor::DarkRed, TextAlignment::Right);
   sprintf(freqcount_output->text, "%d", freq_count);
 
-  view_height = y - 4.0f;
+  view_dimensions = Vector2f(width, y - 4.0f);
 }
 
 void StatBox::RecordFullView(const Player& me) {
-  // TODO: Does this scale out or adjust headings based on values?
-  float width = kViewWidth[(size_t)view_type];
+  constexpr float kBaseWidth = 452;
+  float width = kBaseWidth;
 
   constexpr float kSquadX = 133.0f;
 
-  constexpr float kWX = kSquadX + (10 + 6) * 8;
-  constexpr float kLX = kWX + 6 * 8;
-  constexpr float kRX = kLX + 6 * 8;
+  constexpr float kWX = kSquadX + (10 + 7) * 8;
+  constexpr float kLX = kWX + 7 * 8;
+  constexpr float kRX = kLX + 7 * 8;
 
   StatTextOutput* count_output = AddTextOutput(Vector2f(49, kBorder + 1), TextColor::Green, TextAlignment::Center);
   sprintf(count_output->text, "%zd", player_manager.player_count);
@@ -276,10 +274,130 @@ void StatBox::RecordFullView(const Player& me) {
     sprintf(ave_output->text, "%.1f", ave);
   }
 
-  view_height = kHeaderHeight + 1.0f + player_manager.player_count * 12.0f;
+  view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + player_manager.player_count * 12.0f);
 }
 
-void StatBox::RecordFrequencyView(const Player& me) {}
+void StatBox::RecordFrequencyView(const Player& me) {
+  constexpr float kBaseWidth = 252.0f;
+  float points_width = GetPointsSumWidth();
+  float width = kBaseWidth + points_width;
+
+  float freq_x = 41 + kBorder;
+  float points_x = freq_x + points_width + 33;
+  float win_x = points_x + 64;
+  float lose_x = win_x + 64;
+
+  StatTextOutput* header_freq_output =
+      AddTextOutput(Vector2f(freq_x, kBorder + 1), TextColor::Green, TextAlignment::Right);
+  sprintf(header_freq_output->text, "Freq");
+
+  StatTextOutput* header_points_output =
+      AddTextOutput(Vector2f(points_x, kBorder + 1), TextColor::Green, TextAlignment::Right);
+  sprintf(header_points_output->text, "Points");
+
+  StatTextOutput* header_win_output =
+      AddTextOutput(Vector2f(win_x, kBorder + 1), TextColor::Green, TextAlignment::Right);
+  sprintf(header_win_output->text, "Win");
+
+  StatTextOutput* header_lose_output =
+      AddTextOutput(Vector2f(lose_x, kBorder + 1), TextColor::Green, TextAlignment::Right);
+  sprintf(header_lose_output->text, "Lose");
+
+  StatTextOutput* header_flag_output =
+      AddTextOutput(Vector2f(width, kBorder + 1), TextColor::Green, TextAlignment::Right);
+  sprintf(header_flag_output->text, "Flag");
+
+  StatRenderableOutput* separator_outout = AddRenderableOutput(Graphics::color_sprites[kSeparatorColorIndex],
+                                                               Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+
+  Player* selected_player = GetSelectedPlayer();
+  int selected_freq = 0;
+
+  if (selected_player) {
+    selected_freq = selected_player->frequency;
+  }
+
+  int freq_count = 1;
+  int rendered_count = 0;
+
+  u32 point_count = 0;
+  u32 win_count = 0;
+  u32 lose_count = 0;
+  u32 flag_count = 0;
+  u32 last_freq = player_manager.GetPlayerById(player_view[0])->frequency;
+
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.GetPlayerById(player_view[i]);
+    float y = kBorder + kHeaderHeight + 1.0f + rendered_count * 12.0f;
+    bool last_output = i == player_manager.player_count - 1;
+
+    if (player->frequency == last_freq) {
+      point_count += player->kill_points + player->flag_points;
+      win_count += player->wins;
+      lose_count += player->losses;
+      flag_count += player->flags;
+
+      continue;
+    }
+
+    TextColor color = last_freq == me.frequency ? TextColor::Yellow : TextColor::White;
+
+    StatTextOutput* freq_output = AddTextOutput(Vector2f(freq_x, y), color, TextAlignment::Right);
+    sprintf(freq_output->text, "%4d", last_freq);
+
+    StatTextOutput* points_output = AddTextOutput(Vector2f(points_x, y), color, TextAlignment::Right);
+    sprintf(points_output->text, "%d", point_count);
+
+    StatTextOutput* win_output = AddTextOutput(Vector2f(win_x, y), color, TextAlignment::Right);
+    sprintf(win_output->text, "%d", win_count);
+
+    StatTextOutput* loss_output = AddTextOutput(Vector2f(lose_x, y), color, TextAlignment::Right);
+    sprintf(loss_output->text, "%d", lose_count);
+
+    StatTextOutput* flag_output = AddTextOutput(Vector2f(width, y), color, TextAlignment::Right);
+    sprintf(flag_output->text, "%d", flag_count);
+
+    if (last_output) {
+      point_count = player->kill_points + player->flag_points;
+      win_count = player->wins;
+      lose_count = player->losses;
+      flag_count = player->flags;
+    } else {
+      point_count = 0;
+      win_count = 0;
+      lose_count = 0;
+      flag_count = 0;
+    }
+
+    last_freq = player->frequency;
+
+    ++freq_count;
+    ++rendered_count;
+  }
+
+  if (rendered_count != freq_count) {
+    float y = kBorder + kHeaderHeight + 1.0f + rendered_count * 12.0f;
+
+    TextColor color = last_freq == me.frequency ? TextColor::Yellow : TextColor::White;
+
+    StatTextOutput* freq_output = AddTextOutput(Vector2f(freq_x, y), color, TextAlignment::Right);
+    sprintf(freq_output->text, "%4d", last_freq);
+
+    StatTextOutput* points_output = AddTextOutput(Vector2f(points_x, y), color, TextAlignment::Right);
+    sprintf(points_output->text, "%d", point_count);
+
+    StatTextOutput* win_output = AddTextOutput(Vector2f(win_x, y), color, TextAlignment::Right);
+    sprintf(win_output->text, "%d", win_count);
+
+    StatTextOutput* loss_output = AddTextOutput(Vector2f(lose_x, y), color, TextAlignment::Right);
+    sprintf(loss_output->text, "%d", lose_count);
+
+    StatTextOutput* flag_output = AddTextOutput(Vector2f(width, y), color, TextAlignment::Right);
+    sprintf(flag_output->text, "%d", flag_count);
+  }
+
+  view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + freq_count * 12.0f);
+}
 
 void StatBox::RecordName(Player* player, float y, bool selected, bool same_freq) {
   size_t spec_index = -1;
@@ -316,13 +434,61 @@ Player* StatBox::GetSelectedPlayer() {
   return player_manager.GetPlayerById(selected_id);
 }
 
+float StatBox::GetPointsWidth() {
+  u32 highest_points = 0;
+
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.players + i;
+    u32 points = player->flag_points + player->kill_points;
+
+    if (points > highest_points) {
+      highest_points = points;
+    }
+  }
+
+  int digits = 0;
+  do {
+    highest_points /= 10;
+    ++digits;
+  } while (highest_points > 0);
+
+  if (digits < 6) {
+    digits = 6;
+  }
+
+  return digits * 8.0f;
+}
+
+float StatBox::GetPointsSumWidth() {
+  u32 points_sum = 0;
+
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.players + i;
+    u32 points = player->flag_points + player->kill_points;
+
+    points_sum += points;
+  }
+
+  int digits = 0;
+  do {
+    points_sum /= 10;
+    ++digits;
+  } while (points_sum > 0);
+
+  if (digits < 6) {
+    digits = 6;
+  }
+
+  return digits * 8.0f;
+}
+
 void StatBox::RecordView() {
   Player* self = player_manager.GetSelf();
   if (!self) return;
 
   text_count = 0;
   renderable_count = 0;
-  view_height = 0;
+  view_dimensions = Vector2f(0, 0);
 
   switch (view_type) {
     case StatViewType::Names: {
