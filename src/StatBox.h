@@ -15,7 +15,7 @@ struct StatBox {
   PlayerManager& player_manager;
   StatViewType view_type = StatViewType::Names;
 
-  size_t selected_index = 0;
+  size_t selected_index = -1;
 
   // PlayerId view into the player list
   u16 player_view[1024];

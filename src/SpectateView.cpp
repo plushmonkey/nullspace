@@ -1,8 +1,11 @@
 #include "SpectateView.h"
 
+#include <cstdio>
+
 #include "InputState.h"
 #include "PlayerManager.h"
 #include "StatBox.h"
+#include "Tick.h"
 #include "net/Connection.h"
 
 namespace null {
@@ -20,32 +23,36 @@ void SpectateView::Update(const InputState& input, float dt) {
 
   float spectate_speed = 30.0f;
 
-  if (input.IsDown(InputAction::Bullet)) {
-    SpectateSelected();
-  }
-
   if (input.IsDown(InputAction::Afterburner)) {
     spectate_speed *= 2.0f;
   }
 
+  bool moved = false;
+
   if (input.IsDown(InputAction::Left)) {
     me->position -= Vector2f(spectate_speed, 0) * dt;
-    spectate_id = kInvalidSpectateId;
+    moved = true;
   }
 
   if (input.IsDown(InputAction::Right)) {
     me->position += Vector2f(spectate_speed, 0) * dt;
-    spectate_id = kInvalidSpectateId;
+    moved = true;
   }
 
   if (input.IsDown(InputAction::Forward)) {
     me->position -= Vector2f(0, spectate_speed) * dt;
-    spectate_id = kInvalidSpectateId;
+    moved = true;
   }
 
   if (input.IsDown(InputAction::Backward)) {
     me->position += Vector2f(0, spectate_speed) * dt;
+    moved = true;
+  }
+
+  if (moved) {
     spectate_id = kInvalidSpectateId;
+  } else if (input.IsDown(InputAction::Bullet)) {
+    SpectateSelected();
   }
 
   if (spectate_id != -1) {
@@ -61,10 +68,23 @@ void SpectateView::Update(const InputState& input, float dt) {
 
 void SpectateView::SpectateSelected() {
   Player* selected = statbox.GetSelectedPlayer();
+  u32 tick = GetCurrentTick();
 
-  if (selected && selected->ship != 8) {
+  if (TICK_DIFF(tick, last_spectate_packet) < 10) return;
+
+  if (selected && selected->ship != 8 && selected->id != spectate_id) {
     spectate_id = selected->id;
     spectate_frequency = selected->frequency;
+    last_spectate_packet = tick;
+
+#pragma pack(push, 1)
+    struct {
+      u8 type;
+      u16 pid;
+    } spectate_request = {0x08, spectate_id};
+#pragma pack(pop)
+
+    connection.packet_sequencer.SendReliableMessage(connection, (u8*)&spectate_request, sizeof(spectate_request));
   }
 }
 

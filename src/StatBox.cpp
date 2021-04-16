@@ -135,7 +135,16 @@ Player* StatBox::GetSelectedPlayer() {
 }
 
 void StatBox::UpdateView() {
-  u16 selected_id = player_view[selected_index];
+  Player* self = player_manager.GetSelf();
+  if (!self) return;
+
+  u16 selected_id = 0;
+
+  if (selected_index == -1) {
+    selected_id = self->id;
+  } else {
+    selected_id = player_view[selected_index];
+  }
 
   SortView();
 

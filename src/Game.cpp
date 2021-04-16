@@ -299,38 +299,38 @@ void Game::RenderRadar(Player* me) {
 
         if (player->ship >= 8) continue;
 
-        if (player->id == specview.spectate_id || (player == me && me->ship != 8)) {
-          if (sin(GetCurrentTick() / 5) < 0) {
-            SpriteRenderable self_renderable = Graphics::color_sprites[25];
-            Vector2f start = position + half_extents - Vector2f(1, 1);
-            self_renderable.dimensions = Vector2f(2, 2);
-
-            sprite_renderer.Draw(ui_camera, self_renderable, start);
-          }
-
-          continue;
-        }
-
         Vector2f p = player->position;
+        Vector2f percent = (p - center) * (1.0f / range);
+
         if (p.x >= min.x && p.x < max.x && p.y >= min.y && p.y < max.y) {
-          Vector2f percent = (p - center) * (1.0f / range);
           size_t sprite_index = 34;
+          bool render = true;
 
           if (player->bounty > 100) {
             sprite_index = 33;
           }
 
           if (player->frequency == team_freq) {
-            sprite_index = 25;
+            sprite_index = 29;
           }
 
-          SpriteRenderable renderable = Graphics::color_sprites[sprite_index];
-          Vector2f center_radar = position + half_extents;
-          Vector2f start = center_radar + Vector2f(percent.x * half_extents.x, percent.y * half_extents.y);
+          bool is_me = player->id == specview.spectate_id || (player == me && me->ship != 8);
 
-          renderable.dimensions = Vector2f(2, 2);
+          if (is_me) {
+            sprite_index = 29;
 
-          sprite_renderer.Draw(ui_camera, renderable, start);
+            render = sin(GetCurrentTick() / 5) < 0;
+          }
+
+          if (render) {
+            SpriteRenderable renderable = Graphics::color_sprites[sprite_index];
+            Vector2f center_radar = position + half_extents;
+            Vector2f start = center_radar + Vector2f(percent.x * half_extents.x, percent.y * half_extents.y);
+
+            renderable.dimensions = Vector2f(2, 2);
+
+            sprite_renderer.Draw(ui_camera, renderable, start);
+          }
         }
       }
 
