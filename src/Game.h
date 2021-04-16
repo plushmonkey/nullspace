@@ -41,7 +41,7 @@ struct Game {
   bool Initialize(InputState& input);
   void Update(const InputState& input, float dt);
 
-  void Render();
+  void Render(float dt);
   void RenderRadar(Player* player);
 };
 

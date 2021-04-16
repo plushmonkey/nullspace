@@ -11,8 +11,8 @@ enum class WeaponType { None, Bullet, BouncingBullet, Bomb, ProximityBomb, Repel
 constexpr u32 kInvalidLink = 0xFFFFFFFF;
 
 struct Weapon {
-  Vector2f position;
-  Vector2f velocity;
+  Vector2i position;
+  Vector2s velocity;
 
   u32 end_tick;
 
@@ -49,8 +49,8 @@ struct WeaponManager {
 
   void OnWeaponPacket(u8* pkt, size_t size);
 
-  void GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp, const Vector2f& position,
-                      const Vector2f& velocity, const Vector2f& heading, u32 link_id);
+  void GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp, const Vector2i& position,
+                      const Vector2s& velocity, const Vector2f& heading, u32 link_id);
 };
 
 }  // namespace null

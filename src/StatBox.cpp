@@ -4,6 +4,7 @@
 #include <cstdio>
 
 #include "InputState.h"
+#include "Platform.h"
 #include "net/PacketDispatcher.h"
 #include "render/Camera.h"
 #include "render/Graphics.h"
@@ -185,7 +186,7 @@ void StatBox::SortView() {
     Player* lplayer = player_manager.GetPlayerById(left);
     Player* rplayer = player_manager.GetPlayerById(right);
 
-    return strcmp(lplayer->name, rplayer->name) < 0;
+    return null_stricmp(lplayer->name, rplayer->name) < 0;
   });
 
   size_t other_start = index;
@@ -203,7 +204,7 @@ void StatBox::SortView() {
     Player* lplayer = player_manager.GetPlayerById(left);
     Player* rplayer = player_manager.GetPlayerById(right);
 
-    return strcmp(lplayer->name, rplayer->name) < 0;
+    return null_stricmp(lplayer->name, rplayer->name) < 0;
   });
 }
 

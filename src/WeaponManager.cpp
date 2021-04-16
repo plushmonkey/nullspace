@@ -37,6 +37,10 @@ WeaponManager::WeaponManager(Connection& connection, PlayerManager& player_manag
   dispatcher.Register(ProtocolS2C::LargePosition, OnLargePositionPkt, this);
 }
 
+inline Vector2f GetWorldPosition(const Vector2i& position, const Vector2f& offset) {
+  return Vector2f((float)(position.x / 1000 - (int)offset.x), (float)(position.y / 1000 - (int)offset.y));
+}
+
 void WeaponManager::Update(float dt) {
   u32 tick = GetCurrentTick();
 
@@ -57,7 +61,8 @@ void WeaponManager::Update(float dt) {
       continue;
     }
 
-    weapon->position += weapon->velocity * dt;
+    weapon->position.x += weapon->velocity.x;
+    weapon->position.y += weapon->velocity.y;
 
     if (weapon->animation.sprite) {
       weapon->animation.t += dt;
@@ -69,16 +74,16 @@ void WeaponManager::Update(float dt) {
       if (drop_tail) {
         if (weapon->data.type == (u16)WeaponType::Bullet || weapon->data.type == (u16)WeaponType::BouncingBullet) {
           SpriteRenderable& frame = Graphics::anim_bullet_trails[weapon->data.level].frames[0];
-          Vector2f offset = frame.dimensions * (0.5f / 16.0f);
+          Vector2f position = GetWorldPosition(weapon->position, frame.dimensions * 0.5f);
 
-          animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], weapon->position - offset);
+          animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], position);
         } else if ((weapon->data.type == (u16)WeaponType::Bomb ||
                     weapon->data.type == (u16)WeaponType::ProximityBomb) &&
                    !weapon->data.alternate) {
           SpriteRenderable& frame = Graphics::anim_bomb_trails[weapon->data.level].frames[0];
-          Vector2f offset = frame.dimensions * (0.5f / 16.0f);
+          Vector2f position = GetWorldPosition(weapon->position, frame.dimensions * 0.5f);
 
-          animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], weapon->position - offset);
+          animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], position);
         }
       }
     }
@@ -91,18 +96,18 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer) {
 
     if (weapon->animation.IsAnimating()) {
       SpriteRenderable& frame = weapon->animation.GetFrame();
-      Vector2f offset = frame.dimensions * (0.5f / 16.0f);
+      Vector2f position = GetWorldPosition(weapon->position, frame.dimensions * 0.5f);
 
-      renderer.Draw(camera, frame, weapon->position - offset);
+      renderer.Draw(camera, frame, position);
     } else if (weapon->data.type == (u16)WeaponType::Decoy) {
       Player* player = player_manager.GetPlayerById(weapon->player_id);
       if (player) {
         // TODO: Render opposite rotation based on initial orientation
         size_t index = player->ship * 40 + player->direction;
         SpriteRenderable& frame = Graphics::ship_sprites[index];
-        Vector2f offset = frame.dimensions * (0.5f / 16.0f);
+        Vector2f position = GetWorldPosition(weapon->position, frame.dimensions * 0.5f);
 
-        renderer.Draw(camera, frame, weapon->position - offset);
+        renderer.Draw(camera, frame, position);
       }
     }
   }
@@ -119,7 +124,7 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
   s16 vel_y = (s16)buffer.ReadU16();
   u16 pid = buffer.ReadU16();
 
-  Vector2f velocity((s16)buffer.ReadU16() / 16.0f / 10.0f, vel_y / 16.0f / 10.0f);
+  Vector2s velocity((s16)buffer.ReadU16(), vel_y);
   u8 checksum = buffer.ReadU8();
   buffer.ReadU8();  // Togglables
   u8 ping = buffer.ReadU8();
@@ -142,7 +147,7 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
   Player* player = player_manager.GetPlayerById(pid);
   assert(player);
 
-  Vector2f position(x / 16.0f, y / 16.0f);
+  Vector2i position(x * 1000, y * 1000);
 
   ShipSettings& ship_settings = connection.settings.ShipSettings[player->ship];
 
@@ -157,8 +162,11 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
       Vector2f perp = Perpendicular(heading);
       Vector2f offset = perp * (ship_settings.GetRadius() * 0.75f);
 
-      GenerateWeapon(pid, data, local_timestamp, position - offset, velocity, heading, kInvalidLink);
-      GenerateWeapon(pid, data, local_timestamp, position + offset, velocity, heading, kInvalidLink);
+      Vector2i first_pos((int)(position.x - offset.x * 1000), (int)(position.y - offset.y * 1000));
+      Vector2i second_pos((int)(position.x + offset.x * 1000), (int)(position.y + offset.y * 1000));
+
+      GenerateWeapon(pid, data, local_timestamp, first_pos, velocity, heading, kInvalidLink);
+      GenerateWeapon(pid, data, local_timestamp, second_pos, velocity, heading, kInvalidLink);
     } else {
       GenerateWeapon(pid, data, local_timestamp, position, velocity, heading, kInvalidLink);
     }
@@ -176,8 +184,8 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
   }
 }
 
-void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp, const Vector2f& position,
-                                   const Vector2f& velocity, const Vector2f& heading, u32 link_id) {
+void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp, const Vector2i& position,
+                                   const Vector2s& velocity, const Vector2f& heading, u32 link_id) {
   Weapon* weapon = weapons + weapon_count++;
 
   weapon->data = weapon_data;
@@ -220,15 +228,18 @@ void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 lo
   bool is_mine = (type == WeaponType::Bomb || type == WeaponType::ProximityBomb) && weapon->data.alternate;
 
   if (type != WeaponType::Repel && !is_mine) {
-    weapon->velocity = velocity + heading * (speed / 16.0f / 10.0f);
+    weapon->velocity.x = velocity.x + (s16)(heading.x * speed);
+    weapon->velocity.y = velocity.y + (s16)(heading.y * speed);
   } else {
-    weapon->velocity = Vector2f(0, 0);
+    weapon->velocity.x = 0;
+    weapon->velocity.y = 0;
   }
 
   s32 tick_diff = TICK_DIFF(GetCurrentTick(), local_timestamp);
 
   // TODO: Simulate forward
-  weapon->position += weapon->velocity * (tick_diff / 100.0f);
+  weapon->position.x += weapon->velocity.x * tick_diff;
+  weapon->position.y += weapon->velocity.y * tick_diff;
 
   weapon->link_id = 0xFFFFFFFF;
 

@@ -7,6 +7,8 @@
 // Fix warning with glad definition
 #undef APIENTRY
 #endif
+#else
+#include <strings.h>
 #endif
 
 #define NOMINMAX
@@ -86,8 +88,13 @@ void PasteClipboard(char* dest, size_t available_size) {
   }
 }
 
+int null_stricmp(const char* s1, const char* s2) { return _stricmp(s1, s2); }
+
 #else
 bool CreateFolder(const char* path) { return false; }
+void PasteClipboard(char* dest, size_t available_size){};
+int null_stricmp(const char* s1, const char* s2) { return strcasecmp(s1, s2); }
+
 #endif
 
 }  // namespace null

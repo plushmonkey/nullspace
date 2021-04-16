@@ -28,10 +28,10 @@ struct Player {
   PlayerId id;
   u16 frequency;
 
-  Vector2f position;
-  Vector2f velocity;
+  Vector2i position;
+  Vector2s velocity;
 
-  Vector2f lerp_velocity;
+  Vector2s lerp_velocity;
   float lerp_time;
 
   u16 wins;

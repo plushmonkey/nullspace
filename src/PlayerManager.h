@@ -33,7 +33,7 @@ struct PlayerManager {
   void OnLargePositionPacket(u8* pkt, size_t size);
   void OnSmallPositionPacket(u8* pkt, size_t size);
 
-  void OnPositionPacket(Player& player, const Vector2f& position);
+  void OnPositionPacket(Player& player, const Vector2i& position);
 };
 
 }  // namespace null

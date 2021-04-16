@@ -21,31 +21,31 @@ void SpectateView::Update(const InputState& input, float dt) {
     return;
   }
 
-  float spectate_speed = 30.0f;
+  s32 spectate_speed = (s32)(480000 * dt);
 
   if (input.IsDown(InputAction::Afterburner)) {
-    spectate_speed *= 2.0f;
+    spectate_speed *= 2;
   }
 
   bool moved = false;
 
   if (input.IsDown(InputAction::Left)) {
-    me->position -= Vector2f(spectate_speed, 0) * dt;
+    me->position.x -= spectate_speed;
     moved = true;
   }
 
   if (input.IsDown(InputAction::Right)) {
-    me->position += Vector2f(spectate_speed, 0) * dt;
+    me->position.x += spectate_speed;
     moved = true;
   }
 
   if (input.IsDown(InputAction::Forward)) {
-    me->position -= Vector2f(0, spectate_speed) * dt;
+    me->position.y -= spectate_speed;
     moved = true;
   }
 
   if (input.IsDown(InputAction::Backward)) {
-    me->position += Vector2f(0, spectate_speed) * dt;
+    me->position.y += spectate_speed;
     moved = true;
   }
 

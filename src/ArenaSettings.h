@@ -195,7 +195,7 @@ struct ShipSettings {
     if (Radius == 0) {
       result = 14.0f;
     }
-    return result / 16.0f;
+    return result;
   }
 };
 
