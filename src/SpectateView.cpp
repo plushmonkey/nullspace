@@ -55,7 +55,7 @@ void SpectateView::Update(const InputState& input, float dt) {
     SpectateSelected();
   }
 
-  if (spectate_id != -1) {
+  if (spectate_id != kInvalidSpectateId) {
     Player* follow_player = statbox.player_manager.GetPlayerById(spectate_id);
 
     if (follow_player) {

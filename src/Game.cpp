@@ -62,12 +62,8 @@ void Game::Update(const InputState& input, float dt) {
   weapon_manager.Update(dt);
 
   Simulate(connection, player_manager, dt);
-  specview.Update(input, dt);
 
   Player* me = player_manager.GetSelf();
-  if (me) {
-    // camera.position = me->position;
-  }
 
   if (tile_renderer.tilemap_texture == -1 && connection.login_state == Connection::LoginState::Complete) {
     if (!tile_renderer.CreateMapBuffer(temp_arena, connection.map_handler.filename, ui_camera.surface_dim)) {
@@ -107,14 +103,17 @@ void Game::Update(const InputState& input, float dt) {
     }
   }
 
+  // This must be updated after position update
+  specview.Update(input, dt);
+
   // Cap player and spectator camera to playable area
   if (me) {
     if (me->position.x < 0) me->position.x = 0;
     if (me->position.y < 0) me->position.y = 0;
     if (me->position.x > 1023 * 16 * 1000) me->position.x = 1023 * 16 * 1000;
     if (me->position.y > 1023 * 16 * 1000) me->position.y = 1023 * 16 * 1000;
-    camera.position.x = me->position.x / 1000.0f;
-    camera.position.y = me->position.y / 1000.0f;
+    camera.position.x = (float)(me->position.x / 1000);
+    camera.position.y = (float)(me->position.y / 1000);
   }
 
   render_radar = input.IsDown(InputAction::DisplayMap);
@@ -126,7 +125,6 @@ void Game::Render(float dt) {
   }
 
   animation.Update(dt);
-
   tile_renderer.Render(camera);
 
   Player* me = player_manager.GetSelf();
@@ -144,24 +142,23 @@ void Game::Render(float dt) {
       if (player->ship == 8) continue;
       if (player->position.x == 0 && player->position.y == 0) continue;
 
+      Vector2f player_position((float)(player->position.x / 1000), (float)(player->position.y / 1000));
+
       if (player->explode_animation.IsAnimating()) {
         SpriteRenderable& renderable = player->explode_animation.GetFrame();
-        Vector2f position =
-            Vector2f(player->position.x / 1000.0f, player->position.y / 1000.0f) - renderable.dimensions * 0.5f;
+        Vector2f position = player_position - renderable.dimensions * 0.5f;
 
         sprite_renderer.Draw(camera, renderable, position);
       } else if (player->enter_delay <= 0.0f) {
         size_t index = player->ship * 40 + player->direction;
 
-        Vector2f position = Vector2f(player->position.x / 1000.0f, player->position.y / 1000.0f) -
-                            Graphics::ship_sprites[index].dimensions * 0.5f;
+        Vector2f position = player_position - Graphics::ship_sprites[index].dimensions * 0.5f;
 
         sprite_renderer.Draw(camera, Graphics::ship_sprites[index], position);
 
         if (player->warp_animation.IsAnimating()) {
           SpriteRenderable& renderable = player->warp_animation.GetFrame();
-          Vector2f position =
-              Vector2f(player->position.x / 1000.0f, player->position.y / 1000.0f) - renderable.dimensions * 0.5f;
+          Vector2f position = player_position - renderable.dimensions * 0.5f;
 
           sprite_renderer.Draw(camera, renderable, position);
         }
@@ -176,7 +173,7 @@ void Game::Render(float dt) {
       if (player->position.x == 0 && player->position.y == 0) continue;
 
       if (player->enter_delay <= 0.0f) {
-        float radius = connection.settings.ShipSettings[player->ship].GetRadius();
+        u16 radius = connection.settings.ShipSettings[player->ship].GetRadius();
 
         char display[32];
         sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
@@ -189,7 +186,8 @@ void Game::Render(float dt) {
 
         if (me) {
           TextColor color = team_freq == player->frequency ? TextColor::Yellow : TextColor::Blue;
-          Vector2f position(player->position.x / 1000.0f + radius, player->position.y / 1000.0f + radius);
+          Vector2f player_position((float)(player->position.x / 1000), (float)(player->position.y / 1000));
+          Vector2f position = player_position + Vector2f((float)radius, (float)radius);
 
           sprite_renderer.DrawText(camera, display, color, position);
         }
@@ -221,7 +219,7 @@ void Game::Render(float dt) {
     sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
                          ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f);
 
-    Vector2f position(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
+    Vector2f position(ui_camera.surface_dim.x * 0.5f, (float)(u32)(ui_camera.surface_dim.y * 0.8f));
 
     sprite_renderer.DrawText(ui_camera, "Entering arena", TextColor::Blue, position, TextAlignment::Center);
   }

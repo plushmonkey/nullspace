@@ -5,7 +5,6 @@
 
 namespace null {
 
-struct Camera;
 struct Connection;
 struct InputState;
 struct Player;
@@ -24,6 +23,7 @@ struct SpectateView {
   SpectateView(Connection& connection, StatBox& statbox);
 
   void Update(const InputState& input, float dt);
+
   void OnCharacterPress(int codepoint, int mods);
 
   void SpectateSelected();

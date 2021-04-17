@@ -196,6 +196,7 @@ void SpriteRenderer::Draw(Camera& camera, const SpriteRenderable& renderable, co
   *texture_storage = renderable.texture;
 
   Vector2f dimensions = renderable.dimensions * camera.scale;
+
   element->vertices[0].position = position;
   element->vertices[0].uv = renderable.uvs[0];
 
