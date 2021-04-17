@@ -203,7 +203,7 @@ void StatBox::RecordTeamSortView(const Player& me) {
   sprintf(freq_output->text, "%.4d-------------", previous_freq);
 
   StatTextOutput* freqcount_output =
-      AddTextOutput(Vector2f(kBorder + 1 + 18 * 8, freq_output_y), TextColor::DarkRed, TextAlignment::Right);
+      AddTextOutput(Vector2f(kBorder + 1 + 18 * 8, freq_output_y), TextColor::DarkRed, TextAlignment::Left);
   sprintf(freqcount_output->text, "%d", freq_count);
 
   view_dimensions = Vector2f(width, y - 4.0f);
@@ -357,6 +357,11 @@ void StatBox::RecordFrequencyView(const Player& me) {
     StatTextOutput* flag_output = AddTextOutput(Vector2f(width, y), color, TextAlignment::Right);
     sprintf(flag_output->text, "%d", flag_count);
 
+    if (last_freq == selected_freq) {
+      AddRenderableOutput(Graphics::spectate_sprites[0], Vector2f(kBorder, y + 3),
+                          Graphics::spectate_sprites[0].dimensions);
+    }
+
     if (last_output) {
       point_count = player->kill_points + player->flag_points;
       win_count = player->wins;
@@ -394,6 +399,11 @@ void StatBox::RecordFrequencyView(const Player& me) {
 
     StatTextOutput* flag_output = AddTextOutput(Vector2f(width, y), color, TextAlignment::Right);
     sprintf(flag_output->text, "%d", flag_count);
+
+    if (last_freq == selected_freq) {
+      AddRenderableOutput(Graphics::spectate_sprites[0], Vector2f(kBorder, y + 3),
+                          Graphics::spectate_sprites[0].dimensions);
+    }
   }
 
   view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + freq_count * 12.0f);
