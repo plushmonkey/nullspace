@@ -60,6 +60,7 @@ struct StatBox {
   void SortView();
   void SortByName(const Player& self);
   void SortByPoints(const Player& self);
+  void SortByFreq(const Player& self);
 
   Player* GetSelectedPlayer();
   float GetPointsWidth();

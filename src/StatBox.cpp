@@ -559,13 +559,15 @@ void StatBox::SortView() {
 
   switch (view_type) {
     case StatViewType::Full:
-    case StatViewType::TeamSort:
     case StatViewType::Points:
     case StatViewType::Names: {
       SortByName(*self);
     } break;
     case StatViewType::PointSort: {
       SortByPoints(*self);
+    } break;
+    case StatViewType::TeamSort: {
+      SortByFreq(*self);
     } break;
   }
 }
@@ -630,6 +632,50 @@ void StatBox::SortByPoints(const Player& self) {
     s32 rpoints = rplayer->flag_points + rplayer->kill_points;
 
     return lpoints > rpoints;
+  });
+}
+
+void StatBox::SortByFreq(const Player& self) {
+  size_t count = player_manager.player_count;
+
+  size_t index = 0;
+  player_view[index++] = player_manager.player_id;
+
+  // Copy in everyone on self frequency
+  for (size_t i = 0; i < count; ++i) {
+    Player* player = player_manager.players + i;
+
+    if (player->id == player_manager.player_id) continue;
+    if (player->frequency != self.frequency) continue;
+
+    player_view[index++] = player->id;
+  }
+
+  // Sort own frequency
+  std::sort(player_view + 1, player_view + index, [&](u16 left, u16 right) {
+    Player* lplayer = player_manager.GetPlayerById(left);
+    Player* rplayer = player_manager.GetPlayerById(right);
+
+    return null_stricmp(lplayer->name, rplayer->name) < 0;
+  });
+
+  size_t other_start = index;
+
+  // Copy in everyone not on self frequency
+  for (size_t i = 0; i < count; ++i) {
+    Player* player = player_manager.players + i;
+
+    if (player->frequency == self.frequency) continue;
+
+    player_view[index++] = player->id;
+  }
+
+  std::sort(player_view + other_start, player_view + index, [&](u16 left, u16 right) {
+    Player* lplayer = player_manager.GetPlayerById(left);
+    Player* rplayer = player_manager.GetPlayerById(right);
+
+    return lplayer->frequency < rplayer->frequency ||
+           (lplayer->frequency == rplayer->frequency && null_stricmp(lplayer->name, rplayer->name) < 0);
   });
 }
 

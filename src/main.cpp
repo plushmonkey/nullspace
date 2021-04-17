@@ -114,7 +114,9 @@ void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_action,
   } else if (key == GLFW_KEY_ESCAPE && key_action != GLFW_RELEASE) {
     window_state->input.OnCharacter(NULLSPACE_KEY_ESCAPE, mods);
   } else if (key == GLFW_KEY_V && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter('v', mods);
+    if (mods & GLFW_MOD_CONTROL) {
+      window_state->input.OnCharacter(NULLSPACE_KEY_PASTE, mods);
+    }
   } else if (key == GLFW_KEY_PAGE_DOWN && key_action != GLFW_RELEASE) {
     window_state->input.OnCharacter(NULLSPACE_KEY_PAGE_DOWN, mods);
   } else if (key == GLFW_KEY_PAGE_UP && key_action != GLFW_RELEASE) {

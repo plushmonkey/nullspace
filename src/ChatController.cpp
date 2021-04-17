@@ -350,7 +350,7 @@ void ChatController::OnCharacterPress(int codepoint, int mods) {
   } else if (codepoint == NULLSPACE_KEY_ESCAPE) {
     display_full = !display_full;
     return;
-  } else if (codepoint == 'v' && control) {
+  } else if (codepoint == NULLSPACE_KEY_PASTE) {
     size_t size = strlen(input);
     PasteClipboard(input + size, NULLSPACE_ARRAY_SIZE(input) - size);
     return;
