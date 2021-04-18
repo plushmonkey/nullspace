@@ -26,32 +26,6 @@ inline constexpr float min(float left, float right) { return right < left ? righ
 
 inline constexpr float max(float left, float right) { return left < right ? right : left; }
 
-struct Vector2s {
-  union {
-    struct {
-      short x;
-      short y;
-    };
-    short values[2];
-  };
-
-  Vector2s() : x(0), y(0) {}
-  Vector2s(short x, short y) : x(x), y(y) {}
-};
-
-struct Vector2i {
-  union {
-    struct {
-      int x;
-      int y;
-    };
-    short values[2];
-  };
-
-  Vector2i() : x(0), y(0) {}
-  Vector2i(int x, int y) : x(x), y(y) {}
-};
-
 struct Vector2f {
   union {
     struct {

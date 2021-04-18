@@ -218,11 +218,8 @@ struct nullspace {
     using ms_float = std::chrono::duration<float, std::milli>;
     float frame_time = 0.0f;
 
-    u32 last_tick = GetCurrentTick();
-
     while (connection->connected) {
       auto start = std::chrono::high_resolution_clock::now();
-      u32 tick = GetCurrentTick();
 
       float dt = frame_time / 1000.0f;
       connection->Tick();
@@ -232,12 +229,7 @@ struct nullspace {
       glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT);
 
-      s32 ticks = TICK_DIFF(tick, last_tick);
-      for (s32 i = 0; i < ticks; ++i) {
-        game->Update(window_state.input, 1.0f / 100.0f);
-        last_tick = tick;
-      }
-
+      game->Update(window_state.input, dt);
       game->Render(dt);
 
       glfwSwapBuffers(window);

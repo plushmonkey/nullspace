@@ -29,7 +29,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       connection(perm_arena, temp_arena, dispatcher),
       player_manager(connection, dispatcher),
       weapon_manager(connection, player_manager, dispatcher, animation),
-      camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),
+      camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f / 16.0f),
       ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),
       fps(60.0f),
       statbox(player_manager, dispatcher),
@@ -71,7 +71,7 @@ void Game::Update(const InputState& input, float dt) {
     }
 
     if (me) {
-      me->position = Vector2i(512 * 16 * 1000, 512 * 16 * 1000);
+      me->position = Vector2f(512, 512);
     }
   }
 
@@ -80,8 +80,7 @@ void Game::Update(const InputState& input, float dt) {
 
     if (player->ship == 8) continue;
 
-    player->position.x += player->velocity.x;
-    player->position.y += player->velocity.y;
+    player->position += player->velocity * dt;
 
     player->explode_animation.t += dt;
     player->warp_animation.t += dt;
@@ -90,16 +89,20 @@ void Game::Update(const InputState& input, float dt) {
       player->enter_delay -= dt;
 
       if (!player->explode_animation.IsAnimating()) {
-        player->position = Vector2i(0, 0);
-        player->velocity = Vector2s(0, 0);
+        player->position = Vector2f(0, 0);
+        player->velocity = Vector2f(0, 0);
         player->lerp_time = 0.0f;
       }
     }
 
     if (player->lerp_time > 0.0f) {
-      player->position.x += player->lerp_velocity.x;
-      player->position.y += player->lerp_velocity.y;
-      player->lerp_time -= dt;
+      float timestep = dt;
+      if (player->lerp_time < timestep) {
+        timestep = player->lerp_time;
+      }
+
+      player->position += player->lerp_velocity * timestep;
+      player->lerp_time -= timestep;
     }
   }
 
@@ -110,10 +113,10 @@ void Game::Update(const InputState& input, float dt) {
   if (me) {
     if (me->position.x < 0) me->position.x = 0;
     if (me->position.y < 0) me->position.y = 0;
-    if (me->position.x > 1023 * 16 * 1000) me->position.x = 1023 * 16 * 1000;
-    if (me->position.y > 1023 * 16 * 1000) me->position.y = 1023 * 16 * 1000;
-    camera.position.x = (float)(me->position.x / 1000);
-    camera.position.y = (float)(me->position.y / 1000);
+    if (me->position.x > 1023) me->position.x = 1023;
+    if (me->position.y > 1023) me->position.y = 1023;
+
+    camera.position = me->position;
   }
 
   render_radar = input.IsDown(InputAction::DisplayMap);
@@ -140,25 +143,23 @@ void Game::Render(float dt) {
       Player* player = player_manager.players + i;
 
       if (player->ship == 8) continue;
-      if (player->position.x == 0 && player->position.y == 0) continue;
-
-      Vector2f player_position((float)(player->position.x / 1000), (float)(player->position.y / 1000));
+      if (player->position == Vector2f(0, 0)) continue;
 
       if (player->explode_animation.IsAnimating()) {
         SpriteRenderable& renderable = player->explode_animation.GetFrame();
-        Vector2f position = player_position - renderable.dimensions * 0.5f;
+        Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
 
         sprite_renderer.Draw(camera, renderable, position);
       } else if (player->enter_delay <= 0.0f) {
         size_t index = player->ship * 40 + player->direction;
 
-        Vector2f position = player_position - Graphics::ship_sprites[index].dimensions * 0.5f;
+        Vector2f position = player->position - Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
 
         sprite_renderer.Draw(camera, Graphics::ship_sprites[index], position);
 
         if (player->warp_animation.IsAnimating()) {
           SpriteRenderable& renderable = player->warp_animation.GetFrame();
-          Vector2f position = player_position - renderable.dimensions * 0.5f;
+          Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
 
           sprite_renderer.Draw(camera, renderable, position);
         }
@@ -170,10 +171,10 @@ void Game::Render(float dt) {
       Player* player = player_manager.players + i;
 
       if (player->ship == 8) continue;
-      if (player->position.x == 0 && player->position.y == 0) continue;
+      if (player->position == Vector2f(0, 0)) continue;
 
       if (player->enter_delay <= 0.0f) {
-        u16 radius = connection.settings.ShipSettings[player->ship].GetRadius();
+        float radius = connection.settings.ShipSettings[player->ship].GetRadius();
 
         char display[32];
         sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
@@ -186,8 +187,7 @@ void Game::Render(float dt) {
 
         if (me) {
           TextColor color = team_freq == player->frequency ? TextColor::Yellow : TextColor::Blue;
-          Vector2f player_position((float)(player->position.x / 1000), (float)(player->position.y / 1000));
-          Vector2f position = player_position + Vector2f((float)radius, (float)radius);
+          Vector2f position = player->position + Vector2f(radius, radius);
 
           sprite_renderer.DrawText(camera, display, color, position);
         }
@@ -249,8 +249,7 @@ void Game::RenderRadar(Player* me) {
       Graphics::DrawBorder(sprite_renderer, ui_camera, position + half_extents, half_extents);
 
       if (sin(GetCurrentTick() / 5) < 0) {
-        Vector2f percent(me->position.x / 1000.0f * (1.0f / (1024.0f * 16.0f)),
-                         me->position.y / 1000.0f * (1.0f / (1024.0f * 16.0f)));
+        Vector2f percent = me->position * (1.0f / 1024.0f);
         Vector2f start =
             position + Vector2f(percent.x * radar_renderable.dimensions.x, percent.y * radar_renderable.dimensions.y);
 
@@ -266,20 +265,20 @@ void Game::RenderRadar(Player* me) {
       // TODO: find real width
       s16 dim = (s16)(ui_camera.surface_dim.x * 0.165f);
       u16 map_zoom = connection.settings.MapZoomFactor;
-      s16 range = (s16)((map_zoom / 48.0f) * 512.0f * 16.0f);
+      float range = ((map_zoom / 48.0f) * 512.0f);
 
-      Vector2s center(me->position.x / 1000, me->position.y / 1000);
+      Vector2f center = me->position;
 
       // Cap the radar to map range
       if (center.x - range < 0) center.x = range;
       if (center.y - range < 0) center.y = range;
-      if (center.x + range > 1024 * 16) center.x = 16 * 1024 - range;
-      if (center.y + range > 1024 * 16) center.y = 16 * 1024 - range;
+      if (center.x + range > 1024) center.x = 1024 - range;
+      if (center.y + range > 1024) center.y = 1024 - range;
 
-      Vector2s min(center.x - range, center.y - range);
-      Vector2s max(center.x + range, center.y + range);
+      Vector2f min(center.x - range, center.y - range);
+      Vector2f max(center.x + range, center.y + range);
 
-      float uv_multiplier = (1.0f / (1024.0f * 16.0f));
+      float uv_multiplier = 1.0f / 1024.0f;
       Vector2f min_uv(min.x * uv_multiplier, min.y * uv_multiplier);
       Vector2f max_uv(max.x * uv_multiplier, max.y * uv_multiplier);
 
@@ -306,7 +305,7 @@ void Game::RenderRadar(Player* me) {
 
         if (player->ship >= 8) continue;
 
-        Vector2f p((float)(player->position.x / 1000), (float)(player->position.y / 1000));
+        Vector2f p = player->position;
         Vector2f percent((p.x - center.x) * (1.0f / range), (p.y - center.y) * (1.0f / range));
 
         if (p.x >= min.x && p.x < max.x && p.y >= min.y && p.y < max.y) {

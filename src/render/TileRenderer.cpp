@@ -12,8 +12,7 @@
 namespace null {
 
 const Vector2f kGridVertices[] = {
-    Vector2f(0, 0),         Vector2f(0, 1024 * 16), Vector2f(1024 * 16, 0),
-    Vector2f(1024 * 16, 0), Vector2f(0, 1024 * 16), Vector2f(1024 * 16, 1024 * 16),
+    Vector2f(0, 0), Vector2f(0, 1024), Vector2f(1024, 0), Vector2f(1024, 0), Vector2f(0, 1024), Vector2f(1024, 1024),
 };
 
 const char* kGridVertexShaderCode = R"(
@@ -27,7 +26,7 @@ out vec2 varying_position;
 
 void main() {
   gl_Position = mvp * vec4(position, 0.0, 1.0);
-  varying_position = position / 16.0;
+  varying_position = position;
 }
 )";
 

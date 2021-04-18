@@ -190,12 +190,12 @@ struct ShipSettings {
   };
   unsigned char _padding[16];
 
-  unsigned short GetRadius() {
-    unsigned short result = Radius;
+  float GetRadius() {
+    float result = (float)Radius;
     if (Radius == 0) {
-      result = 14;
+      result = 14.0f;
     }
-    return result;
+    return result / 16.0f;
   }
 };
 

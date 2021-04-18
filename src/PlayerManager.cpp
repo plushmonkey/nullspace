@@ -86,11 +86,11 @@ void PlayerManager::SendPositionPacket() {
 
   assert(player);
 
-  u16 x = player->position.x / 1000;
-  u16 y = player->position.y / 1000;
+  u16 x = (u16)(player->position.x * 16.0f);
+  u16 y = (u16)(player->position.y * 16.0f);
 
-  u16 vel_x = player->velocity.x;
-  u16 vel_y = player->velocity.y;
+  u16 vel_x = (u16)(player->velocity.x * 16.0f * 10.0f);
+  u16 vel_y = (u16)(player->velocity.y * 16.0f * 10.0f);
 
   u16 weapon = *(u16*)&player->weapon;
   u16 energy = connection.settings.ShipSettings[player->ship].MaximumEnergy;
@@ -222,10 +222,8 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
     player->frequency = freq;
 
     // Hide the player until they send a new position packet
-    player->position.x = 0;
-    player->position.y = 0;
-    player->velocity.x = 0;
-    player->velocity.y = 0;
+    player->position = Vector2f(0, 0);
+    player->velocity = Vector2f(0, 0);
 
     player->lerp_time = 0.0f;
     player->warp_animation.t = 0.0f;
@@ -247,8 +245,8 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
 
   if (player) {
     player->direction = direction;
-    player->velocity.y = vel_y;
-    player->velocity.x = (s16)buffer.ReadU16();
+    player->velocity.y = vel_y / 16.0f / 10.0f;
+    player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
 
     u8 checksum = buffer.ReadU8();
     player->togglables = buffer.ReadU8();
@@ -256,7 +254,7 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
     u16 y = buffer.ReadU16();
     player->bounty = buffer.ReadU16();
 
-    Vector2i pkt_position(x * 1000, y * 1000);
+    Vector2f pkt_position(x / 16.0f, y / 16.0f);
     // Put packet timestamp into local time
     player->timestamp = (timestamp - connection.time_diff) & 0xFFFF;
     s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), (GetCurrentTick() & 0xFFFF0000) | player->timestamp);
@@ -299,11 +297,11 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
     player->ping = ping;
     player->bounty = bounty;
     player->togglables = buffer.ReadU8();
-    player->velocity.y = (s16)buffer.ReadU16();
+    player->velocity.y = (s16)buffer.ReadU16() / 16.0f / 10.0f;
     u16 y = buffer.ReadU16();
-    player->velocity.x = (s16)buffer.ReadU16();
+    player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
 
-    Vector2i pkt_position(x * 1000, y * 1000);
+    Vector2f pkt_position(x / 16.0f, y / 16.0f);
     // Put packet timestamp into local time
     player->timestamp = (timestamp - connection.time_diff) & 0xFFFF;
     s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), (GetCurrentTick() & 0xFFFF0000) | player->timestamp);
@@ -319,25 +317,23 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
   }
 }
 
-void PlayerManager::OnPositionPacket(Player& player, const Vector2i& position) {
-  if ((player.position.x == 0 && player.position.y == 0) && (position.x != 0 || position.y != 0)) {
+void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position) {
+  if (player.position == Vector2f(0, 0) && position != Vector2f(0, 0)) {
     player.warp_animation.t = 0.0f;
   }
 
   // TODO: Simulate through map
-  // Vector2f projected_pos = position + player.velocity * (player.ping / 100.0f);
-  Vector2i change(player.velocity.x * player.ping, player.velocity.y * player.ping);
-  Vector2i projected_pos(position.x + change.x, position.y + change.y);
-  Vector2i abs_dp(abs(projected_pos.x - player.position.x), abs(projected_pos.y - player.position.y));
+  Vector2f projected_pos = position + player.velocity * (player.ping / 100.0f);
+  float abs_dx = abs(projected_pos.x - player.position.x);
+  float abs_dy = abs(projected_pos.y - player.position.y);
 
   // Jump to the position if very out of sync
-  if (abs_dp.x >= 64000 || abs_dp.y >= 64000) {
+  if (abs_dx >= 4.0f || abs_dy >= 4.0f) {
     player.position = projected_pos;
     player.lerp_time = 0.0f;
   } else {
     player.lerp_time = 200.0f / 1000.0f;
-    player.lerp_velocity =
-        Vector2s((projected_pos.x - player.position.x) / 20, (projected_pos.y - player.position.y) / 20);
+    player.lerp_velocity = (projected_pos - player.position) * (1.0f / player.lerp_time);
   }
 }
 
