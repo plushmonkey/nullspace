@@ -14,8 +14,6 @@
 
 namespace null {
 
-constexpr s32 kTrailDelayTicks = 3;
-
 static Vector2f GetHeading(u8 discrete_rotation) {
   const float kToRads = (3.14159f / 180.0f);
   float rads = (((40 - (discrete_rotation + 30)) % 40) * 9.0f) * kToRads;
@@ -40,13 +38,6 @@ WeaponManager::WeaponManager(Connection& connection, PlayerManager& player_manag
 void WeaponManager::Update(float dt) {
   u32 tick = GetCurrentTick();
 
-  bool drop_tail = false;
-
-  if (TICK_DIFF(tick, last_trail_tick) >= kTrailDelayTicks) {
-    drop_tail = true;
-    last_trail_tick = tick;
-  }
-
   // TODO: Remove if player enters safe
   for (size_t i = 0; i < weapon_count; ++i) {
     Weapon* weapon = weapons + i;
@@ -66,19 +57,30 @@ void WeaponManager::Update(float dt) {
         weapon->animation.t -= weapon->animation.sprite->duration;
       }
 
-      if (drop_tail) {
-        if (weapon->data.type == (u16)WeaponType::Bullet || weapon->data.type == (u16)WeaponType::BouncingBullet) {
+      if (weapon->data.type == (u16)WeaponType::Bullet || weapon->data.type == (u16)WeaponType::BouncingBullet) {
+        if (TICK_DIFF(tick, weapon->last_trail_tick) >= 1) {
           SpriteRenderable& frame = Graphics::anim_bullet_trails[weapon->data.level].frames[0];
           Vector2f position = weapon->position - frame.dimensions * (0.5f / 16.0f);
 
+          u32 pos_x = (u32)(position.x * 16.0f);
+          u32 pos_y = (u32)(position.y * 16.0f);
+          position = Vector2f(pos_x / 16.0f, pos_y / 16.0f);
+
           animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], position);
-        } else if ((weapon->data.type == (u16)WeaponType::Bomb ||
-                    weapon->data.type == (u16)WeaponType::ProximityBomb) &&
-                   !weapon->data.alternate) {
+          weapon->last_trail_tick = tick;
+        }
+      } else if ((weapon->data.type == (u16)WeaponType::Bomb || weapon->data.type == (u16)WeaponType::ProximityBomb) &&
+                 !weapon->data.alternate) {
+        if (TICK_DIFF(tick, weapon->last_trail_tick) >= 5) {
           SpriteRenderable& frame = Graphics::anim_bomb_trails[weapon->data.level].frames[0];
           Vector2f position = weapon->position - frame.dimensions * (0.5f / 16.0f);
 
+          u32 pos_x = (u32)(position.x * 16.0f);
+          u32 pos_y = (u32)(position.y * 16.0f);
+          position = Vector2f(pos_x / 16.0f, pos_y / 16.0f);
+
           animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], position);
+          weapon->last_trail_tick = tick;
         }
       }
     }
@@ -92,6 +94,10 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer) {
     if (weapon->animation.IsAnimating()) {
       SpriteRenderable& frame = weapon->animation.GetFrame();
       Vector2f position = weapon->position - frame.dimensions * (0.5f / 16.0f);
+
+      u32 pos_x = (u32)(position.x * 16.0f);
+      u32 pos_y = (u32)(position.y * 16.0f);
+      position = Vector2f(pos_x / 16.0f, pos_y / 16.0f);
 
       renderer.Draw(camera, frame, position);
     } else if (weapon->data.type == (u16)WeaponType::Decoy) {
@@ -235,6 +241,7 @@ void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 lo
   weapon->animation.t = 0.0f;
   weapon->animation.sprite = nullptr;
   weapon->animation.repeat = true;
+  weapon->last_trail_tick = 0;
 
   switch (type) {
     case WeaponType::Bullet: {

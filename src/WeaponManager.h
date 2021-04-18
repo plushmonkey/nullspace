@@ -19,6 +19,7 @@ struct Weapon {
   u16 player_id;
   WeaponData data;
 
+  u32 last_trail_tick;
   // incremental id for connected multifire bullet
   u32 link_id = kInvalidLink;
 

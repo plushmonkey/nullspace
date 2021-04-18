@@ -106,7 +106,7 @@ bool Graphics::InitializeFont(SpriteRenderer& renderer) {
   }
 
   index = 59;
-  // Continuum seems to have a bug where 0xFF ('small Y with diaeresis') maps to '_', but I'm not replicating that.
+  // 0xFF maps to _ on asss due to a bug with asss (should be y with diaeresis)
   for (size_t i = 0xF8; i <= 0xFF; ++i) {
     character_set[i] = Graphics::textf_sprites + index++;
   }
@@ -152,7 +152,7 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   for (size_t i = 0; i < 4; ++i) {
     anim_bomb_trails[i].frames = bomb_trail_sprites + i * 10;
     anim_bomb_trails[i].frame_count = 10;
-    anim_bomb_trails[i].duration = 0.3f;
+    anim_bomb_trails[i].duration = 0.35f;
   }
 
   mine_sprites = renderer.LoadSheet("graphics/mines.bm2", Vector2f(16, 16), &count);
@@ -176,22 +176,22 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   for (size_t i = 0; i < 4; ++i) {
     anim_bullets[i].frames = bullet_sprites + i * 4;
     anim_bullets[i].frame_count = 4;
-    anim_bullets[i].duration = 0.1f;
+    anim_bullets[i].duration = 0.15f;
   }
 
   for (size_t i = 0; i < 4; ++i) {
     anim_bullets_bounce[i].frames = bullet_sprites + i * 4 + 20;
     anim_bullets_bounce[i].frame_count = 4;
-    anim_bullets_bounce[i].duration = 0.1f;
+    anim_bullets_bounce[i].duration = 0.15f;
   }
 
   bullet_trail_sprites = renderer.LoadSheet("graphics/gradient.bm2", Vector2f(1, 1), &count);
   if (!bullet_trail_sprites) return false;
 
   for (size_t i = 0; i < 3; ++i) {
-    anim_bullet_trails[2 - i].frames = bullet_trail_sprites + i * 14;
-    anim_bullet_trails[2 - i].frame_count = 7;
-    anim_bullet_trails[2 - i].duration = 0.15f;
+    anim_bullet_trails[i].frames = bullet_trail_sprites + i * 14 + 3 * 14;
+    anim_bullet_trails[i].frame_count = 14;
+    anim_bullet_trails[i].duration = 0.15f;
   }
   anim_bullet_trails[3] = anim_bullet_trails[2];
 

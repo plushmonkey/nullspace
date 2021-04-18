@@ -1,6 +1,7 @@
 #ifndef NULLSPACE_RENDER_ANIMATION_H_
 #define NULLSPACE_RENDER_ANIMATION_H_
 
+#include "../Math.h"
 #include "Sprite.h"
 
 namespace null {
