@@ -23,7 +23,8 @@ enum class ChatType {
   RedWarning,
   RemotePrivate,
   RedError,
-  Channel
+  Channel,
+  Fuchsia = 79
 };
 
 struct ChatEntry {

@@ -14,7 +14,7 @@
 
 namespace null {
 
-constexpr s32 kTrailDelayTicks = 2;
+constexpr s32 kTrailDelayTicks = 3;
 
 static Vector2f GetHeading(u8 discrete_rotation) {
   const float kToRads = (3.14159f / 180.0f);

@@ -238,6 +238,7 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
     y -= kFontHeight * linecount;
 
     switch (entry->type) {
+      case ChatType::Fuchsia:
       case ChatType::Arena: {
         char output[512];
 
@@ -247,7 +248,9 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 
           sprintf(output, "%.*s", length, span->begin);
 
-          renderer.DrawText(camera, output, TextColor::Green, Vector2f(0, y + j * kFontHeight));
+          TextColor color = entry->type == ChatType::Fuchsia ? TextColor::Fuschia : TextColor::Green;
+
+          renderer.DrawText(camera, output, color, Vector2f(0, y + j * kFontHeight));
         }
       } break;
       case ChatType::PublicMacro:
