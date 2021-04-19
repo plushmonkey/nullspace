@@ -34,11 +34,7 @@ static PFNGLDEBUGMESSAGECALLBACKPROC glDebugMessageCallback;
 
 namespace null {
 
-enum class WindowType {
-  Windowed,
-  Fullscreen,
-  BorderlessFullscreen
-};
+enum class WindowType { Windowed, Fullscreen, BorderlessFullscreen };
 
 constexpr bool kVerticalSync = false;
 constexpr WindowType kWindowType = WindowType::Windowed;

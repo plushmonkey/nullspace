@@ -16,9 +16,6 @@ constexpr float kBorder = 3.0f;
 constexpr float kHeaderHeight = 14.0f;
 constexpr float kSpectateWidth = 8.0f;
 
-constexpr size_t kSeparatorColorIndex = 1;
-constexpr size_t kBackgroundColorIndex = 16;
-
 static void OnPlayerEnterPkt(void* user, u8* pkt, size_t size) {
   StatBox* statbox = (StatBox*)user;
   statbox->OnPlayerEnter(pkt, size);

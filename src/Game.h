@@ -35,6 +35,7 @@ struct Game {
   SpectateView specview;
   float fps;
   bool render_radar = false;
+  bool menu_open = false;
 
   Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height);
 
@@ -43,6 +44,8 @@ struct Game {
 
   void Render(float dt);
   void RenderRadar(Player* player);
+  void RenderMenu();
+  void HandleMenuKey(int codepoint, int mods);
 };
 
 }  // namespace null

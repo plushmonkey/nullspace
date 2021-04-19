@@ -9,6 +9,9 @@ namespace null {
 
 struct SpriteRenderer;
 
+constexpr size_t kSeparatorColorIndex = 1;
+constexpr size_t kBackgroundColorIndex = 16;
+
 struct Graphics {
   static SpriteRenderable* character_set[256];
 

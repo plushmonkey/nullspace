@@ -19,6 +19,13 @@ void OnCharacterPress(void* user, int codepoint, int mods) {
   game->chat.OnCharacterPress(codepoint, mods);
   game->statbox.OnCharacterPress(codepoint, mods);
   game->specview.OnCharacterPress(codepoint, mods);
+
+  if (codepoint == NULLSPACE_KEY_ESCAPE) {
+    game->menu_open = !game->menu_open;
+    game->chat.display_full = game->menu_open;
+  } else if (game->menu_open) {
+    game->HandleMenuKey(codepoint, mods);
+  }
 }
 
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height)
@@ -199,6 +206,10 @@ void Game::Render(float dt) {
     RenderRadar(me);
 
     chat.Render(ui_camera, sprite_renderer);
+
+    if (menu_open) {
+      RenderMenu();
+    }
   }
 
   // TODO: Move all of this out
@@ -343,6 +354,74 @@ void Game::RenderRadar(Player* me) {
       Graphics::DrawBorder(sprite_renderer, ui_camera, position + half_extents, half_extents);
     }
   }
+}
+
+void Game::HandleMenuKey(int codepoint, int mods) {
+  switch (codepoint) {
+    case 'q':
+    case 'Q': {
+      struct {
+        u8 core;
+        u8 type;
+      } pkt = {0x00, 0x07};
+
+      connection.Send((u8*)&pkt, sizeof(pkt));
+      connection.Disconnect();
+    } break;
+    default: {
+      menu_open = false;
+    } break;
+  }
+}
+
+void Game::RenderMenu() {
+  const char* kLeftMenuText[] = {"Q  = Quit",        "F1 = Help",          "F2 = Stat Box",
+                                 "F3 = Name tags",   "F4 = Radar",         "F5 = Messages",
+                                 "F6 = Help ticker", "F8 = Engine sounds", " A = Arena List",
+                                 " B = Set Banner",  " I = Ignore macros", "PgUp/PgDn = Adjust stat box"};
+
+  const char* kRightMenuText[] = {"1 = Warbird", "2 = Javelin",   "3 = Spider", "4 = Leviathan", "5 = Terrier",
+                                  "6 = Weasel",  "7 = Lancaster", "8 = Shark",  "S = Spectator"};
+
+  Vector2f dimensions(284.0f, 171.0f);
+  Vector2f half_dimensions = dimensions * 0.5f;
+  Vector2f topleft((ui_camera.surface_dim.x - dimensions.x) * 0.5f, 3);
+
+  SpriteRenderable background = Graphics::color_sprites[kBackgroundColorIndex];
+  background.dimensions = dimensions;
+
+  sprite_renderer.Draw(ui_camera, background, topleft);
+
+  SpriteRenderable separator = Graphics::color_sprites[kSeparatorColorIndex];
+  separator.dimensions = Vector2f(dimensions.x, 1);
+
+  sprite_renderer.Draw(ui_camera, separator, topleft + Vector2f(0, 13));
+  Graphics::DrawBorder(sprite_renderer, ui_camera, topleft + half_dimensions, half_dimensions);
+
+  sprite_renderer.DrawText(ui_camera, "-= Menu =-", TextColor::Green, Vector2f(topleft.x + half_dimensions.x, 4),
+                           TextAlignment::Center);
+
+  float y = 18.0f;
+
+  for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(kLeftMenuText); ++i) {
+    sprite_renderer.DrawText(ui_camera, kLeftMenuText[i], TextColor::White, Vector2f(topleft.x + 2, y));
+    y += 12.0f;
+  }
+
+  sprite_renderer.DrawText(ui_camera, "Any other key to resume game", TextColor::Yellow,
+                           Vector2f(topleft.x + half_dimensions.x, y), TextAlignment::Center);
+
+  float right_x = topleft.x + dimensions.x - 13 * 8 - 2;
+  y = 18.0f + 12.0f;
+
+  sprite_renderer.DrawText(ui_camera, "Ships", TextColor::DarkRed, Vector2f(right_x + 16.0f, 18.0f));
+
+  for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(kRightMenuText); ++i) {
+    sprite_renderer.DrawText(ui_camera, kRightMenuText[i], TextColor::White, Vector2f(right_x, y));
+    y += 12.0f;
+  }
+
+  sprite_renderer.Render(ui_camera);
 }
 
 // Test fun code
