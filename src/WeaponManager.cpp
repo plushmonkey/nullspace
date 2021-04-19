@@ -37,18 +37,29 @@ WeaponManager::WeaponManager(Connection& connection, PlayerManager& player_manag
 
 void WeaponManager::Update(float dt) {
   u32 tick = GetCurrentTick();
+  link_removal_count = 0;
 
   // TODO: Remove if player enters safe
   for (size_t i = 0; i < weapon_count; ++i) {
     Weapon* weapon = weapons + i;
+    WeaponSimulateResult result = Simulate(*weapon, tick, dt);
 
-    if (weapon->end_tick <= tick) {
-      // Swap with last weapon and process it next
+    if (result != WeaponSimulateResult::Continue && weapon->link_id != kInvalidLink) {
+      assert(link_removal_count < NULLSPACE_ARRAY_SIZE(link_removals));
+
+      WeaponLinkRemoval* removal = link_removals + link_removal_count++;
+      removal->link_id = weapon->link_id;
+      removal->result = result;
+    }
+
+    if (result == WeaponSimulateResult::PlayerExplosion || result == WeaponSimulateResult::WallExplosion) {
+      CreateExplosion(*weapon);
+      weapons[i--] = weapons[--weapon_count];
+      continue;
+    } else if (result == WeaponSimulateResult::TimedOut) {
       weapons[i--] = weapons[--weapon_count];
       continue;
     }
-
-    weapon->position += weapon->velocity * dt;
 
     if (weapon->animation.sprite) {
       weapon->animation.t += dt;
@@ -84,6 +95,110 @@ void WeaponManager::Update(float dt) {
         }
       }
     }
+  }
+
+  if (link_removal_count > 0) {
+    for (size_t i = 0; i < weapon_count; ++i) {
+      Weapon* weapon = weapons + i;
+
+      if (weapon->link_id != kInvalidLink) {
+        bool removed = false;
+
+        for (size_t j = 0; j < link_removal_count; ++j) {
+          WeaponLinkRemoval* removal = link_removals + j;
+
+          if (removal->link_id == weapon->link_id) {
+            if (removal->result == WeaponSimulateResult::PlayerExplosion) {
+              CreateExplosion(*weapon);
+              removed = true;
+            }
+            break;
+          }
+        }
+
+        if (removed) {
+          weapons[i--] = weapons[--weapon_count];
+        }
+      }
+    }
+  }
+}
+
+WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, float dt) {
+  Map& map = connection.map_handler.map;
+  WeaponType type = (WeaponType)weapon.data.type;
+
+  if (current_tick >= weapon.end_tick) return WeaponSimulateResult::TimedOut;
+
+  // TODO: Implement velocity changes
+  if (type == WeaponType::Repel) return WeaponSimulateResult::Continue;
+
+  float dist = (weapon.velocity * dt).Length();
+  for (int i = 0; i < 10 && dist > 0.0f; ++i) {
+    CastResult result = map.Cast(weapon.position, Normalize(weapon.velocity), dist);
+
+    if (!result.hit) {
+      weapon.position = result.position;
+      break;
+    }
+
+    if (type == WeaponType::Bullet || type == WeaponType::Bomb || type == WeaponType::ProximityBomb) {
+      if (weapon.bounces_remaining == 0) {
+        return WeaponSimulateResult::WallExplosion;
+      }
+
+      if (--weapon.bounces_remaining == 0 && !(weapon.flags & WEAPON_FLAG_EMP)) {
+        weapon.animation.sprite = Graphics::anim_bombs + weapon.data.level;
+      }
+    }
+
+    dist -= result.distance;
+    weapon.velocity = weapon.velocity - 2.0f * (weapon.velocity.Dot(result.normal)) * result.normal;
+  }
+
+  if (type == WeaponType::Decoy) return WeaponSimulateResult::Continue;
+
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.players + i;
+
+    if (player->ship == 8) continue;
+    if (player->frequency == weapon.frequency) continue;
+    if (player->explode_animation.IsAnimating()) continue;
+
+    float radius = connection.settings.ShipSettings[player->ship].GetRadius();
+    Vector2f r(radius, radius);
+    Vector2f& pos = player->position;
+
+    if (BoxContainsPoint(pos - r, pos + r, weapon.position)) {
+      return WeaponSimulateResult::PlayerExplosion;
+    }
+  }
+
+  return WeaponSimulateResult::Continue;
+}
+
+void WeaponManager::CreateExplosion(Weapon& weapon) {
+  WeaponType type = (WeaponType)weapon.data.type;
+
+  switch (type) {
+    case WeaponType::Bomb:
+    case WeaponType::ProximityBomb:
+    case WeaponType::Thor: {
+      if (weapon.flags & WEAPON_FLAG_EMP) {
+        Vector2f offset = Graphics::anim_emp_explode.frames[0].dimensions * (0.5f / 16.0f);
+        animation.AddAnimation(Graphics::anim_emp_explode, weapon.position - offset);
+      } else {
+        Vector2f offset = Graphics::anim_bomb_explode.frames[0].dimensions * (0.5f / 16.0f);
+        animation.AddAnimation(Graphics::anim_bomb_explode, weapon.position - offset);
+      }
+    } break;
+    case WeaponType::BouncingBullet:
+    case WeaponType::Bullet: {
+      Vector2f offset = Graphics::anim_bullet_explode.frames[0].dimensions * (0.5f / 16.0f);
+      animation.AddAnimation(Graphics::anim_bullet_explode, weapon.position - offset);
+    } break;
+    default: {
+    } break;
   }
 }
 
@@ -158,15 +273,16 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
     Vector2f heading = GetHeading(direction);
 
     // TODO: Generate linked
+    u32 link_id = next_link_id++;
 
     if (dbarrel) {
       Vector2f perp = Perpendicular(heading);
       Vector2f offset = perp * (ship_settings.GetRadius() * 0.75f);
 
-      GenerateWeapon(pid, data, local_timestamp, position - offset, velocity, heading, kInvalidLink);
-      GenerateWeapon(pid, data, local_timestamp, position + offset, velocity, heading, kInvalidLink);
+      GenerateWeapon(pid, data, local_timestamp, position - offset, velocity, heading, link_id);
+      GenerateWeapon(pid, data, local_timestamp, position + offset, velocity, heading, link_id);
     } else {
-      GenerateWeapon(pid, data, local_timestamp, position, velocity, heading, kInvalidLink);
+      GenerateWeapon(pid, data, local_timestamp, position, velocity, heading, link_id);
     }
 
     if (data.alternate) {
@@ -174,8 +290,8 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
       Vector2f first_heading = Rotate(heading, rads);
       Vector2f second_heading = Rotate(heading, -rads);
 
-      GenerateWeapon(pid, data, local_timestamp, position, velocity, first_heading, kInvalidLink);
-      GenerateWeapon(pid, data, local_timestamp, position, velocity, second_heading, kInvalidLink);
+      GenerateWeapon(pid, data, local_timestamp, position, velocity, first_heading, link_id);
+      GenerateWeapon(pid, data, local_timestamp, position, velocity, second_heading, link_id);
     }
   } else {
     GenerateWeapon(pid, data, local_timestamp, position, velocity, GetHeading(direction), kInvalidLink);
@@ -189,11 +305,15 @@ void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 lo
   weapon->data = weapon_data;
   weapon->player_id = player_id;
   weapon->position = position;
+  weapon->bounces_remaining = 0;
+  weapon->flags = 0;
 
   WeaponType type = (WeaponType)weapon->data.type;
 
   Player* player = player_manager.GetPlayerById(player_id);
   assert(player);
+
+  weapon->frequency = player->frequency;
 
   u16 speed = 0;
   switch (type) {
@@ -211,6 +331,7 @@ void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 lo
       } else {
         weapon->end_tick = local_timestamp + connection.settings.BombAliveTime;
         speed = connection.settings.ShipSettings[player->ship].BombSpeed;
+        weapon->bounces_remaining = connection.settings.ShipSettings[player->ship].BombBounceCount;
       }
     } break;
     case WeaponType::Repel: {
@@ -236,7 +357,7 @@ void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 lo
   // TODO: Simulate forward
   weapon->position += weapon->velocity * (tick_diff / 100.0f);
 
-  weapon->link_id = 0xFFFFFFFF;
+  weapon->link_id = link_id;
 
   weapon->animation.t = 0.0f;
   weapon->animation.sprite = nullptr;
@@ -257,14 +378,20 @@ void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 lo
       if (weapon->data.alternate) {
         if (emp) {
           weapon->animation.sprite = Graphics::anim_emp_mines + weapon->data.level;
+          weapon->flags |= WEAPON_FLAG_EMP;
         } else {
           weapon->animation.sprite = Graphics::anim_mines + weapon->data.level;
         }
       } else {
         if (emp) {
           weapon->animation.sprite = Graphics::anim_emp_bombs + weapon->data.level;
+          weapon->flags |= WEAPON_FLAG_EMP;
         } else {
-          weapon->animation.sprite = Graphics::anim_bombs + weapon->data.level;
+          if (weapon->bounces_remaining > 0) {
+            weapon->animation.sprite = Graphics::anim_bombs_bounceable + weapon->data.level;
+          } else {
+            weapon->animation.sprite = Graphics::anim_bombs + weapon->data.level;
+          }
         }
       }
     } break;

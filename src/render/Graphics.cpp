@@ -14,7 +14,11 @@ SpriteRenderable* Graphics::ship_sprites = nullptr;
 SpriteRenderable* Graphics::spectate_sprites = nullptr;
 
 SpriteRenderable* Graphics::warp_sprites = nullptr;
+
+SpriteRenderable* Graphics::explode0_sprites = nullptr;
 SpriteRenderable* Graphics::explode1_sprites = nullptr;
+SpriteRenderable* Graphics::explode2_sprites = nullptr;
+SpriteRenderable* Graphics::emp_burst_sprites = nullptr;
 
 SpriteRenderable* Graphics::bomb_sprites = nullptr;
 SpriteRenderable* Graphics::bomb_trail_sprites = nullptr;
@@ -28,14 +32,18 @@ SpriteRenderable* Graphics::repel_sprites = nullptr;
 SpriteRenderable* Graphics::color_sprites = nullptr;
 
 AnimatedSprite Graphics::anim_bombs[4];
-AnimatedSprite Graphics::anim_bomb_trails[4];
 AnimatedSprite Graphics::anim_emp_bombs[4];
+AnimatedSprite Graphics::anim_bombs_bounceable[4];
+AnimatedSprite Graphics::anim_bomb_explode;
+AnimatedSprite Graphics::anim_emp_explode;
 AnimatedSprite Graphics::anim_thor;
+AnimatedSprite Graphics::anim_bomb_trails[4];
 
 AnimatedSprite Graphics::anim_mines[4];
 AnimatedSprite Graphics::anim_emp_mines[4];
 
 AnimatedSprite Graphics::anim_bullets[4];
+AnimatedSprite Graphics::anim_bullet_explode;
 AnimatedSprite Graphics::anim_bullets_bounce[4];
 AnimatedSprite Graphics::anim_bullet_trails[4];
 
@@ -73,12 +81,33 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
   anim_ship_warp.frame_count = count;
   anim_ship_warp.duration = 0.5f;
 
+  explode0_sprites = renderer.LoadSheet("graphics/explode0.bm2", Vector2f(16, 16), &count);
+  if (!explode0_sprites) return false;
+
+  anim_bullet_explode.frames = explode0_sprites;
+  anim_bullet_explode.frame_count = count;
+  anim_bullet_explode.duration = 0.2f;
+
   explode1_sprites = renderer.LoadSheet("graphics/explode1.bm2", Vector2f(48, 48), &count);
   if (!explode1_sprites) return false;
 
   anim_ship_explode.frames = explode1_sprites;
   anim_ship_explode.frame_count = count;
   anim_ship_explode.duration = 1.0f;
+
+  explode2_sprites = renderer.LoadSheet("graphics/explode2.bm2", Vector2f(80, 80), &count);
+  if (!explode2_sprites) return false;
+
+  anim_bomb_explode.frames = explode2_sprites;
+  anim_bomb_explode.frame_count = count;
+  anim_bomb_explode.duration = 1.25f;
+
+  emp_burst_sprites = renderer.LoadSheet("graphics/empburst.bm2", Vector2f(80, 80), &count);
+  if (!emp_burst_sprites) return false;
+
+  anim_emp_explode.frames = emp_burst_sprites;
+  anim_emp_explode.frame_count = count;
+  anim_emp_explode.duration = 0.5f;
 
   return true;
 }
@@ -140,6 +169,12 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
     anim_emp_bombs[i].frames = bomb_sprites + i * 10 + 40;
     anim_emp_bombs[i].frame_count = 10;
     anim_emp_bombs[i].duration = kBombAnimDuration;
+  }
+
+  for (size_t i = 0; i < 4; ++i) {
+    anim_bombs_bounceable[i].frames = bomb_sprites + i * 10 + 80;
+    anim_bombs_bounceable[i].frame_count = 10;
+    anim_bombs_bounceable[i].duration = kBombAnimDuration;
   }
 
   anim_thor.frames = bomb_sprites + 120;
@@ -206,7 +241,7 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
 }
 
 void Graphics::DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector2f& center,
-                            const Vector2f& half_extents) {
+                          const Vector2f& half_extents) {
   SpriteRenderable renderable;
 
   renderable.texture = Graphics::color_sprites[1].texture;

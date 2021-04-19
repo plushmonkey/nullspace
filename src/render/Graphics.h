@@ -19,8 +19,12 @@ struct Graphics {
   static SpriteRenderable* spectate_sprites;
 
   static SpriteRenderable* warp_sprites;
-  static SpriteRenderable* explode1_sprites;
 
+  static SpriteRenderable* explode0_sprites;
+  static SpriteRenderable* explode1_sprites;
+  static SpriteRenderable* explode2_sprites;
+  static SpriteRenderable* emp_burst_sprites;
+ 
   static SpriteRenderable* bomb_sprites;
   static SpriteRenderable* bomb_trail_sprites;
   static SpriteRenderable* mine_sprites;
@@ -33,14 +37,18 @@ struct Graphics {
   static SpriteRenderable* color_sprites;
 
   static AnimatedSprite anim_bombs[4];
-  static AnimatedSprite anim_bomb_trails[4];
   static AnimatedSprite anim_emp_bombs[4];
+  static AnimatedSprite anim_bombs_bounceable[4];
+  static AnimatedSprite anim_bomb_explode;
+  static AnimatedSprite anim_emp_explode;
   static AnimatedSprite anim_thor;
+  static AnimatedSprite anim_bomb_trails[4];
 
   static AnimatedSprite anim_mines[4];
   static AnimatedSprite anim_emp_mines[4];
 
   static AnimatedSprite anim_bullets[4];
+  static AnimatedSprite anim_bullet_explode;
   static AnimatedSprite anim_bullets_bounce[4];
   static AnimatedSprite anim_bullet_trails[4];
 
@@ -51,7 +59,8 @@ struct Graphics {
 
   static bool Initialize(SpriteRenderer& renderer);
 
-  static void DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector2f& center, const Vector2f& half_extents);
+  static void DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector2f& center,
+                         const Vector2f& half_extents);
 
  private:
   Graphics() {}

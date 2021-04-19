@@ -100,4 +100,80 @@ u32 Map::GetChecksum(u32 key) const {
   return key;
 }
 
+CastResult Map::Cast(const Vector2f& from, const Vector2f& direction, float max_distance) {
+  CastResult result;
+
+  result.hit = false;
+
+  Vector2f unit_step(sqrt(1 + (direction.y / direction.x) * (direction.y / direction.x)),
+                     sqrt(1 + (direction.x / direction.y) * (direction.x / direction.y)));
+
+  Vector2f check = Vector2f(std::floor(from.x), std::floor(from.y));
+  Vector2f travel;
+
+  Vector2f step;
+
+  if (direction.x < 0) {
+    step.x = -1.0f;
+    travel.x = (from.x - check.x) * unit_step.x;
+  } else {
+    step.x = 1.0f;
+    travel.x = (check.x + 1 - from.x) * unit_step.x;
+  }
+
+  if (direction.y < 0) {
+    step.y = -1.0f;
+    travel.y = (from.y - check.y) * unit_step.y;
+  } else {
+    step.y = 1.0f;
+    travel.y = (check.y + 1 - from.y) * unit_step.y;
+  }
+
+  float distance = 0.0f;
+
+  while (distance < max_distance) {
+    // Walk along shortest path
+    float clear_distance = distance;
+
+    if (travel.x < travel.y) {
+      check.x += step.x;
+      distance = travel.x;
+      travel.x += unit_step.x;
+    } else {
+      check.y += step.y;
+      distance = travel.y;
+      travel.y += unit_step.y;
+    }
+
+    if (check.x >= 0 && check.x < 1024 && check.y >= 0 && check.y < 1024) {
+      if (IsSolid((unsigned short)check.x, (unsigned short)check.y)) {
+        result.hit = true;
+        result.distance = clear_distance;
+        break;
+      }
+    }
+  }
+
+  if (result.hit) {
+    float dist;
+
+    bool intersected = RayBoxIntersect(from, direction, check, Vector2f(1, 1), &dist, &result.normal);
+
+    if (!intersected || dist > max_distance) {
+      result.hit = false;
+      result.position = from + direction * max_distance;
+      result.distance = max_distance;
+    } else {
+      result.distance = dist;
+      result.position = from + direction * dist;
+    }
+  } else {
+    result.hit = false;
+    result.distance = max_distance;
+    result.position = from + direction * max_distance;
+  }
+
+  return result;
+}
+
 }  // namespace null
