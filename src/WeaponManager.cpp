@@ -252,7 +252,6 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
 
   // Player sends out position packet with their timestamp, it takes ping ticks to reach server, server re-timestamps it
   // and sends it to us.
-  // TODO: Should it be modified by ping to more closely match the sender's weapon timeout tick?
   u32 server_tick = GetCurrentTick() + connection.time_diff;
   u32 server_timestamp = ((server_tick & 0xFFFF0000) | timestamp);
   u32 local_timestamp = server_timestamp - connection.time_diff - ping;
@@ -272,17 +271,29 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
 
     Vector2f heading = GetHeading(direction);
 
-    // TODO: Generate linked
     u32 link_id = next_link_id++;
+
+    WeaponSimulateResult result;
+    bool destroy_link = false;
 
     if (dbarrel) {
       Vector2f perp = Perpendicular(heading);
       Vector2f offset = perp * (ship_settings.GetRadius() * 0.75f);
 
-      GenerateWeapon(pid, data, local_timestamp, position - offset, velocity, heading, link_id);
-      GenerateWeapon(pid, data, local_timestamp, position + offset, velocity, heading, link_id);
+      result = GenerateWeapon(pid, data, local_timestamp, position - offset, velocity, heading, link_id);
+      if (result == WeaponSimulateResult::PlayerExplosion) {
+        destroy_link = true;
+      }
+
+      result = GenerateWeapon(pid, data, local_timestamp, position + offset, velocity, heading, link_id);
+      if (result == WeaponSimulateResult::PlayerExplosion) {
+        destroy_link = true;
+      }
     } else {
-      GenerateWeapon(pid, data, local_timestamp, position, velocity, heading, link_id);
+      result = GenerateWeapon(pid, data, local_timestamp, position, velocity, heading, link_id);
+      if (result == WeaponSimulateResult::PlayerExplosion) {
+        destroy_link = true;
+      }
     }
 
     if (data.alternate) {
@@ -290,16 +301,34 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
       Vector2f first_heading = Rotate(heading, rads);
       Vector2f second_heading = Rotate(heading, -rads);
 
-      GenerateWeapon(pid, data, local_timestamp, position, velocity, first_heading, link_id);
-      GenerateWeapon(pid, data, local_timestamp, position, velocity, second_heading, link_id);
+      result = GenerateWeapon(pid, data, local_timestamp, position, velocity, first_heading, link_id);
+      if (result == WeaponSimulateResult::PlayerExplosion) {
+        destroy_link = true;
+      }
+      result = GenerateWeapon(pid, data, local_timestamp, position, velocity, second_heading, link_id);
+      if (result == WeaponSimulateResult::PlayerExplosion) {
+        destroy_link = true;
+      }
     }
+
+    if (destroy_link) {
+      for (size_t i = 0; i < weapon_count; ++i) {
+        Weapon* weapon = weapons + i;
+        if (weapon->link_id == link_id) {
+          CreateExplosion(*weapon);
+          weapons[i--] = weapons[--weapon_count];
+        }
+      }
+    }
+
   } else {
     GenerateWeapon(pid, data, local_timestamp, position, velocity, GetHeading(direction), kInvalidLink);
   }
 }
 
-void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp, const Vector2f& position,
-                                   const Vector2f& velocity, const Vector2f& heading, u32 link_id) {
+WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp,
+                                                   const Vector2f& position, const Vector2f& velocity,
+                                                   const Vector2f& heading, u32 link_id) {
   Weapon* weapon = weapons + weapon_count++;
 
   weapon->data = weapon_data;
@@ -354,8 +383,16 @@ void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 lo
 
   s32 tick_diff = TICK_DIFF(GetCurrentTick(), local_timestamp);
 
-  // TODO: Simulate forward
-  weapon->position += weapon->velocity * (tick_diff / 100.0f);
+  WeaponSimulateResult result = WeaponSimulateResult::Continue;
+
+  for (s32 i = 0; i < tick_diff; ++i) {
+    result = Simulate(*weapon, GetCurrentTick(), 1.0f / 100.0f);
+    if (result != WeaponSimulateResult::Continue) {
+      CreateExplosion(*weapon);
+      --weapon_count;
+      return result;
+    }
+  }
 
   weapon->link_id = link_id;
 
@@ -405,6 +442,8 @@ void WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 lo
     default: {
     } break;
   }
+
+  return result;
 }
 
 }  // namespace null

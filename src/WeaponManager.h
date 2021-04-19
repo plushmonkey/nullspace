@@ -69,8 +69,9 @@ struct WeaponManager {
 
   void OnWeaponPacket(u8* pkt, size_t size);
 
-  void GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp, const Vector2f& position,
-                      const Vector2f& velocity, const Vector2f& heading, u32 link_id);
+  WeaponSimulateResult GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp,
+                                      const Vector2f& position, const Vector2f& velocity, const Vector2f& heading,
+                                      u32 link_id);
 };
 
 }  // namespace null
