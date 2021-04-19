@@ -21,6 +21,7 @@
 namespace null {
 
 constexpr bool kVerticalSync = false;
+constexpr bool kFullScreen = false;
 
 const char* kPlayerName = "nullspace";
 const char* kPlayerPassword = "none";
@@ -157,8 +158,8 @@ struct nullspace {
   nullspace() : perm_arena(nullptr, 0), trans_arena(nullptr, 0) {}
 
   bool Initialize() {
-    constexpr int kWidth = 1366;
-    constexpr int kHeight = 768;
+    int surface_width = 1366;
+    int surface_height = 768;
 
     constexpr size_t kPermanentSize = Megabytes(64);
     constexpr size_t kTransientSize = Megabytes(32);
@@ -178,14 +179,14 @@ struct nullspace {
       return false;
     }
 
-    window = CreateGameWindow(kWidth, kHeight);
+    window = CreateGameWindow(surface_width, surface_height);
 
     if (!window) {
       fprintf(stderr, "Failed to create window.\n");
       return false;
     }
 
-    game = memory_arena_construct_type(&perm_arena, Game, perm_arena, trans_arena, kWidth, kHeight);
+    game = memory_arena_construct_type(&perm_arena, Game, perm_arena, trans_arena, surface_width, surface_height);
 
     if (!game->Initialize(window_state.input)) {
       fprintf(stderr, "Failed to create game\n");
@@ -253,7 +254,7 @@ struct nullspace {
     printf("Disconnected from server.\n");
   }
 
-  GLFWwindow* CreateGameWindow(int width, int height) {
+  GLFWwindow* CreateGameWindow(int& width, int& height) {
     GLFWwindow* window = nullptr;
 
     if (!glfwInit()) {
@@ -267,7 +268,25 @@ struct nullspace {
     glfwWindowHint(GLFW_RESIZABLE, false);
     glfwWindowHint(GLFW_SAMPLES, 0);
 
-    window = glfwCreateWindow(width, height, "nullspace", NULL, NULL);
+    if (kFullScreen) {
+      // TODO: monitor selection
+      GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+      const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+      glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+      glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+      glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+      glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+      glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
+
+      width = mode->width;
+      height = mode->height;
+
+      window = glfwCreateWindow(width, height, "nullspace", monitor, NULL);
+    } else {
+      window = glfwCreateWindow(width, height, "nullspace", NULL, NULL);
+    }
+
     if (!window) {
       glfwTerminate();
       return nullptr;
