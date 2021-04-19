@@ -103,8 +103,6 @@ SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f
     return nullptr;
   }
 
-  assert(glGetError() == 0);
-
   size_t texture_index = texture_count++;
   GLuint* texture_id = textures + texture_index;
 
@@ -140,7 +138,6 @@ SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f
     }
   }
 
-  assert(glGetError() == 0);
   return result;
 }
 
@@ -217,7 +214,6 @@ void SpriteRenderer::Draw(Camera& camera, const SpriteRenderable& renderable, co
 }
 
 void SpriteRenderer::Render(Camera& camera) {
-  assert(glGetError() == 0);
   shader.Use();
   glBindVertexArray(vao);
 
@@ -264,7 +260,6 @@ void SpriteRenderer::Render(Camera& camera) {
 
   push_buffer.Reset();
   texture_push_buffer.Reset();
-  assert(glGetError() == 0);
 }
 
 }  // namespace null

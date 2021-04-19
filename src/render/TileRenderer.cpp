@@ -58,8 +58,6 @@ void main() {
 )";
 
 bool TileRenderer::Initialize() {
-  assert(glGetError() == 0);
-
   if (!shader.Initialize(kGridVertexShaderCode, kGridFragmentShaderCode)) {
     fprintf(stderr, "Failed to load tile shader.\n");
     return false;
@@ -95,15 +93,11 @@ bool TileRenderer::Initialize() {
   glUniform1i(tilemap_uniform, 0);
   glUniform1i(tiledata_uniform, 1);
 
-  assert(glGetError() == 0);
-
   return true;
 }
 
 void TileRenderer::Render(Camera& camera) {
   if (tiledata_texture == -1 || tilemap_texture == -1) return;
-
-  assert(glGetError() == 0);
 
   shader.Use();
   glBindVertexArray(vao);
@@ -125,7 +119,6 @@ void TileRenderer::Render(Camera& camera) {
 
 bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim) {
   // Create and setup tilemap color texture
-  assert(glGetError() == 0);
   glBindVertexArray(vao);
 
   glActiveTexture(GL_TEXTURE0);
@@ -199,14 +192,11 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
   // Store entire map tile id data on gpu
   glTexImage2D(GL_TEXTURE_2D, 0, GL_R32UI, 1024, 1024, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, tiledata);
 
-  assert(glGetError() == 0);
   return RenderRadar(temp_arena, filename, (u32)surface_dim.x, (u32)surface_dim.y);
 }
 
 bool TileRenderer::RenderRadar(MemoryArena& temp_arena, const char* filename, u32 surface_width, u32 surface_height) {
   Map map;
-
-  assert(glGetError() == 0);
 
   if (!map.Load(temp_arena, filename)) {
     fprintf(stderr, "Could not load map for radar rendering.\n");
@@ -303,8 +293,6 @@ bool TileRenderer::RenderRadar(MemoryArena& temp_arena, const char* filename, u3
   radar_renderable.uvs[1] = Vector2f(1, 0);
   radar_renderable.uvs[2] = Vector2f(0, 1);
   radar_renderable.uvs[3] = Vector2f(1, 1);
-
-  assert(glGetError() == 0);
 
   return true;
 }

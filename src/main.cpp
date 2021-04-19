@@ -18,10 +18,30 @@
 // TODO: remove
 #include <chrono>
 
+#define OPENGL_DEBUG 1
+
+// Specific opengl 4.x debug features that should never be in release
+#if OPENGL_DEBUG
+
+#define GL_DEBUG_TYPE_ERROR 0x824C
+#define GL_DEBUG_OUTPUT 0x92E0
+
+typedef void(APIENTRYP PFNGLDEBUGMESSAGECALLBACKPROC)(GLDEBUGPROC callback, const void* userParam);
+
+static PFNGLDEBUGMESSAGECALLBACKPROC glDebugMessageCallback;
+
+#endif
+
 namespace null {
 
+enum class WindowType {
+  Windowed,
+  Fullscreen,
+  BorderlessFullscreen
+};
+
 constexpr bool kVerticalSync = false;
-constexpr bool kFullScreen = false;
+constexpr WindowType kWindowType = WindowType::Windowed;
 
 const char* kPlayerName = "nullspace";
 const char* kPlayerPassword = "none";
@@ -148,6 +168,16 @@ void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_action,
   }
 }
 
+#if OPENGL_DEBUG
+void GLAPIENTRY OnOpenGLError(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
+                              const GLchar* message, const void* userParam) {
+  if (type == GL_DEBUG_TYPE_ERROR) {
+    fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+            (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type, severity, message);
+  }
+}
+#endif
+
 struct nullspace {
   MemoryArena perm_arena;
   MemoryArena trans_arena;
@@ -268,11 +298,11 @@ struct nullspace {
     glfwWindowHint(GLFW_RESIZABLE, false);
     glfwWindowHint(GLFW_SAMPLES, 0);
 
-    if (kFullScreen) {
-      // TODO: monitor selection
-      GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-      const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    // TODO: monitor selection
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
+    if (kWindowType == WindowType::Fullscreen) {
       glfwWindowHint(GLFW_RED_BITS, mode->redBits);
       glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
       glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
@@ -283,6 +313,13 @@ struct nullspace {
       height = mode->height;
 
       window = glfwCreateWindow(width, height, "nullspace", monitor, NULL);
+    } else if (kWindowType == WindowType::BorderlessFullscreen) {
+      glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+
+      width = mode->width;
+      height = mode->height;
+
+      window = glfwCreateWindow(width, height, "nullspace", NULL, NULL);
     } else {
       window = glfwCreateWindow(width, height, "nullspace", NULL, NULL);
     }
@@ -298,6 +335,25 @@ struct nullspace {
       fprintf(stderr, "Failed to initialize opengl context");
       return nullptr;
     }
+
+#if OPENGL_DEBUG
+    HMODULE module = LoadLibrary("opengl32.dll");
+
+    if (module) {
+      typedef PROC (*GET_PROC_ADDR)(LPCSTR unnamedParam1);
+
+      GET_PROC_ADDR get_addr = (GET_PROC_ADDR)GetProcAddress(module, "wglGetProcAddress");
+
+      if (get_addr) {
+        glDebugMessageCallback = (PFNGLDEBUGMESSAGECALLBACKPROC)get_addr("glDebugMessageCallback");
+
+        if (glDebugMessageCallback) {
+          glEnable(GL_DEBUG_OUTPUT);
+          glDebugMessageCallback(OnOpenGLError, 0);
+        }
+      }
+    }
+#endif
 
     glViewport(0, 0, width, height);
 
