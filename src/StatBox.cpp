@@ -567,6 +567,8 @@ void StatBox::SortView() {
     case StatViewType::TeamSort: {
       SortByFreq(*self);
     } break;
+    default: {
+    } break;
   }
 }
 

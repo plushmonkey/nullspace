@@ -159,7 +159,7 @@ void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color,
   current_pos.x = start_x;
 
   u8 c;
-  while (c = *text++) {
+  while ((c = *text++)) {
     if (c == '\n') {
       current_pos.x = start_x;
       current_pos.y += 12.0f;

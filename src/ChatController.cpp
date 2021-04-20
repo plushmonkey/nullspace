@@ -331,6 +331,8 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
           renderer.DrawText(camera, output, TextColor::Red, Vector2f(0, y + j * kFontHeight));
         }
       } break;
+      default: {
+      } break;
     }
   }
 }
