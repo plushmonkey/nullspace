@@ -9,19 +9,25 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#else
+#include <memory.h>
 #endif
 
 #include "Game.h"
 //
 #include <GLFW/glfw3.h>
 
+#ifndef _WIN32
+extern GLFWwindow* clipboard_window;
+#endif
+
 // TODO: remove
 #include <chrono>
 
-#define OPENGL_DEBUG 1
+#define OPENGL_DEBUG 0
 
 // Specific opengl 4.x debug features that should never be in release
-#if OPENGL_DEBUG
+#if defined(_WIN32) && OPENGL_DEBUG
 
 #define GL_DEBUG_TYPE_ERROR 0x824C
 #define GL_DEBUG_OUTPUT 0x92E0
@@ -190,8 +196,13 @@ struct nullspace {
     constexpr size_t kPermanentSize = Megabytes(64);
     constexpr size_t kTransientSize = Megabytes(32);
 
+#ifdef _WIN32
     u8* perm_memory = (u8*)VirtualAlloc(NULL, kPermanentSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     u8* trans_memory = (u8*)VirtualAlloc(NULL, kTransientSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+#else
+    u8* perm_memory = (u8*)malloc(kPermanentSize);
+    u8* trans_memory = (u8*)malloc(kTransientSize);
+#endif
 
     if (!perm_memory || !trans_memory) {
       fprintf(stderr, "Failed to allocate memory.\n");
@@ -357,6 +368,8 @@ struct nullspace {
     glfwSetWindowUserPointer(window, &window_state);
     glfwSetKeyCallback(window, OnKeyboardChange);
     glfwSetCharCallback(window, OnCharacter);
+    
+    clipboard_window = window;
 
     return window;
   }

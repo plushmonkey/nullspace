@@ -263,7 +263,7 @@ struct ArenaSettings {
     unsigned int _padding : 11;
   };
 
-  ShipSettings ShipSettings[8];
+  struct ShipSettings ShipSettings[8];
 
   // Maximum amount of damage that a L1 bullet will cause
   int BulletDamageLevel;
@@ -306,7 +306,7 @@ struct ArenaSettings {
   // Speed that shrapnel travels
   int ShrapnelSpeed;
 
-  SpawnSettings SpawnSettings[4];
+  struct SpawnSettings SpawnSettings[4];
 
   // Percentage of the ping time that is spent on the C2S portion of the
   // ping(used in more accurately syncronizing clocks)

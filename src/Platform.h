@@ -1,6 +1,8 @@
 #ifndef NULLSPACE_PLATFORM_H_
 #define NULLSPACE_PLATFORM_H_
 
+#include <cstdlib>
+
 namespace null {
 
 bool CreateFolder(const char* path);

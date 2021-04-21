@@ -5,6 +5,15 @@
 #define NOMINMAX
 #include <WS2tcpip.h>
 #include <Windows.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <fcntl.h>
+#define WSAEWOULDBLOCK EWOULDBLOCK
+#define closesocket close
 #endif
 
 #include <cassert>
@@ -46,6 +55,14 @@ const char* kLoginResponses[] = {"Ok",
                                  "Too many demo users",
                                  "Demo versions not allowed",
                                  "Restricted zone, mod access required"};
+                                 
+inline int GetLastError() {
+#ifdef _WIN32
+    return WSAGetLastError();
+#else
+    return errno;
+#endif
+}
 
 Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, PacketDispatcher& dispatcher)
     : dispatcher(dispatcher),
@@ -84,7 +101,7 @@ Connection::TickResult Connection::Tick() {
       this->connected = false;
       return TickResult::ConnectionClosed;
     } else if (bytes_recv < 0) {
-      int err = WSAGetLastError();
+      int err = GetLastError();
 
       if (err == WSAEWOULDBLOCK) {
         return TickResult::Success;
@@ -280,7 +297,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         }
       } break;
       default: {
-        printf("Received unhandled core packet of type 0x%02X\n", type);
+        printf("Received unhandled core packet of type 0x%02X\n", (int)type);
       } break;
     }
   } else {
@@ -412,7 +429,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       case ProtocolS2C::WatchDamage: {
       } break;
       default: {
-        printf("Received unhandled non-core packet of type 0x%02X\n", type);
+        printf("Received unhandled non-core packet of type 0x%02X\n", (int)type);
       } break;
     }
   }

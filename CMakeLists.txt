@@ -23,7 +23,7 @@ set(GLFW_SOURCES
   lib/glfw/src/win32_window.cpp
   lib/glfw/src/window.cpp)
 elseif(UNIX)
-add_definitions(-DNDEBUG -D_GLFW_X11)
+add_definitions(-DNDEBUG)
 endif()
 
 include(GNUInstallDirs)
@@ -41,6 +41,9 @@ target_include_directories(nullspace PRIVATE
                            
 if(WIN32)
 target_link_libraries(nullspace ws2_32)
+else()
+find_package(glfw3 3.3 REQUIRED)
+target_link_libraries(nullspace glfw dl)
 endif()
 
 set(CPACK_PACKAGE_NAME "nullspace")

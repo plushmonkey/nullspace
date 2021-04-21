@@ -2,6 +2,8 @@
 
 #include "SpriteRenderer.h"
 
+#include <cstdio>
+
 namespace null {
 
 constexpr float kBombAnimDuration = 1.0f;
@@ -54,6 +56,29 @@ AnimatedSprite Graphics::anim_ship_warp;
 
 SpriteRenderable* Graphics::character_set[256] = {};
 
+SpriteRenderable* LoadTileSheet(SpriteRenderer& renderer, const char* sheetname, const Vector2f& dimensions, int* count) {
+  // Add extension lookup for the non-standard installs.
+  const char* kExtensions[] = {"bm2", "png", "gif"};
+  char path[256];
+  SpriteRenderable* renderables = nullptr;
+  
+  for (size_t i = 0; i < sizeof(kExtensions) / sizeof(*kExtensions); ++i) {
+    sprintf(path, "graphics/%s.%s", sheetname, kExtensions[i]);
+    
+    renderables = renderer.LoadSheet(path, dimensions, count);
+    
+    if (renderables != nullptr) {
+      return renderables;
+    }
+  }
+  
+  if (renderables == nullptr) {
+    fprintf(stderr, "Failed to load %s graphic.\n", sheetname);
+  }
+  
+  return renderables;
+}
+
 bool Graphics::Initialize(SpriteRenderer& renderer) {
   int count;
 
@@ -65,44 +90,44 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
     return false;
   }
 
-  color_sprites = renderer.LoadSheet("graphics/colors.bm2", Vector2f(128, 1), &count);
+  color_sprites = LoadTileSheet(renderer, "colors", Vector2f(128, 1), &count);
   if (!color_sprites) return false;
 
-  ship_sprites = renderer.LoadSheet("graphics/ships.bm2", Vector2f(36, 36), &count);
+  ship_sprites = LoadTileSheet(renderer, "ships", Vector2f(36, 36), &count);
   if (!ship_sprites) return false;
 
-  spectate_sprites = renderer.LoadSheet("graphics/spectate.bm2", Vector2f(8, 8), &count);
+  spectate_sprites = LoadTileSheet(renderer, "spectate", Vector2f(8, 8), &count);
   if (!spectate_sprites) return false;
 
-  warp_sprites = renderer.LoadSheet("graphics/warp.bm2", Vector2f(48, 48), &count);
+  warp_sprites = LoadTileSheet(renderer, "warp", Vector2f(48, 48), &count);
   if (!warp_sprites) return false;
 
   anim_ship_warp.frames = warp_sprites;
   anim_ship_warp.frame_count = count;
   anim_ship_warp.duration = 0.5f;
 
-  explode0_sprites = renderer.LoadSheet("graphics/explode0.bm2", Vector2f(16, 16), &count);
+  explode0_sprites = LoadTileSheet(renderer, "explode0", Vector2f(16, 16), &count);
   if (!explode0_sprites) return false;
 
   anim_bullet_explode.frames = explode0_sprites;
   anim_bullet_explode.frame_count = count;
   anim_bullet_explode.duration = 0.2f;
 
-  explode1_sprites = renderer.LoadSheet("graphics/explode1.bm2", Vector2f(48, 48), &count);
+  explode1_sprites = LoadTileSheet(renderer, "explode1", Vector2f(48, 48), &count);
   if (!explode1_sprites) return false;
 
   anim_ship_explode.frames = explode1_sprites;
   anim_ship_explode.frame_count = count;
   anim_ship_explode.duration = 1.0f;
 
-  explode2_sprites = renderer.LoadSheet("graphics/explode2.bm2", Vector2f(80, 80), &count);
+  explode2_sprites = LoadTileSheet(renderer, "explode2", Vector2f(80, 80), &count);
   if (!explode2_sprites) return false;
 
   anim_bomb_explode.frames = explode2_sprites;
   anim_bomb_explode.frame_count = count;
   anim_bomb_explode.duration = 1.25f;
 
-  emp_burst_sprites = renderer.LoadSheet("graphics/empburst.bm2", Vector2f(80, 80), &count);
+  emp_burst_sprites = LoadTileSheet(renderer, "empburst", Vector2f(80, 80), &count);
   if (!emp_burst_sprites) return false;
 
   anim_emp_explode.frames = emp_burst_sprites;
@@ -115,10 +140,10 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
 bool Graphics::InitializeFont(SpriteRenderer& renderer) {
   int count;
 
-  text_sprites = renderer.LoadSheet("graphics/tallfont.bm2", Vector2f(8, 12), &count);
+  text_sprites = LoadTileSheet(renderer, "tallfont", Vector2f(8, 12), &count);
   if (!text_sprites) return false;
 
-  textf_sprites = renderer.LoadSheet("graphics/tallfontf.bm2", Vector2f(8, 12), &count);
+  textf_sprites = LoadTileSheet(renderer, "tallfontf", Vector2f(8, 12), &count);
   if (!textf_sprites) return false;
 
   for (size_t i = ' '; i < '~'; ++i) {
@@ -156,7 +181,7 @@ bool Graphics::InitializeFont(SpriteRenderer& renderer) {
 bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   int count;
 
-  bomb_sprites = renderer.LoadSheet("graphics/bombs.bm2", Vector2f(16, 16), &count);
+  bomb_sprites = LoadTileSheet(renderer, "bombs", Vector2f(16, 16), &count);
   if (!bomb_sprites) return false;
 
   for (size_t i = 0; i < 4; ++i) {
@@ -181,7 +206,7 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   anim_thor.frame_count = 10;
   anim_thor.duration = kBombAnimDuration;
 
-  bomb_trail_sprites = renderer.LoadSheet("graphics/trail.bm2", Vector2f(16, 16), &count);
+  bomb_trail_sprites = LoadTileSheet(renderer, "trail", Vector2f(16, 16), &count);
   if (!bomb_trail_sprites) return false;
 
   for (size_t i = 0; i < 4; ++i) {
@@ -190,7 +215,7 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
     anim_bomb_trails[i].duration = 0.35f;
   }
 
-  mine_sprites = renderer.LoadSheet("graphics/mines.bm2", Vector2f(16, 16), &count);
+  mine_sprites = LoadTileSheet(renderer, "mines", Vector2f(16, 16), &count);
   if (!mine_sprites) return false;
 
   for (size_t i = 0; i < 4; ++i) {
@@ -205,7 +230,7 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
     anim_emp_mines[i].duration = kMineAnimDuration;
   }
 
-  bullet_sprites = renderer.LoadSheet("graphics/bullets.bm2", Vector2f(5, 5), &count);
+  bullet_sprites = LoadTileSheet(renderer, "bullets", Vector2f(5, 5), &count);
   if (!bullet_sprites) return false;
 
   for (size_t i = 0; i < 4; ++i) {
@@ -220,7 +245,7 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
     anim_bullets_bounce[i].duration = 0.15f;
   }
 
-  bullet_trail_sprites = renderer.LoadSheet("graphics/gradient.bm2", Vector2f(1, 1), &count);
+  bullet_trail_sprites = LoadTileSheet(renderer, "gradient", Vector2f(1, 1), &count);
   if (!bullet_trail_sprites) return false;
 
   for (size_t i = 0; i < 3; ++i) {
@@ -230,7 +255,7 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   }
   anim_bullet_trails[3] = anim_bullet_trails[2];
 
-  repel_sprites = renderer.LoadSheet("graphics/repel.bm2", Vector2f(96, 96), &count);
+  repel_sprites = LoadTileSheet(renderer, "repel", Vector2f(96, 96), &count);
   if (!repel_sprites) return false;
 
   anim_repel.duration = 0.5f;

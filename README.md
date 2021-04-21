@@ -21,3 +21,15 @@ I'm not including it in this repository but the instructions for dumping are lis
 5. Click address 0x401000 and click dump, save it as cont_mem_text
 6. Click address 0x4A7000 and click dump, save it as cont_mem_data
 7. Put the two files in the nullspace folder
+
+## Building
+### Windows
+Use the existing Visual Studio solution or install cmake.
+
+### Linux
+1. Install GLFW3 development libraries (`sudo apt-get install libglfw3-dev` on Ubuntu)
+2. Install cmake
+3. Open terminal in nullspace directory.
+4. `mkdir build && cd build`
+5. `cmake ..`
+6. `make`

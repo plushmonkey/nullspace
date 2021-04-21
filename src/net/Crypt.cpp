@@ -6,6 +6,8 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#else
+#include <stdio.h>
 #endif
 
 #include "Checksum.h"
@@ -232,7 +234,14 @@ bool generate(u32 key) {
 
   return success;
 #else
-  return false;
+  char execute[256];
+  sprintf(execute, "wine generator.exe %d", key);
+  FILE* f = popen(execute, "r");
+  if (!f) {
+    return false;
+  }
+  pclose(f);
+  return true;
 #endif
 }
 

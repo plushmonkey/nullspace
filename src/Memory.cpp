@@ -82,7 +82,7 @@ u8* AllocateMirroredBuffer(size_t size) {
 
   return view;
 #else
-  static_assert(0, "Mirrored buffer not implemented");
+  return nullptr;
 #endif
 }
 

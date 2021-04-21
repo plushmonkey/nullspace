@@ -7,13 +7,20 @@
 // Fix warning with glad definition
 #undef APIENTRY
 #endif
-#else
-#include <strings.h>
-#endif
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+
+#else
+#include <strings.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <GLFW/glfw3.h>
+
+GLFWwindow* clipboard_window = nullptr;
+
+#endif
 
 namespace null {
 
@@ -91,8 +98,18 @@ void PasteClipboard(char* dest, size_t available_size) {
 int null_stricmp(const char* s1, const char* s2) { return _stricmp(s1, s2); }
 
 #else
-bool CreateFolder(const char* path) { return false; }
-void PasteClipboard(char* dest, size_t available_size){};
+bool CreateFolder(const char* path) { 
+  return mkdir(path, 0700) == 0;
+}
+void PasteClipboard(char* dest, size_t available_size) {
+  const char* clipboard = glfwGetClipboardString(clipboard_window);
+  if (clipboard) {
+    for (size_t i = 0; i < available_size && *clipboard && *clipboard != 10; ++i) {
+      *dest++ = *clipboard++;
+    }
+    *dest = 0;
+  }
+};
 int null_stricmp(const char* s1, const char* s2) { return strcasecmp(s1, s2); }
 
 #endif
