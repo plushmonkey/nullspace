@@ -369,7 +369,9 @@ struct nullspace {
     glfwSetKeyCallback(window, OnKeyboardChange);
     glfwSetCharCallback(window, OnCharacter);
     
+#ifndef _WIN32
     clipboard_window = window;
+#endif
 
     return window;
   }
