@@ -9,6 +9,7 @@
 #include "WeaponManager.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
+#include "render/AnimatedTileRenderer.h"
 #include "render/Animation.h"
 #include "render/Camera.h"
 #include "render/SpriteRenderer.h"
@@ -29,6 +30,7 @@ struct Game {
   Camera camera;
   Camera ui_camera;
   TileRenderer tile_renderer;
+  AnimatedTileRenderer animated_tile_renderer;
   SpriteRenderer sprite_renderer;
   StatBox statbox;
   ChatController chat;

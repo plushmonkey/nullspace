@@ -1,8 +1,8 @@
 #include "Graphics.h"
 
-#include "SpriteRenderer.h"
-
 #include <cstdio>
+
+#include "SpriteRenderer.h"
 
 namespace null {
 
@@ -33,6 +33,14 @@ SpriteRenderable* Graphics::repel_sprites = nullptr;
 
 SpriteRenderable* Graphics::color_sprites = nullptr;
 
+SpriteRenderable* Graphics::flag_sprites = nullptr;
+SpriteRenderable* Graphics::goal_sprites = nullptr;
+SpriteRenderable* Graphics::asteroid_small1_sprites = nullptr;
+SpriteRenderable* Graphics::asteroid_small2_sprites = nullptr;
+SpriteRenderable* Graphics::asteroid_large_sprites = nullptr;
+SpriteRenderable* Graphics::space_station_sprites = nullptr;
+SpriteRenderable* Graphics::wormhole_sprites = nullptr;
+
 AnimatedSprite Graphics::anim_bombs[4];
 AnimatedSprite Graphics::anim_emp_bombs[4];
 AnimatedSprite Graphics::anim_bombs_bounceable[4];
@@ -54,28 +62,39 @@ AnimatedSprite Graphics::anim_repel;
 AnimatedSprite Graphics::anim_ship_explode;
 AnimatedSprite Graphics::anim_ship_warp;
 
+AnimatedSprite Graphics::anim_flag;
+AnimatedSprite Graphics::anim_flag_team;
+AnimatedSprite Graphics::anim_goal;
+AnimatedSprite Graphics::anim_goal_team;
+AnimatedSprite Graphics::anim_asteroid_small1;
+AnimatedSprite Graphics::anim_asteroid_small2;
+AnimatedSprite Graphics::anim_asteroid_large;
+AnimatedSprite Graphics::anim_space_station;
+AnimatedSprite Graphics::anim_wormhole;
+
 SpriteRenderable* Graphics::character_set[256] = {};
 
-SpriteRenderable* LoadTileSheet(SpriteRenderer& renderer, const char* sheetname, const Vector2f& dimensions, int* count) {
+SpriteRenderable* LoadTileSheet(SpriteRenderer& renderer, const char* sheetname, const Vector2f& dimensions,
+                                int* count) {
   // Add extension lookup for the non-standard installs.
   const char* kExtensions[] = {"bm2", "png", "gif"};
   char path[256];
   SpriteRenderable* renderables = nullptr;
-  
+
   for (size_t i = 0; i < sizeof(kExtensions) / sizeof(*kExtensions); ++i) {
     sprintf(path, "graphics/%s.%s", sheetname, kExtensions[i]);
-    
+
     renderables = renderer.LoadSheet(path, dimensions, count);
-    
+
     if (renderables != nullptr) {
       return renderables;
     }
   }
-  
+
   if (renderables == nullptr) {
     fprintf(stderr, "Failed to load %s graphic.\n", sheetname);
   }
-  
+
   return renderables;
 }
 
@@ -87,6 +106,10 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
   }
 
   if (!InitializeWeapons(renderer)) {
+    return false;
+  }
+
+  if (!InitializeTiles(renderer)) {
     return false;
   }
 
@@ -261,6 +284,71 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   anim_repel.duration = 0.5f;
   anim_repel.frames = repel_sprites;
   anim_repel.frame_count = count;
+
+  return true;
+}
+
+bool Graphics::InitializeTiles(SpriteRenderer& renderer) {
+  constexpr float kAsteroidDuration = 1.5f;
+
+  int count;
+
+  asteroid_small1_sprites = LoadTileSheet(renderer, "over1", Vector2f(16, 16), &count);
+  if (!asteroid_small1_sprites) return false;
+
+  anim_asteroid_small1.duration = kAsteroidDuration;
+  anim_asteroid_small1.frames = asteroid_small1_sprites;
+  anim_asteroid_small1.frame_count = count;
+
+  asteroid_small2_sprites = LoadTileSheet(renderer, "over3", Vector2f(16, 16), &count);
+  if (!asteroid_small2_sprites) return false;
+
+  anim_asteroid_small2.duration = kAsteroidDuration;
+  anim_asteroid_small2.frames = asteroid_small2_sprites;
+  anim_asteroid_small2.frame_count = count;
+
+  asteroid_large_sprites = LoadTileSheet(renderer, "over2", Vector2f(32, 32), &count);
+  if (!asteroid_large_sprites) return false;
+
+  anim_asteroid_large.duration = kAsteroidDuration;
+  anim_asteroid_large.frames = asteroid_large_sprites;
+  anim_asteroid_large.frame_count = count;
+
+  space_station_sprites = LoadTileSheet(renderer, "over4", Vector2f(96, 96), &count);
+  if (!space_station_sprites) return false;
+
+  anim_space_station.duration = 1.0f;
+  anim_space_station.frames = space_station_sprites;
+  anim_space_station.frame_count = count;
+
+  wormhole_sprites = LoadTileSheet(renderer, "over5", Vector2f(80, 80), &count);
+  if (!wormhole_sprites) return false;
+
+  anim_wormhole.duration = 2.5f;
+  anim_wormhole.frames = wormhole_sprites;
+  anim_wormhole.frame_count = count;
+
+  flag_sprites = LoadTileSheet(renderer, "flag", Vector2f(16, 16), &count);
+  if (!flag_sprites) return false;
+
+  anim_flag.duration = 1.0f;
+  anim_flag.frames = flag_sprites;
+  anim_flag.frame_count = count / 2;
+
+  anim_flag_team.duration = 1.0f;
+  anim_flag_team.frames = flag_sprites + count / 2;
+  anim_flag_team.frame_count = count / 2;
+
+  goal_sprites = LoadTileSheet(renderer, "goal", Vector2f(16, 16), &count);
+  if (!goal_sprites) return false;
+
+  anim_goal.duration = 0.5f;
+  anim_goal.frames = goal_sprites + count / 2;
+  anim_goal.frame_count = count / 2;
+
+  anim_goal_team.duration = 0.5f;
+  anim_goal_team.frames = goal_sprites;
+  anim_goal_team.frame_count = count / 2;
 
   return true;
 }

@@ -47,15 +47,22 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
 
 bool Game::Initialize(InputState& input) {
   if (!tile_renderer.Initialize()) {
+    fprintf(stderr, "Failed to initialize tile renderer.\n");
     return false;
   }
 
   if (!sprite_renderer.Initialize(perm_arena)) {
+    fprintf(stderr, "Failed to initialize sprite renderer.\n");
     return false;
   }
 
   if (!Graphics::Initialize(sprite_renderer)) {
     fprintf(stderr, "Failed to initialize graphics.\n");
+    return false;
+  }
+
+  if (!animated_tile_renderer.Initialize()) {
+    fprintf(stderr, "Failed to initialize animated tile renderer.\n");
     return false;
   }
 
@@ -127,6 +134,7 @@ void Game::Update(const InputState& input, float dt) {
   }
 
   render_radar = input.IsDown(InputAction::DisplayMap);
+  animated_tile_renderer.Update(dt);
 }
 
 void Game::Render(float dt) {
@@ -136,6 +144,7 @@ void Game::Render(float dt) {
 
   animation.Update(dt);
   tile_renderer.Render(camera);
+  animated_tile_renderer.Render(sprite_renderer, connection.map_handler.map, camera, ui_camera.surface_dim);
 
   Player* me = player_manager.GetSelf();
 

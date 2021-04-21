@@ -1,6 +1,7 @@
 #ifndef NULLSPACE_RENDER_TILERENDERER_H_
 #define NULLSPACE_RENDER_TILERENDERER_H_
 
+#include "Animation.h"
 #include "Shader.h"
 #include "Sprite.h"
 
@@ -29,7 +30,7 @@ struct TileRenderer {
   void Render(Camera& camera);
   bool CreateMapBuffer(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim);
 
-private:
+ private:
   bool RenderRadar(MemoryArena& temp_arena, const char* filename, u32 surface_width, u32 surface_height);
 };
 

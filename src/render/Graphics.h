@@ -27,7 +27,7 @@ struct Graphics {
   static SpriteRenderable* explode1_sprites;
   static SpriteRenderable* explode2_sprites;
   static SpriteRenderable* emp_burst_sprites;
- 
+
   static SpriteRenderable* bomb_sprites;
   static SpriteRenderable* bomb_trail_sprites;
   static SpriteRenderable* mine_sprites;
@@ -38,6 +38,15 @@ struct Graphics {
   static SpriteRenderable* repel_sprites;
 
   static SpriteRenderable* color_sprites;
+
+  static SpriteRenderable* flag_sprites;
+  static SpriteRenderable* flag_team_sprites;
+  static SpriteRenderable* goal_sprites;
+  static SpriteRenderable* asteroid_small1_sprites;
+  static SpriteRenderable* asteroid_small2_sprites;
+  static SpriteRenderable* asteroid_large_sprites;
+  static SpriteRenderable* space_station_sprites;
+  static SpriteRenderable* wormhole_sprites;
 
   static AnimatedSprite anim_bombs[4];
   static AnimatedSprite anim_emp_bombs[4];
@@ -60,6 +69,16 @@ struct Graphics {
   static AnimatedSprite anim_ship_explode;
   static AnimatedSprite anim_ship_warp;
 
+  static AnimatedSprite anim_flag;
+  static AnimatedSprite anim_flag_team;
+  static AnimatedSprite anim_goal;
+  static AnimatedSprite anim_goal_team;
+  static AnimatedSprite anim_asteroid_small1;
+  static AnimatedSprite anim_asteroid_small2;
+  static AnimatedSprite anim_asteroid_large;
+  static AnimatedSprite anim_space_station;
+  static AnimatedSprite anim_wormhole;
+
   static bool Initialize(SpriteRenderer& renderer);
 
   static void DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector2f& center,
@@ -70,6 +89,7 @@ struct Graphics {
 
   static bool InitializeFont(SpriteRenderer& renderer);
   static bool InitializeWeapons(SpriteRenderer& renderer);
+  static bool InitializeTiles(SpriteRenderer& renderer);
 };
 
 }  // namespace null

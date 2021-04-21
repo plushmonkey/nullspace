@@ -46,7 +46,7 @@ void main() {
   ivec2 fetchp = ivec2(varying_position);
   uint tile_id = texelFetch(tiledata, fetchp, 0).r;
 
-  if (tile_id == 0u || tile_id > 190u) {
+  if (tile_id == 0u || tile_id == 170u || tile_id == 172u || tile_id > 190u) {
     discard;
   }
 
