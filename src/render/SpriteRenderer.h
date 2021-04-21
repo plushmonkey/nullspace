@@ -3,6 +3,7 @@
 
 #include "../Math.h"
 #include "../Memory.h"
+#include "Layer.h"
 #include "Shader.h"
 #include "Sprite.h"
 
@@ -43,8 +44,9 @@ struct SpriteRenderer {
   SpriteRenderable* LoadSheet(const char* filename, const Vector2f& dimensions, int* count);
 
   // Position can be either in world space or screen space depending on renderer setup
-  void Draw(Camera& camera, const SpriteRenderable& renderable, const Vector2f& position);
-  void DrawText(Camera& camera, const char* text, TextColor color, const Vector2f& position,
+  void Draw(Camera& camera, const SpriteRenderable& renderable, const Vector2f& position, Layer layer);
+  void Draw(Camera& camera, const SpriteRenderable& renderable, const Vector3f& position);
+  void DrawText(Camera& camera, const char* text, TextColor color, const Vector2f& position, Layer layer,
                 TextAlignment alignment = TextAlignment::Left);
 
   void Render(Camera& camera);

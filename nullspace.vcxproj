@@ -216,6 +216,7 @@
     <ClInclude Include="src\PlayerManager.h" />
     <ClInclude Include="src\render\Animation.h" />
     <ClInclude Include="src\render\Camera.h" />
+    <ClInclude Include="src\render\Layer.h" />
     <ClInclude Include="src\render\Shader.h" />
     <ClInclude Include="src\render\Sprite.h" />
     <ClInclude Include="src\render\SpriteRenderer.h" />

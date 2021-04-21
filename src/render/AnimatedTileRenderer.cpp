@@ -43,26 +43,26 @@ void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& ca
       if (id == 170) {
         // TODO: Determine if flag is owned
         SpriteRenderable& renderable = anim_flag.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y));
+        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Background);
       } else if (id == 172) {
         // TODO: Determine if goal is team
         SpriteRenderable& renderable = anim_goal.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y));
+        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Background);
       } else if (id == 216) {
         SpriteRenderable& renderable = anim_asteroid_small1.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y));
+        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Background);
       } else if (id == 217) {
         SpriteRenderable& renderable = anim_asteroid_large.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y));
+        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Background);
       } else if (id == 218) {
         SpriteRenderable& renderable = anim_asteroid_small2.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y));
+        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Background);
       } else if (id == 219) {
         SpriteRenderable& renderable = anim_space_station.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y));
+        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Background);
       } else if (id == 220) {
         SpriteRenderable& renderable = anim_wormhole.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y));
+        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Background);
       }
     }
   }

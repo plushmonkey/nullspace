@@ -70,20 +70,20 @@ void StatBox::Render(Camera& camera, SpriteRenderer& renderer) {
   SpriteRenderable background = Graphics::color_sprites[kBackgroundColorIndex];
   background.dimensions = view_dimensions;
 
-  renderer.Draw(camera, background, Vector2f(3, 3));
+  renderer.Draw(camera, background, Vector2f(3, 3), Layer::TopMost);
 
   for (size_t i = 0; i < renderable_count; ++i) {
     StatRenderableOutput* output = renderable_outputs + i;
     SpriteRenderable renderable = *output->renderable;
     renderable.dimensions = output->dimensions;
 
-    renderer.Draw(camera, renderable, output->position);
+    renderer.Draw(camera, renderable, output->position, Layer::TopMost);
   }
 
   for (size_t i = 0; i < text_count; ++i) {
     StatTextOutput* output = text_outputs + i;
 
-    renderer.DrawText(camera, output->text, output->color, output->position, output->alignment);
+    renderer.DrawText(camera, output->text, output->color, output->position, Layer::TopMost, output->alignment);
   }
 
   Graphics::DrawBorder(renderer, camera, view_dimensions * 0.5f + Vector2f(kBorder, kBorder), view_dimensions * 0.5f);

@@ -364,13 +364,13 @@ void Graphics::DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector
     renderable.uvs[i] = Graphics::color_sprites[1].uvs[i];
   }
 
-  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, -half_extents.y - 1));
-  renderer.Draw(camera, renderable, center + Vector2f(half_extents.x, -half_extents.y - 1));
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, -half_extents.y - 1), Layer::TopMost);
+  renderer.Draw(camera, renderable, center + Vector2f(half_extents.x, -half_extents.y - 1), Layer::TopMost);
 
   renderable.dimensions = Vector2f(half_extents.x * 2 + 2, 1);
 
-  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, -half_extents.y - 1));
-  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, half_extents.y));
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, -half_extents.y - 1), Layer::TopMost);
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, half_extents.y), Layer::TopMost);
 
   renderable.texture = Graphics::color_sprites[2].texture;
   for (size_t i = 0; i < 4; ++i) {
@@ -378,13 +378,13 @@ void Graphics::DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector
   }
   renderable.dimensions = Vector2f(1, half_extents.y * 2 + 4);
 
-  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, -half_extents.y - 2));
-  renderer.Draw(camera, renderable, center + Vector2f(half_extents.x + 1, -half_extents.y - 2));
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, -half_extents.y - 2), Layer::TopMost);
+  renderer.Draw(camera, renderable, center + Vector2f(half_extents.x + 1, -half_extents.y - 2), Layer::TopMost);
 
   renderable.dimensions = Vector2f(half_extents.x * 2 + 4, 1);
 
-  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, -half_extents.y - 2));
-  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, half_extents.y + 1));
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, -half_extents.y - 2), Layer::TopMost);
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, half_extents.y + 1), Layer::TopMost);
 
   renderable.texture = Graphics::color_sprites[3].texture;
   for (size_t i = 0; i < 4; ++i) {
@@ -392,13 +392,13 @@ void Graphics::DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector
   }
   renderable.dimensions = Vector2f(1, half_extents.y * 2 + 2);
 
-  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 3, -half_extents.y - 1));
-  renderer.Draw(camera, renderable, center + Vector2f(half_extents.x + 2, -half_extents.y - 1));
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 3, -half_extents.y - 1), Layer::TopMost);
+  renderer.Draw(camera, renderable, center + Vector2f(half_extents.x + 2, -half_extents.y - 1), Layer::TopMost);
 
   renderable.dimensions = Vector2f(half_extents.x * 2 + 2, 1);
 
-  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, -half_extents.y - 3));
-  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, half_extents.y + 2));
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, -half_extents.y - 3), Layer::TopMost);
+  renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, half_extents.y + 2), Layer::TopMost);
 }
 
 }  // namespace null

@@ -2,6 +2,7 @@
 #define NULLSPACE_RENDER_ANIMATION_H_
 
 #include "../Math.h"
+#include "Layer.h"
 #include "Sprite.h"
 
 namespace null {
@@ -15,6 +16,8 @@ struct AnimatedSprite {
 struct Animation {
   AnimatedSprite* sprite = nullptr;
   Vector2f position = Vector2f(0, 0);
+  Layer layer = Layer::Weapons;
+  u16 id;
   float t = 0.0f;
   bool repeat = false;
 
@@ -30,6 +33,7 @@ struct Camera;
 struct SpriteRenderer;
 
 struct AnimationSystem {
+  u16 next_id = 0;
   size_t animation_count;
   Animation animations[65535];
 

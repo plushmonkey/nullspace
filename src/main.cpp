@@ -265,7 +265,7 @@ struct nullspace {
       glfwPollEvents();
 
       glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       game->Update(window_state.input, dt);
       game->Render(dt);
@@ -368,10 +368,13 @@ struct nullspace {
     glfwSetWindowUserPointer(window, &window_state);
     glfwSetKeyCallback(window, OnKeyboardChange);
     glfwSetCharCallback(window, OnCharacter);
-    
+
 #ifndef _WIN32
     clipboard_window = window;
 #endif
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
 
     return window;
   }

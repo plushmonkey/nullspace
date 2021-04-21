@@ -11,10 +11,10 @@
 namespace null {
 
 struct SpriteVertex {
-  Vector2f position;
+  Vector3f position;
   Vector2f uv;
 
-  SpriteVertex(const Vector2f& position, const Vector2f& uv) : position(position), uv(uv) {}
+  SpriteVertex(const Vector3f& position, const Vector2f& uv) : position(position), uv(uv) {}
 };
 
 struct SpritePushElement {
@@ -27,7 +27,7 @@ constexpr size_t kTextureBufferSize = kPushBufferSize / sizeof(SpriteVertex);
 const char* kSpriteVertexShaderCode = R"(
 #version 330
 
-layout (location = 0) in vec2 position;
+layout (location = 0) in vec3 position;
 layout (location = 1) in vec2 uv;
 
 uniform mat4 mvp;
@@ -35,7 +35,7 @@ uniform mat4 mvp;
 out vec2 varying_uv;
 
 void main() {
-  gl_Position = mvp * vec4(position, 0.0, 1.0);
+  gl_Position = mvp * vec4(position, 1.0);
   varying_uv = uv;
 }
 )";
@@ -77,7 +77,7 @@ bool SpriteRenderer::Initialize(MemoryArena& perm_arena) {
 
   glBufferData(GL_ARRAY_BUFFER, vbo_size, nullptr, GL_DYNAMIC_DRAW);
 
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(SpriteVertex), 0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(SpriteVertex), 0);
   glEnableVertexAttribArray(0);
 
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(SpriteVertex), (void*)offsetof(SpriteVertex, uv));
@@ -141,7 +141,7 @@ SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f
   return result;
 }
 
-void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color, const Vector2f& position,
+void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color, const Vector2f& position, Layer layer,
                               TextAlignment alignment) {
   constexpr size_t kCountPerColor = 96;
   constexpr size_t kForeignCountPerColor = 24 * 3;
@@ -179,14 +179,18 @@ void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color,
         renderable = Graphics::text_sprites + index + kCountPerColor * (size_t)color;
       }
 
-      Draw(camera, *renderable, current_pos);
+      Draw(camera, *renderable, current_pos, layer);
     }
 
     current_pos += Vector2f(8.0f * camera.scale, 0);
   }
 }
 
-void SpriteRenderer::Draw(Camera& camera, const SpriteRenderable& renderable, const Vector2f& position) {
+void SpriteRenderer::Draw(Camera& camera, const SpriteRenderable& renderable, const Vector2f& position, Layer layer) {
+  Draw(camera, renderable, Vector3f(position.x, position.y, (float)layer));
+}
+
+void SpriteRenderer::Draw(Camera& camera, const SpriteRenderable& renderable, const Vector3f& position) {
   SpritePushElement* element = memory_arena_push_type(&push_buffer, SpritePushElement);
   GLuint* texture_storage = memory_arena_push_type(&texture_push_buffer, GLuint);
 
@@ -197,19 +201,19 @@ void SpriteRenderer::Draw(Camera& camera, const SpriteRenderable& renderable, co
   element->vertices[0].position = position;
   element->vertices[0].uv = renderable.uvs[0];
 
-  element->vertices[1].position = position + Vector2f(0, dimensions.y);
+  element->vertices[1].position = position + Vector3f(0, dimensions.y, 0);
   element->vertices[1].uv = renderable.uvs[2];
 
-  element->vertices[2].position = position + Vector2f(dimensions.x, 0);
+  element->vertices[2].position = position + Vector3f(dimensions.x, 0, 0);
   element->vertices[2].uv = renderable.uvs[1];
 
-  element->vertices[3].position = position + Vector2f(dimensions.x, 0);
+  element->vertices[3].position = position + Vector3f(dimensions.x, 0, 0);
   element->vertices[3].uv = renderable.uvs[1];
 
-  element->vertices[4].position = position + Vector2f(0, dimensions.y);
+  element->vertices[4].position = position + Vector3f(0, dimensions.y, 0);
   element->vertices[4].uv = renderable.uvs[2];
 
-  element->vertices[5].position = position + Vector2f(dimensions.x, dimensions.y);
+  element->vertices[5].position = position + Vector3f(dimensions.x, dimensions.y, 0);
   element->vertices[5].uv = renderable.uvs[3];
 }
 

@@ -77,7 +77,7 @@ void WeaponManager::Update(float dt) {
           u32 pos_y = (u32)(position.y * 16.0f);
           position = Vector2f(pos_x / 16.0f, pos_y / 16.0f);
 
-          animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], position);
+          animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
           weapon->last_trail_tick = tick;
         }
       } else if ((weapon->data.type == (u16)WeaponType::Bomb || weapon->data.type == (u16)WeaponType::ProximityBomb) &&
@@ -90,7 +90,7 @@ void WeaponManager::Update(float dt) {
           u32 pos_y = (u32)(position.y * 16.0f);
           position = Vector2f(pos_x / 16.0f, pos_y / 16.0f);
 
-          animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], position);
+          animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
           weapon->last_trail_tick = tick;
         }
       }
@@ -186,16 +186,16 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
     case WeaponType::Thor: {
       if (weapon.flags & WEAPON_FLAG_EMP) {
         Vector2f offset = Graphics::anim_emp_explode.frames[0].dimensions * (0.5f / 16.0f);
-        animation.AddAnimation(Graphics::anim_emp_explode, weapon.position - offset);
+        animation.AddAnimation(Graphics::anim_emp_explode, weapon.position - offset)->layer = Layer::Explosions;
       } else {
         Vector2f offset = Graphics::anim_bomb_explode.frames[0].dimensions * (0.5f / 16.0f);
-        animation.AddAnimation(Graphics::anim_bomb_explode, weapon.position - offset);
+        animation.AddAnimation(Graphics::anim_bomb_explode, weapon.position - offset)->layer = Layer::Explosions;
       }
     } break;
     case WeaponType::BouncingBullet:
     case WeaponType::Bullet: {
       Vector2f offset = Graphics::anim_bullet_explode.frames[0].dimensions * (0.5f / 16.0f);
-      animation.AddAnimation(Graphics::anim_bullet_explode, weapon.position - offset);
+      animation.AddAnimation(Graphics::anim_bullet_explode, weapon.position - offset)->layer = Layer::Explosions;
     } break;
     default: {
     } break;
@@ -214,7 +214,7 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer) {
       u32 pos_y = (u32)(position.y * 16.0f);
       position = Vector2f(pos_x / 16.0f, pos_y / 16.0f);
 
-      renderer.Draw(camera, frame, position);
+      renderer.Draw(camera, frame, position, Layer::Weapons);
     } else if (weapon->data.type == (u16)WeaponType::Decoy) {
       Player* player = player_manager.GetPlayerById(weapon->player_id);
       if (player) {
@@ -223,7 +223,7 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer) {
         SpriteRenderable& frame = Graphics::ship_sprites[index];
         Vector2f position = weapon->position - frame.dimensions * (0.5f / 16.0f);
 
-        renderer.Draw(camera, frame, position);
+        renderer.Draw(camera, frame, position, Layer::Ships);
       }
     }
   }

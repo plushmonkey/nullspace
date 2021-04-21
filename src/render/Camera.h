@@ -2,6 +2,7 @@
 #define NULLSPACE_RENDER_CAMERA_H_
 
 #include "../Math.h"
+#include "Layer.h"
 
 namespace null {
 
@@ -13,8 +14,9 @@ struct Camera {
 
   Camera(const Vector2f& surface_dim, const Vector2f& position, float scale)
       : surface_dim(surface_dim), position(position), scale(scale) {
+    float zmax = (float)Layer::Count;
     projection = Orthographic(-surface_dim.x / 2.0f * scale, surface_dim.x / 2.0f * scale, surface_dim.y / 2.0f * scale,
-                              -surface_dim.y / 2.0f * scale, -1.0f, 1.0f);
+                              -surface_dim.y / 2.0f * scale, -zmax, zmax);
   }
 
   mat4 GetView() { return Translate(mat4::Identity(), Vector3f(-position.x, -position.y, 0.0f)); }

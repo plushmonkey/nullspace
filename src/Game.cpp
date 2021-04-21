@@ -42,7 +42,8 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       statbox(player_manager, dispatcher),
       chat(dispatcher, connection, player_manager, statbox),
       specview(connection, statbox) {
-  ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -1.0f, 1.0f);
+  float zmax = (float)Layer::Count;
+  ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -zmax, zmax);
 }
 
 bool Game::Initialize(InputState& input) {
@@ -165,19 +166,19 @@ void Game::Render(float dt) {
         SpriteRenderable& renderable = player->explode_animation.GetFrame();
         Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
 
-        sprite_renderer.Draw(camera, renderable, position);
+        sprite_renderer.Draw(camera, renderable, position, Layer::AfterShips);
       } else if (player->enter_delay <= 0.0f) {
         size_t index = player->ship * 40 + player->direction;
 
         Vector2f position = player->position - Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
 
-        sprite_renderer.Draw(camera, Graphics::ship_sprites[index], position);
+        sprite_renderer.Draw(camera, Graphics::ship_sprites[index], position, Layer::Ships);
 
         if (player->warp_animation.IsAnimating()) {
           SpriteRenderable& renderable = player->warp_animation.GetFrame();
           Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
 
-          sprite_renderer.Draw(camera, renderable, position);
+          sprite_renderer.Draw(camera, renderable, position, Layer::AfterShips);
         }
       }
     }
@@ -205,7 +206,7 @@ void Game::Render(float dt) {
           TextColor color = team_freq == player->frequency ? TextColor::Yellow : TextColor::Blue;
           Vector2f position = player->position + Vector2f(radius, radius);
 
-          sprite_renderer.DrawText(camera, display, color, position);
+          sprite_renderer.DrawText(camera, display, color, position, Layer::AfterShips);
         }
       }
     }
@@ -227,21 +228,23 @@ void Game::Render(float dt) {
     char downloading[64];
 
     sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
-                         ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f);
+                         ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f, Layer::TopMost);
 
     int percent =
         (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map_handler.compressed_size);
 
     sprintf(downloading, "Downloading level: %d%%", percent);
     Vector2f download_pos(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
-    sprite_renderer.DrawText(ui_camera, downloading, TextColor::Blue, download_pos, TextAlignment::Center);
+    sprite_renderer.DrawText(ui_camera, downloading, TextColor::Blue, download_pos, Layer::TopMost,
+                             TextAlignment::Center);
   } else if (connection.login_state < Connection::LoginState::MapDownload) {
     sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
-                         ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f);
+                         ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f, Layer::TopMost);
 
     Vector2f position(ui_camera.surface_dim.x * 0.5f, (float)(u32)(ui_camera.surface_dim.y * 0.8f));
 
-    sprite_renderer.DrawText(ui_camera, "Entering arena", TextColor::Blue, position, TextAlignment::Center);
+    sprite_renderer.DrawText(ui_camera, "Entering arena", TextColor::Blue, position, Layer::TopMost,
+                             TextAlignment::Center);
   }
 
   if (me && connection.login_state == Connection::LoginState::Complete) {
@@ -250,7 +253,7 @@ void Game::Render(float dt) {
 
   char fps_text[32];
   sprintf(fps_text, "FPS: %d", (int)(fps + 0.5f));
-  sprite_renderer.DrawText(ui_camera, fps_text, TextColor::Pink, Vector2f(ui_camera.surface_dim.x, 0),
+  sprite_renderer.DrawText(ui_camera, fps_text, TextColor::Pink, Vector2f(ui_camera.surface_dim.x, 0), Layer::TopMost,
                            TextAlignment::Right);
 
   sprite_renderer.Render(ui_camera);
@@ -263,7 +266,7 @@ void Game::RenderRadar(Player* me) {
 
     if (render_radar) {
       Vector2f position = ui_camera.surface_dim - radar_renderable.dimensions - Vector2f(border, border);
-      sprite_renderer.Draw(ui_camera, radar_renderable, position);
+      sprite_renderer.Draw(ui_camera, radar_renderable, position, Layer::TopMost);
 
       Vector2f half_extents = radar_renderable.dimensions * 0.5f;
       Graphics::DrawBorder(sprite_renderer, ui_camera, position + half_extents, half_extents);
@@ -276,7 +279,7 @@ void Game::RenderRadar(Player* me) {
         SpriteRenderable self_renderable = Graphics::color_sprites[25];
         self_renderable.dimensions = Vector2f(2, 2);
 
-        sprite_renderer.Draw(ui_camera, self_renderable, start);
+        sprite_renderer.Draw(ui_camera, self_renderable, start, Layer::TopMost);
       }
     } else {
       // calculate uvs for displayable map
@@ -310,7 +313,7 @@ void Game::RenderRadar(Player* me) {
 
       Vector2f position = ui_camera.surface_dim - Vector2f(dim, dim) - Vector2f(border, border);
 
-      sprite_renderer.Draw(ui_camera, visible, position);
+      sprite_renderer.Draw(ui_camera, visible, position, Layer::TopMost);
 
       Vector2f half_extents(dim * 0.5f, dim * 0.5f);
 
@@ -355,7 +358,7 @@ void Game::RenderRadar(Player* me) {
 
             renderable.dimensions = Vector2f(2, 2);
 
-            sprite_renderer.Draw(ui_camera, renderable, start);
+            sprite_renderer.Draw(ui_camera, renderable, start, Layer::TopMost);
           }
         }
       }
@@ -399,34 +402,34 @@ void Game::RenderMenu() {
   SpriteRenderable background = Graphics::color_sprites[kBackgroundColorIndex];
   background.dimensions = dimensions;
 
-  sprite_renderer.Draw(ui_camera, background, topleft);
+  sprite_renderer.Draw(ui_camera, background, topleft, Layer::TopMost);
 
   SpriteRenderable separator = Graphics::color_sprites[kSeparatorColorIndex];
   separator.dimensions = Vector2f(dimensions.x, 1);
 
-  sprite_renderer.Draw(ui_camera, separator, topleft + Vector2f(0, 13));
+  sprite_renderer.Draw(ui_camera, separator, topleft + Vector2f(0, 13), Layer::TopMost);
   Graphics::DrawBorder(sprite_renderer, ui_camera, topleft + half_dimensions, half_dimensions);
 
   sprite_renderer.DrawText(ui_camera, "-= Menu =-", TextColor::Green, Vector2f(topleft.x + half_dimensions.x, 4),
-                           TextAlignment::Center);
+                           Layer::TopMost, TextAlignment::Center);
 
   float y = 18.0f;
 
   for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(kLeftMenuText); ++i) {
-    sprite_renderer.DrawText(ui_camera, kLeftMenuText[i], TextColor::White, Vector2f(topleft.x + 2, y));
+    sprite_renderer.DrawText(ui_camera, kLeftMenuText[i], TextColor::White, Vector2f(topleft.x + 2, y), Layer::TopMost);
     y += 12.0f;
   }
 
   sprite_renderer.DrawText(ui_camera, "Any other key to resume game", TextColor::Yellow,
-                           Vector2f(topleft.x + half_dimensions.x, y), TextAlignment::Center);
+                           Vector2f(topleft.x + half_dimensions.x, y), Layer::TopMost, TextAlignment::Center);
 
   float right_x = topleft.x + dimensions.x - 13 * 8 - 2;
   y = 18.0f + 12.0f;
 
-  sprite_renderer.DrawText(ui_camera, "Ships", TextColor::DarkRed, Vector2f(right_x + 16.0f, 18.0f));
+  sprite_renderer.DrawText(ui_camera, "Ships", TextColor::DarkRed, Vector2f(right_x + 16.0f, 18.0f), Layer::TopMost);
 
   for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(kRightMenuText); ++i) {
-    sprite_renderer.DrawText(ui_camera, kRightMenuText[i], TextColor::White, Vector2f(right_x, y));
+    sprite_renderer.DrawText(ui_camera, kRightMenuText[i], TextColor::White, Vector2f(right_x, y), Layer::TopMost);
     y += 12.0f;
   }
 

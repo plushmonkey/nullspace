@@ -207,7 +207,7 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 
       sprintf(output, "%.*s", length, span->begin);
 
-      renderer.DrawText(camera, output, color, Vector2f(0, y + i * kFontHeight));
+      renderer.DrawText(camera, output, color, Vector2f(0, y + i * kFontHeight), Layer::Chat);
     }
 
     display_amount -= linecount;
@@ -250,7 +250,7 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 
           TextColor color = entry->type == ChatType::Fuchsia ? TextColor::Fuschia : TextColor::Green;
 
-          renderer.DrawText(camera, output, color, Vector2f(0, y + j * kFontHeight));
+          renderer.DrawText(camera, output, color, Vector2f(0, y + j * kFontHeight), Layer::Chat);
         }
       } break;
       case ChatType::PublicMacro:
@@ -263,7 +263,7 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 
           sprintf(output, "%*s> %.*s", namelen, entry->sender, length, span->begin);
 
-          renderer.DrawText(camera, output, TextColor::Blue, Vector2f(0, y + j * kFontHeight));
+          renderer.DrawText(camera, output, TextColor::Blue, Vector2f(0, y + j * kFontHeight), Layer::Chat);
         }
       } break;
       case ChatType::Team: {
@@ -275,7 +275,7 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 
           sprintf(output, "%*s> %.*s", namelen, entry->sender, length, span->begin);
 
-          renderer.DrawText(camera, output, TextColor::Yellow, Vector2f(0, y + j * kFontHeight));
+          renderer.DrawText(camera, output, TextColor::Yellow, Vector2f(0, y + j * kFontHeight), Layer::Chat);
         }
       } break;
       case ChatType::OtherTeam: {
@@ -287,11 +287,11 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 
           sprintf(output, "%*s> ", namelen, entry->sender);
           float skip = strlen(output) * kFontWidth;
-          renderer.DrawText(camera, output, TextColor::Green, Vector2f(0, y + j * kFontHeight));
+          renderer.DrawText(camera, output, TextColor::Green, Vector2f(0, y + j * kFontHeight), Layer::Chat);
 
           sprintf(output, "%.*s", length, span->begin);
 
-          renderer.DrawText(camera, output, TextColor::Blue, Vector2f(skip, y + j * kFontHeight));
+          renderer.DrawText(camera, output, TextColor::Blue, Vector2f(skip, y + j * kFontHeight), Layer::Chat);
         }
       } break;
       case ChatType::Private: {
@@ -303,7 +303,7 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 
           sprintf(output, "%*s> %.*s", namelen, entry->sender, length, span->begin);
 
-          renderer.DrawText(camera, output, TextColor::Green, Vector2f(0, y + j * kFontHeight));
+          renderer.DrawText(camera, output, TextColor::Green, Vector2f(0, y + j * kFontHeight), Layer::Chat);
         }
       } break;
       case ChatType::RedWarning:
@@ -316,7 +316,7 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 
           sprintf(output, "%.*s", length, span->begin);
 
-          renderer.DrawText(camera, output, TextColor::DarkRed, Vector2f(0, y + j * kFontHeight));
+          renderer.DrawText(camera, output, TextColor::DarkRed, Vector2f(0, y + j * kFontHeight), Layer::Chat);
         }
       } break;
       case ChatType::Channel: {
@@ -328,7 +328,7 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 
           sprintf(output, "%.*s", length, span->begin);
 
-          renderer.DrawText(camera, output, TextColor::Red, Vector2f(0, y + j * kFontHeight));
+          renderer.DrawText(camera, output, TextColor::Red, Vector2f(0, y + j * kFontHeight), Layer::Chat);
         }
       } break;
       default: {

@@ -25,7 +25,7 @@ uniform mat4 mvp;
 out vec2 varying_position;
 
 void main() {
-  gl_Position = mvp * vec4(position, 0.0, 1.0);
+  gl_Position = mvp * vec4(position, 1.0, 1.0);
   varying_position = position;
 }
 )";

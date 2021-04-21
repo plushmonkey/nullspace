@@ -16,8 +16,6 @@ void AnimationSystem::Update(float dt) {
         animation->t -= animation->sprite->duration;
       } else {
         // Remove animation by swapping with last one
-        // TODO: This might be bad in cases where sprites overlap in game.
-        // Could lead to inconsistencies by rendering in a different order.
         animations[i--] = animations[--animation_count];
       }
     }
@@ -29,7 +27,10 @@ void AnimationSystem::Render(Camera& camera, SpriteRenderer& renderer) {
     Animation* animation = animations + i;
     SpriteRenderable& frame = animation->GetFrame();
 
-    renderer.Draw(camera, frame, animation->position);
+    // Offset the layer by the id for consistent ordering when swapping in list
+    float z = (float)animation->layer + (animation->id / 65535.0f);
+
+    renderer.Draw(camera, frame, Vector3f(animation->position.x, animation->position.y, z));
   }
 }
 
@@ -39,6 +40,7 @@ Animation* AnimationSystem::AddAnimation(AnimatedSprite& sprite, const Vector2f&
   animation->sprite = &sprite;
   animation->t = 0.0f;
   animation->position = position;
+  animation->id = next_id++;
 
   return animation;
 }
