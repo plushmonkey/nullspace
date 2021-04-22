@@ -103,6 +103,15 @@ SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f
     return nullptr;
   }
 
+  SpriteRenderable* result = LoadSheetFromMemory(image, width, height, dimensions, count);
+
+  ImageFree(image);
+
+  return result;
+}
+
+SpriteRenderable* SpriteRenderer::LoadSheetFromMemory(const u8* data, int width, int height, const Vector2f& dimensions,
+                                                      int* count) {
   size_t texture_index = texture_count++;
   GLuint* texture_id = textures + texture_index;
 
@@ -116,9 +125,7 @@ SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-
-  ImageFree(image);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
   SpriteRenderable* result = renderables + renderable_count;
 
@@ -140,6 +147,8 @@ SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f
 
   return result;
 }
+
+void SpriteRenderer::FreeSheet(unsigned int texture_id) { glDeleteTextures(1, &texture_id); }
 
 void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color, const Vector2f& position, Layer layer,
                               TextAlignment alignment) {

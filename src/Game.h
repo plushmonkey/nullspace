@@ -14,6 +14,7 @@
 #include "render/Camera.h"
 #include "render/SpriteRenderer.h"
 #include "render/TileRenderer.h"
+#include "LvzController.h"
 
 namespace null {
 
@@ -35,6 +36,7 @@ struct Game {
   StatBox statbox;
   ChatController chat;
   SpectateView specview;
+  LvzController lvz;
   float fps;
   bool render_radar = false;
   bool menu_open = false;

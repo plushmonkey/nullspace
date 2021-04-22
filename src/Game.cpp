@@ -41,7 +41,8 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       fps(60.0f),
       statbox(player_manager, dispatcher),
       chat(dispatcher, connection, player_manager, statbox),
-      specview(connection, statbox) {
+      specview(connection, statbox),
+      lvz(perm_arena, temp_arena, connection.requester, sprite_renderer, dispatcher) {
   float zmax = (float)Layer::Count;
   ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -zmax, zmax);
 }
@@ -191,7 +192,8 @@ void Game::Render(float dt) {
       if (player->position == Vector2f(0, 0)) continue;
 
       if (player->enter_delay <= 0.0f) {
-        float radius = connection.settings.ShipSettings[player->ship].GetRadius();
+        size_t index = player->ship * 40 + player->direction;
+        Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
 
         char display[32];
         sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
@@ -204,7 +206,7 @@ void Game::Render(float dt) {
 
         if (me) {
           TextColor color = team_freq == player->frequency ? TextColor::Yellow : TextColor::Blue;
-          Vector2f position = player->position + Vector2f(radius, radius);
+          Vector2f position = player->position + offset;
 
           sprite_renderer.DrawText(camera, display, color, position, Layer::AfterShips);
         }

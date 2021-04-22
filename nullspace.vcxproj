@@ -165,6 +165,7 @@
     <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\ChatController.cpp" />
     <ClCompile Include="src\FileRequester.cpp" />
+    <ClCompile Include="src\LvzController.cpp" />
     <ClCompile Include="src\render\AnimatedTileRenderer.cpp" />
     <ClCompile Include="src\render\Graphics.cpp" />
     <ClCompile Include="src\render\Image.cpp" />
@@ -195,6 +196,7 @@
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\ChatController.h" />
     <ClInclude Include="src\FileRequester.h" />
+    <ClInclude Include="src\LvzController.h" />
     <ClInclude Include="src\render\AnimatedTileRenderer.h" />
     <ClInclude Include="src\render\Graphics.h" />
     <ClInclude Include="src\render\Image.h" />

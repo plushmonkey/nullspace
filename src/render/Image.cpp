@@ -146,6 +146,11 @@ unsigned char* ImageLoad(const char* filename, int* width, int* height) {
   return result;
 }
 
+unsigned char* ImageLoadFromMemory(const u8* data, size_t size, int* width, int* height) {
+  int comp;
+  return stbi_load_from_memory(data, (int)size, width, height, &comp, STBI_rgb_alpha);
+}
+
 void ImageFree(void* data) { stbi_image_free(data); }
 
 }  // namespace null
