@@ -88,6 +88,8 @@ void LvzController::OnFileDownload(struct FileRequest* request, u8* data) {
     u8* section_data = ptr;
     size_t size = section_header->compressed_size;
 
+    ArenaSnapshot snapshot = temp_arena.GetSnapshot();
+
     if (section_header->decompressed_size != section_header->compressed_size) {
       mz_ulong decompressed_size = section_header->decompressed_size;
       section_data = temp_arena.Allocate(decompressed_size);
@@ -104,6 +106,7 @@ void LvzController::OnFileDownload(struct FileRequest* request, u8* data) {
     ptr += section_header->compressed_size;
 
     ProcessGraphicFile(filename, section_data, size);
+    temp_arena.Revert(snapshot);
   }
 
   printf("Lvz %s processed.\n", request->filename);

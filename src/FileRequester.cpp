@@ -153,12 +153,16 @@ void FileRequester::Request(const char* filename, u16 index, u32 size, u32 check
     long filesize = ftell(f);
     fseek(f, 0, SEEK_SET);
 
+    ArenaSnapshot snapshot = temp_arena.GetSnapshot();
     u8* data = (u8*)temp_arena.Allocate(filesize);
 
     fread(data, 1, filesize, f);
     fclose(f);
 
     callback(user, request, data);
+
+    temp_arena.Revert(snapshot);
+
     request->next = free;
     free = request;
     return;
