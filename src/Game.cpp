@@ -137,6 +137,7 @@ void Game::Update(const InputState& input, float dt) {
 
   render_radar = input.IsDown(InputAction::DisplayMap);
   animated_tile_renderer.Update(dt);
+  lvz.Update(dt);
 }
 
 void Game::Render(float dt) {
@@ -144,9 +145,12 @@ void Game::Render(float dt) {
     fps = fps * 0.99f + (1.0f / dt) * 0.01f;
   }
 
+  lvz.Render(ui_camera, camera);
+
   animation.Update(dt);
   tile_renderer.Render(camera);
   animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim);
+
 
   Player* me = player_manager.GetSelf();
 
@@ -194,6 +198,11 @@ void Game::Render(float dt) {
       if (player->enter_delay <= 0.0f) {
         size_t index = player->ship * 40 + player->direction;
         Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
+
+        u32 offset_x = (u32)(offset.x * 16.0f);
+        u32 offset_y = (u32)(offset.y * 16.0f);
+        offset.x = offset_x / 16.0f;
+        offset.y = offset_y / 16.0f;
 
         char display[32];
         sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);

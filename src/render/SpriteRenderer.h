@@ -6,6 +6,7 @@
 #include "Layer.h"
 #include "Shader.h"
 #include "Sprite.h"
+#include "TextureMap.h"
 
 namespace null {
 
@@ -40,10 +41,15 @@ struct SpriteRenderer {
   size_t texture_count = 0;
   GLuint textures[1024];
 
+  TextureMap* texture_map = nullptr;
+
   bool Initialize(MemoryArena& perm_arena);
+  SpriteRenderable* CreateSheet(TextureData* texture_data, const Vector2f& dimensions, int* count);
   SpriteRenderable* LoadSheet(const char* filename, const Vector2f& dimensions, int* count);
-  SpriteRenderable* LoadSheetFromMemory(const u8* data, int width, int height, const Vector2f& dimensions, int* count);
+  SpriteRenderable* LoadSheetFromMemory(const char* name, const u8* data, int width, int height, const Vector2f& dimensions, int* count);
   void FreeSheet(unsigned int texture_id);
+
+  GLuint CreateTexture(const char* name, const u8* data, int width, int height);
 
   // Position can be either in world space or screen space depending on renderer setup
   void Draw(Camera& camera, const SpriteRenderable& renderable, const Vector2f& position, Layer layer);

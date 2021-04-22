@@ -185,6 +185,7 @@
     <ClCompile Include="src\render\Animation.cpp" />
     <ClCompile Include="src\render\Shader.cpp" />
     <ClCompile Include="src\render\SpriteRenderer.cpp" />
+    <ClCompile Include="src\render\TextureMap.cpp" />
     <ClCompile Include="src\render\TileRenderer.cpp" />
     <ClCompile Include="src\SpectateView.cpp" />
     <ClCompile Include="src\StatBox.cpp" />
@@ -222,6 +223,7 @@
     <ClInclude Include="src\render\Shader.h" />
     <ClInclude Include="src\render\Sprite.h" />
     <ClInclude Include="src\render\SpriteRenderer.h" />
+    <ClInclude Include="src\render\TextureMap.h" />
     <ClInclude Include="src\render\TileRenderer.h" />
     <ClInclude Include="src\SpectateView.h" />
     <ClInclude Include="src\StatBox.h" />

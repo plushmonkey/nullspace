@@ -59,6 +59,7 @@ void main() {
 )";
 
 bool SpriteRenderer::Initialize(MemoryArena& perm_arena) {
+  this->texture_map = memory_arena_construct_type(&perm_arena, TextureMap, perm_arena);
   this->push_buffer = perm_arena.CreateArena(kPushBufferSize);
   this->texture_push_buffer = perm_arena.CreateArena(kTextureBufferSize);
 
@@ -92,26 +93,39 @@ bool SpriteRenderer::Initialize(MemoryArena& perm_arena) {
   return true;
 }
 
-SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f& dimensions, int* count) {
-  int width, height;
+SpriteRenderable* SpriteRenderer::CreateSheet(TextureData* texture_data, const Vector2f& dimensions, int* count) {
+  SpriteRenderable* result = renderables + renderable_count;
 
-  u8* image = ImageLoad(filename, &width, &height);
+  int texture_id = texture_data->id;
+  int width = texture_data->width;
+  int height = texture_data->height;
 
   *count = 0;
 
-  if (!image) {
-    return nullptr;
+  glBindTexture(GL_TEXTURE_2D, texture_id);
+  glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
+  glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
+
+  for (int top = 0; top < height; top += (int)dimensions.y) {
+    for (int left = 0; left < width; left += (int)dimensions.x) {
+      SpriteRenderable* renderable = renderables + renderable_count++;
+      int bottom = top + (int)dimensions.y;
+      int right = left + (int)dimensions.x;
+
+      renderable->texture = texture_id;
+      renderable->dimensions = dimensions;
+      renderable->uvs[0] = Vector2f(left / (float)width, top / (float)height);
+      renderable->uvs[1] = Vector2f(right / (float)width, top / (float)height);
+      renderable->uvs[2] = Vector2f(left / (float)width, bottom / (float)height);
+      renderable->uvs[3] = Vector2f(right / (float)width, bottom / (float)height);
+      ++*count;
+    }
   }
-
-  SpriteRenderable* result = LoadSheetFromMemory(image, width, height, dimensions, count);
-
-  ImageFree(image);
 
   return result;
 }
 
-SpriteRenderable* SpriteRenderer::LoadSheetFromMemory(const u8* data, int width, int height, const Vector2f& dimensions,
-                                                      int* count) {
+GLuint SpriteRenderer::CreateTexture(const char* name, const u8* data, int width, int height) {
   size_t texture_index = texture_count++;
   GLuint* texture_id = textures + texture_index;
 
@@ -127,6 +141,33 @@ SpriteRenderable* SpriteRenderer::LoadSheetFromMemory(const u8* data, int width,
 
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
+  texture_map->Insert(name, *texture_id, width, height);
+
+  return *texture_id;
+}
+
+SpriteRenderable* SpriteRenderer::LoadSheet(const char* filename, const Vector2f& dimensions, int* count) {
+  int width, height;
+
+  u8* image = ImageLoad(filename, &width, &height);
+
+  *count = 0;
+
+  if (!image) {
+    return nullptr;
+  }
+
+  SpriteRenderable* result = LoadSheetFromMemory(filename, image, width, height, dimensions, count);
+
+  ImageFree(image);
+
+  return result;
+}
+
+SpriteRenderable* SpriteRenderer::LoadSheetFromMemory(const char* name, const u8* data, int width, int height,
+                                                      const Vector2f& dimensions, int* count) {
+  GLuint texture_id = CreateTexture(name, data, width, height);
+
   SpriteRenderable* result = renderables + renderable_count;
 
   for (int top = 0; top < height; top += (int)dimensions.y) {
@@ -135,7 +176,7 @@ SpriteRenderable* SpriteRenderer::LoadSheetFromMemory(const u8* data, int width,
       int bottom = top + (int)dimensions.y;
       int right = left + (int)dimensions.x;
 
-      renderable->texture = *texture_id;
+      renderable->texture = texture_id;
       renderable->dimensions = dimensions;
       renderable->uvs[0] = Vector2f(left / (float)width, top / (float)height);
       renderable->uvs[1] = Vector2f(right / (float)width, top / (float)height);

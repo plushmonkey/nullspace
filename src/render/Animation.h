@@ -25,6 +25,9 @@ struct Animation {
 
   SpriteRenderable& GetFrame() {
     size_t frame = (size_t)((t / sprite->duration) * sprite->frame_count);
+    if (frame >= sprite->frame_count) {
+      frame = sprite->frame_count - 1;
+    }
     return sprite->frames[frame];
   }
 };
