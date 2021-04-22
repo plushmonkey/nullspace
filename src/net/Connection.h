@@ -3,7 +3,8 @@
 
 #include "../ArenaSettings.h"
 #include "../Buffer.h"
-#include "../MapHandler.h"
+#include "../FileRequester.h"
+#include "../Map.h"
 #include "../Types.h"
 #include "Crypt.h"
 #include "PacketDispatcher.h"
@@ -43,17 +44,20 @@ struct Connection {
     Complete
   };
 
+  MemoryArena& perm_arena;
+  MemoryArena& temp_arena;
+  PacketDispatcher& dispatcher;
+
   SocketType fd = -1;
   RemoteAddress remote_addr;
   bool connected = false;
-  MemoryArena& temp_arena;
   ContinuumEncrypt encrypt;
-  PacketDispatcher& dispatcher;
+  FileRequester requester;
 
   PacketSequencer packet_sequencer;
   NetworkBuffer buffer;
 
-  MapHandler map_handler;
+  Map map;
   Security security;
   ArenaSettings settings = {};
 
@@ -81,7 +85,7 @@ struct Connection {
 
   void ProcessPacket(u8* pkt, size_t size);
 
-  void OnMapLoad(const char* filename);
+  void OnDownloadComplete(struct FileRequest* request, u8* data);
   void SendSecurityPacket();
   void SendSyncTimeRequestPacket(bool reliable);
 };

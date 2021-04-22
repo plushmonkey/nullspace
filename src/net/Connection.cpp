@@ -6,12 +6,12 @@
 #include <WS2tcpip.h>
 #include <Windows.h>
 #else
-#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <arpa/inet.h>
+#include <sys/socket.h>
 #include <unistd.h>
-#include <fcntl.h>
 #define WSAEWOULDBLOCK EWOULDBLOCK
 #define closesocket close
 #endif
@@ -34,6 +34,8 @@ namespace null {
 extern const char* kPlayerName;
 extern const char* kPlayerPassword;
 
+constexpr bool kDownloadLvz = true;
+
 const char* kLoginResponses[] = {"Ok",
                                  "Unregistered player",
                                  "Bad password",
@@ -55,22 +57,29 @@ const char* kLoginResponses[] = {"Ok",
                                  "Too many demo users",
                                  "Demo versions not allowed",
                                  "Restricted zone, mod access required"};
-                                 
+
 inline int GetLastError() {
 #ifdef _WIN32
-    return WSAGetLastError();
+  return WSAGetLastError();
 #else
-    return errno;
+  return errno;
 #endif
 }
 
+static void OnDownloadComplete(void* user, struct FileRequest* request, u8* data) {
+  Connection* connection = (Connection*)user;
+
+  connection->OnDownloadComplete(request, data);
+}
+
 Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, PacketDispatcher& dispatcher)
-    : dispatcher(dispatcher),
-      remote_addr(),
-      buffer(perm_arena, kMaxPacketSize),
+    : perm_arena(perm_arena),
       temp_arena(temp_arena),
+      dispatcher(dispatcher),
+      remote_addr(),
+      requester(perm_arena, temp_arena, *this, dispatcher),
       packet_sequencer(perm_arena, temp_arena),
-      map_handler(perm_arena, temp_arena),
+      buffer(perm_arena, kMaxPacketSize),
       last_sync_tick(GetCurrentTick()),
       last_position_tick(GetCurrentTick()) {}
 
@@ -347,6 +356,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           write.WriteU16(1080);    // y res
           write.WriteU16(0xFFFF);  // Arena number
           write.WriteString(arena, 16);
+          write.WriteU8(kDownloadLvz);
 
           packet_sequencer.SendReliableMessage(*this, write.read, write.GetSize());
           login_state = LoginState::ArenaLogin;
@@ -366,7 +376,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         security.timestamp = buffer.ReadU32();
         security.checksum_key = buffer.ReadU32();
 
-        if (security.checksum_key && map_handler.checksum) {
+        if (security.checksum_key && map.checksum) {
           SendSecurityPacket();
         }
       } break;
@@ -389,28 +399,13 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       case ProtocolS2C::MapInformation: {
         login_state = LoginState::MapDownload;
 
-        // TODO: Maybe check if this one has .lvl in filename instead.
-        // Is it possible for server to send multiple MapInformation packets with just lvzs in one?
-        if (map_handler.OnMapInformation(*this, pkt, size)) {
-          OnMapLoad((char*)(pkt + 1));
-        }
+        char* filename = buffer.ReadString(16);
+        map.checksum = buffer.ReadU32();
+        map.compressed_size = buffer.ReadU32();
 
-        // Skip this entire first one
-        buffer.ReadString(24);
-
-        // TODO: Queue all of these and send out new file request once current one is done.
-        while (buffer.read < buffer.write) {
-          char* lvz_filename = buffer.ReadString(16);
-          u32 lvz_checksum = buffer.ReadU32();
-          u32 lvz_size = buffer.ReadU32();
-
-          printf("Skipping lvz %s\n", lvz_filename);
-        }
+        requester.Request(filename, 0, map.compressed_size, map.checksum, true, null::OnDownloadComplete, this);
       } break;
       case ProtocolS2C::CompressedMap: {
-        if (map_handler.OnCompressedMap(*this, pkt, size)) {
-          OnMapLoad((char*)(pkt + 1));
-        }
       } break;
       case ProtocolS2C::PowerballPosition: {
       } break;
@@ -437,8 +432,12 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
   dispatcher.Dispatch(pkt, size);
 }
 
-void Connection::OnMapLoad(const char* filename) {
-  // I don't think this should ever be set because the server doesn't know that the map was loaded yet
+void Connection::OnDownloadComplete(struct FileRequest* request, u8* data) {
+  if (!map.Load(perm_arena, request->filename)) {
+    fprintf(stderr, "Failed to load map %s.\n", request->filename);
+    return;
+  }
+
   if (security.checksum_key) {
     SendSecurityPacket();
   }
@@ -467,8 +466,6 @@ void Connection::SendSyncTimeRequestPacket(bool reliable) {
 }
 
 void Connection::SendSecurityPacket() {
-  const Map& map = map_handler.map;
-
   u32 settings_checksum = SettingsChecksum(security.checksum_key, settings);
   u32 exe_checksum = MemoryChecksumGenerator::Generate(security.checksum_key);
   u32 map_checksum = map.GetChecksum(security.checksum_key);

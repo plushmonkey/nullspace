@@ -125,7 +125,7 @@ void WeaponManager::Update(float dt) {
 }
 
 WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, float dt) {
-  Map& map = connection.map_handler.map;
+  Map& map = connection.map;
   WeaponType type = (WeaponType)weapon.data.type;
 
   if (current_tick >= weapon.end_tick) return WeaponSimulateResult::TimedOut;

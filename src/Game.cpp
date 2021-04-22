@@ -81,7 +81,7 @@ void Game::Update(const InputState& input, float dt) {
   Player* me = player_manager.GetSelf();
 
   if (tile_renderer.tilemap_texture == -1 && connection.login_state == Connection::LoginState::Complete) {
-    if (!tile_renderer.CreateMapBuffer(temp_arena, connection.map_handler.filename, ui_camera.surface_dim)) {
+    if (!tile_renderer.CreateMapBuffer(temp_arena, connection.map.filename, ui_camera.surface_dim)) {
       fprintf(stderr, "Failed to create map/radar.\n");
     }
 
@@ -145,7 +145,7 @@ void Game::Render(float dt) {
 
   animation.Update(dt);
   tile_renderer.Render(camera);
-  animated_tile_renderer.Render(sprite_renderer, connection.map_handler.map, camera, ui_camera.surface_dim);
+  animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim);
 
   Player* me = player_manager.GetSelf();
 
@@ -230,8 +230,7 @@ void Game::Render(float dt) {
     sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
                          ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f, Layer::TopMost);
 
-    int percent =
-        (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map_handler.compressed_size);
+    int percent = (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map.compressed_size);
 
     sprintf(downloading, "Downloading level: %d%%", percent);
     Vector2f download_pos(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);

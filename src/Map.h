@@ -1,9 +1,9 @@
 #ifndef NULLSPACE_MAP_H_
 #define NULLSPACE_MAP_H_
 
+#include "Math.h"
 #include "Memory.h"
 #include "Types.h"
-#include "Math.h"
 
 namespace null {
 
@@ -33,6 +33,8 @@ struct Map {
   CastResult Cast(const Vector2f& from, const Vector2f& direction, float max_distance);
 
   char filename[1024];
+  u32 checksum = 0;
+  u32 compressed_size = 0;
   char* data = nullptr;
   Tile* tiles = nullptr;
 };
