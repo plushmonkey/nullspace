@@ -399,9 +399,13 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       case ProtocolS2C::MapInformation: {
         login_state = LoginState::MapDownload;
 
-        char* filename = buffer.ReadString(16);
+        char* raw_filename = buffer.ReadString(16);
         map.checksum = buffer.ReadU32();
         map.compressed_size = buffer.ReadU32();
+
+        char filename[17];
+        memcpy(filename, raw_filename, 16);
+        filename[16] = 0;
 
         requester.Request(filename, 0, map.compressed_size, map.checksum, true, null::OnDownloadComplete, this);
       } break;

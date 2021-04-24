@@ -132,7 +132,7 @@ void Game::Update(const InputState& input, float dt) {
     if (me->position.x > 1023) me->position.x = 1023;
     if (me->position.y > 1023) me->position.y = 1023;
 
-    camera.position = me->position;
+    camera.position = me->position.PixelRounded();
   }
 
   render_radar = input.IsDown(InputAction::DisplayMap);
@@ -150,7 +150,6 @@ void Game::Render(float dt) {
   animation.Update(dt);
   tile_renderer.Render(camera);
   animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim);
-
 
   Player* me = player_manager.GetSelf();
 
@@ -175,7 +174,8 @@ void Game::Render(float dt) {
       } else if (player->enter_delay <= 0.0f) {
         size_t index = player->ship * 40 + player->direction;
 
-        Vector2f position = player->position - Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
+        Vector2f offset = Graphics::ship_sprites[index].dimensions* (0.5f / 16.0f);
+        Vector2f position = player->position.PixelRounded() - offset.PixelRounded();
 
         sprite_renderer.Draw(camera, Graphics::ship_sprites[index], position, Layer::Ships);
 
@@ -199,10 +199,7 @@ void Game::Render(float dt) {
         size_t index = player->ship * 40 + player->direction;
         Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
 
-        u32 offset_x = (u32)(offset.x * 16.0f);
-        u32 offset_y = (u32)(offset.y * 16.0f);
-        offset.x = offset_x / 16.0f;
-        offset.y = offset_y / 16.0f;
+        offset = offset.PixelRounded();
 
         char display[32];
         sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
@@ -215,7 +212,7 @@ void Game::Render(float dt) {
 
         if (me) {
           TextColor color = team_freq == player->frequency ? TextColor::Yellow : TextColor::Blue;
-          Vector2f position = player->position + offset;
+          Vector2f position = player->position.PixelRounded() + offset;
 
           sprite_renderer.DrawText(camera, display, color, position, Layer::AfterShips);
         }

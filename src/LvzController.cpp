@@ -1,5 +1,6 @@
 #include "LvzController.h"
 
+#include <cassert>
 #include <cstdio>
 
 #include "Buffer.h"
@@ -164,6 +165,8 @@ void LvzController::Render(Camera& ui_camera, Camera& game_camera) {
     Vector2f position(base_x.x + (float)obj->x_screen, base_y.y + (float)obj->y_screen);
     Animation* anim = animations + obj->animation_index;
 
+    if (anim->sprite->frames == nullptr) continue;
+
     renderer.Draw(ui_camera, anim->GetFrame(), position, obj->layer);
   }
 
@@ -174,6 +177,8 @@ void LvzController::Render(Camera& ui_camera, Camera& game_camera) {
 
     Vector2f position(obj->x_map / 16.0f, obj->y_map / 16.0f);
     Animation* anim = animations + obj->animation_index;
+
+    if (anim->sprite->frames == nullptr) continue;
 
     renderer.Draw(game_camera, anim->GetFrame(), position, obj->layer);
   }
@@ -186,6 +191,8 @@ void LvzController::OnLvzToggle(u8* pkt, size_t size) {
     u16 id : 15;
     u16 off : 1;
   };
+
+  return;
 
   for (size_t i = 0; i < (size - 1) / sizeof(u16); ++i) {
     ObjToggle* toggle = (ObjToggle*)(pkt + 1 + i * sizeof(u16));
@@ -229,9 +236,13 @@ void LvzController::OnMapInformation(u8* pkt, size_t size) {
 
   u16 index = 1;
   while (buffer.read < buffer.write) {
-    char* filename = buffer.ReadString(16);
+    char* raw_filename = buffer.ReadString(16);
     u32 checksum = buffer.ReadU32();
     u32 filesize = buffer.ReadU32();
+
+    char filename[17];
+    memcpy(filename, raw_filename, 16);
+    filename[16] = 0;
 
     requester.Request(filename, index++, filesize, checksum, false, OnDownload, this);
   }
@@ -279,10 +290,13 @@ void LvzController::OnFileDownload(struct FileRequest* request, u8* data) {
       int width, height;
 
       u8* image_data = ImageLoadFromMemory(section_data, size, &width, &height);
-      GLuint texture_id = renderer.CreateTexture(filename, image_data, width, height);
-      ImageFree(image_data);
+      if (image_data) {
+        GLuint texture_id = renderer.CreateTexture(filename, image_data, width, height);
 
-      ProcessGraphicFile(filename, section_data, size);
+        ImageFree(image_data);
+
+        ProcessGraphicFile(filename, section_data, size);
+      }
     }
 
     temp_arena.Revert(snapshot);
@@ -324,6 +338,34 @@ void LvzController::OnFileDownload(struct FileRequest* request, u8* data) {
 
     temp_arena.Revert(snapshot);
   }
+
+  ProcessMissing();
+}
+
+void LvzController::ProcessMissing() {
+  for (size_t i = 0; i < pending_animation_count; ++i) {
+    PendingAnimation* pending = pending_animations + i;
+
+    TextureData* texture_data = renderer.texture_map->Find(pending->filename);
+
+    if (texture_data) {
+      Animation* anim = pending->animation;
+
+      int width = texture_data->width;
+      int height = texture_data->height;
+
+      Vector2f dim((float)width / pending->x_count, (float)height / pending->y_count);
+
+      int count;
+      anim->sprite->frames = renderer.CreateSheet(texture_data, dim, &count);
+      anim->sprite->frame_count = count;
+
+      anim->t = 0.0f;
+      anim->repeat = false;
+
+      pending_animations[i--] = pending_animations[--pending_animation_count];
+    }
+  }
 }
 
 void LvzController::ProcessObjects(u8* data, size_t size) {
@@ -354,12 +396,15 @@ void LvzController::ProcessObjects(u8* data, size_t size) {
       AnimatedSprite* sprite = sprites + animation_count;
       Animation* anim = animations + animation_count++;
 
+      assert(animation_count < NULLSPACE_ARRAY_SIZE(animations));
+
       int width = texture_data->width;
       int height = texture_data->height;
 
       Vector2f dim((float)width / image->x_count, (float)height / image->y_count);
 
       int count;
+
       sprite->frames = renderer.CreateSheet(texture_data, dim, &count);
       sprite->frame_count = count;
       sprite->duration = image->animation_time / 100.0f;
@@ -368,7 +413,29 @@ void LvzController::ProcessObjects(u8* data, size_t size) {
       anim->t = 0.0f;
       anim->repeat = false;
     } else {
-      fprintf(stderr, "Failed to get texture for lvz image.\n");
+      // Stick empty animation in if file wasn't found.
+      AnimatedSprite* sprite = sprites + animation_count;
+      Animation* anim = animations + animation_count++;
+
+      assert(animation_count < NULLSPACE_ARRAY_SIZE(animations));
+
+      sprite->frames = nullptr;
+      sprite->frame_count = 0;
+      sprite->duration = image->animation_time / 100.0f;
+
+      anim->sprite = nullptr;
+      anim->t = 0.0f;
+      anim->repeat = false;
+      anim->sprite = sprite;
+
+      PendingAnimation* pending = pending_animations + pending_animation_count++;
+
+      assert(pending_animation_count < NULLSPACE_ARRAY_SIZE(pending_animations));
+
+      strcpy(pending->filename, filename);
+      pending->x_count = image->x_count;
+      pending->y_count = image->y_count;
+      pending->animation = anim;
     }
   }
 
@@ -378,6 +445,9 @@ void LvzController::ProcessObjects(u8* data, size_t size) {
     ObjectDefinition* def = (ObjectDefinition*)ptr;
 
     LvzObject* obj = objects + object_count++;
+
+    assert(object_count < NULLSPACE_ARRAY_SIZE(objects));
+
     obj->map_object = def->map_object;
     obj->object_id = def->object_id;
     obj->x_map = def->x_map;
@@ -391,13 +461,17 @@ void LvzController::ProcessObjects(u8* data, size_t size) {
     if (display == DisplayMode::ShowAlways) {
       if (obj->map_object) {
         active_map_objects[active_map_object_count++] = obj;
+        assert(active_map_object_count < NULLSPACE_ARRAY_SIZE(active_map_objects));
       } else {
         active_screen_objects[active_screen_object_count++] = obj;
+        assert(active_screen_object_count < NULLSPACE_ARRAY_SIZE(active_screen_objects));
       }
     }
 
     ptr += sizeof(ObjectDefinition);
   }
+
+  return;
 }
 
 void LoadShip(SpriteRenderer& renderer, const char* filename, u8* data, size_t size, int ship) {

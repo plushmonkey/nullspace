@@ -139,6 +139,12 @@ struct Vector2f {
   }
 
   Vector2f Perpendicular() const { return Vector2f(-y, x); }
+
+  inline Vector2f PixelRounded() {
+    u32 x32 = (u32)(x * 16.0f);
+    u32 y32 = (u32)(y * 16.0f);
+    return Vector2f(x32 / 16.0f, y32 / 16.0f);
+  }
 };
 
 inline Vector2f operator*(float value, const Vector2f& v) { return Vector2f(v.x * value, v.y * value); }

@@ -39,6 +39,14 @@ struct LvzObject {
   u16 display_mode : 4;
 };
 
+// Animation that was referenced as an lvz image but wasn't found yet.
+struct PendingAnimation {
+  char filename[256];
+  s16 x_count;
+  s16 y_count;
+  Animation* animation;
+};
+
 struct LvzController {
   MemoryArena& perm_arena;
   MemoryArena& temp_arena;
@@ -46,16 +54,19 @@ struct LvzController {
   SpriteRenderer& renderer;
 
   size_t animation_count = 0;
-  Animation animations[1024];
-  AnimatedSprite sprites[1024];
+  Animation animations[2048];
+  AnimatedSprite sprites[2048];
 
   size_t object_count = 0;
-  LvzObject objects[2048];
+  LvzObject objects[4096];
 
   size_t active_screen_object_count = 0;
-  LvzObject* active_screen_objects[2048];
+  LvzObject* active_screen_objects[4096];
   size_t active_map_object_count = 0;
-  LvzObject* active_map_objects[2048];
+  LvzObject* active_map_objects[4096];
+
+  size_t pending_animation_count = 0;
+  PendingAnimation pending_animations[1024];
 
   LvzController(MemoryArena& perm_arena, MemoryArena& temp_arena, FileRequester& requester, SpriteRenderer& renderer,
                 PacketDispatcher& dispatcher);
@@ -70,6 +81,8 @@ struct LvzController {
  private:
   void ProcessGraphicFile(const char* filename, u8* data, size_t size);
   void ProcessObjects(u8* data, size_t size);
+
+  void ProcessMissing();
 };
 
 }  // namespace null

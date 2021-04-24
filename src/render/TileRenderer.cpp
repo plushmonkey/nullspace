@@ -25,7 +25,7 @@ uniform mat4 mvp;
 out vec2 varying_position;
 
 void main() {
-  gl_Position = mvp * vec4(position, 1.0, 1.0);
+  gl_Position = mvp * vec4(position, 3.0, 1.0);
   varying_position = position;
 }
 )";
@@ -54,6 +54,9 @@ void main() {
   vec2 uv = (varying_position - floor(varying_position));
 
   color = texture(tilemap, vec3(uv, tile_id - 1u));
+  if (color.r == 0 && color.g == 0 && color.b == 0) {
+    discard;
+  }
 }
 )";
 

@@ -34,48 +34,53 @@ struct DIBHeader {
 };
 #pragma pack(pop)
 
+inline u32 GetColor(u32* color_table, u32 index) {
+  if (color_table == nullptr) {
+    return index;
+  }
+
+  return color_table[index];
+}
+
 // TODO: Use arenas intead of new allocations
-unsigned char* LoadBitmap(FILE* file) {
-  BitmapFileHeader file_header;
-  DIBHeader dib_header;
-
-  fseek(file, 0, SEEK_SET);
-
-  fread(&file_header, 1, sizeof(BitmapFileHeader), file);
-  fread(&dib_header, 1, sizeof(DIBHeader), file);
-
-  // Seek to color table
-  fseek(file, sizeof(BitmapFileHeader) + dib_header.header_size, SEEK_SET);
+unsigned char* LoadBitmap(const u8* data, size_t file_size, int* width, int* height) {
+  BitmapFileHeader* file_header = (BitmapFileHeader*)data;
+  DIBHeader* dib_header = (DIBHeader*)(data + sizeof(BitmapFileHeader));
 
   // Only support 8 bit RLE for now
-  if (dib_header.compression != 1) {
+  if (dib_header->compression != 1) {
     return nullptr;
   }
 
-  assert(dib_header.color_table_count > 0);
+  assert(dib_header->bpp == 8);
 
-  u32* color_table = new u32[dib_header.color_table_count];
-  fread(color_table, sizeof(u32), dib_header.color_table_count, file);
+  *width = abs(dib_header->width);
+  *height = abs(dib_header->height);
+
+  // Seek to color table
+  const u8* ptr = data + sizeof(BitmapFileHeader) + dib_header->header_size;
+
+  u32* color_table = nullptr;
+
+  if (dib_header->color_table_count > 0) {
+    color_table = (u32*)ptr;
+  }
 
   // Seek to image data
-  fseek(file, file_header.offset, SEEK_SET);
-
-  assert(dib_header.bpp == 8);
+  ptr = data + file_header->offset;
 
   u32* result = nullptr;
 
-  if (dib_header.bpp == 8) {
-    size_t image_size = dib_header.width * dib_header.height;
-    u8* image_data = new u8[image_size];
-
-    fread(image_data, 1, image_size, file);
+  if (dib_header->bpp == 8) {
+    size_t image_size = dib_header->width * dib_header->height;
+    const u8* image_data = ptr;
 
     // Expand out the data to rgba
     result = new u32[image_size];
 
     size_t i = 0;
     int x = 0;
-    int y = dib_header.height - 1;
+    int y = dib_header->height - 1;
 
     while (i < image_size) {
       u8 count = image_data[i++];
@@ -97,9 +102,9 @@ unsigned char* LoadBitmap(FILE* file) {
           for (int j = 0; j < color_index; ++j) {
             u8 absolute_index = image_data[i++];
 
-            u32 color = color_table[absolute_index] | 0xFF000000;
+            u32 color = GetColor(color_table, absolute_index) | 0xFF000000;
             color = ((color & 0xFF) << 16) | ((color & 0x00FF0000) >> 16) | (color & 0xFF000000) | (color & 0x0000FF00);
-            result[y * dib_header.width + x] = color;
+            result[y * dib_header->width + x] = color;
             ++x;
           }
 
@@ -108,22 +113,32 @@ unsigned char* LoadBitmap(FILE* file) {
           }
         }
       } else {
-        u32 color = color_table[color_index] | 0xFF000000;
+        u32 color = GetColor(color_table, color_index) | 0xFF000000;
         color = ((color & 0xFF) << 16) | ((color & 0x00FF0000) >> 16) | (color & 0xFF000000) | (color & 0x0000FF00);
 
         for (int j = 0; j < count; ++j) {
-          result[y * dib_header.width + x] = color;
+          result[y * dib_header->width + x] = color;
           ++x;
         }
       }
     }
-
-    delete[] image_data;
   }
 
-  delete[] color_table;
-
   return (u8*)result;
+}
+
+unsigned char* LoadBitmap(FILE* file, int* width, int* height) {
+  fseek(file, 0, SEEK_END);
+  long size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  u8* data = new u8[size];
+
+  unsigned char* result = LoadBitmap(data, size, width, height);
+
+  delete[] data;
+
+  return result;
 }
 
 unsigned char* ImageLoad(const char* filename, int* width, int* height) {
@@ -138,7 +153,7 @@ unsigned char* ImageLoad(const char* filename, int* width, int* height) {
 
   if (result == nullptr) {
     // Try to load RLE bitmap
-    result = LoadBitmap(file);
+    result = LoadBitmap(file, width, height);
   }
 
   fclose(file);
@@ -148,7 +163,13 @@ unsigned char* ImageLoad(const char* filename, int* width, int* height) {
 
 unsigned char* ImageLoadFromMemory(const u8* data, size_t size, int* width, int* height) {
   int comp;
-  return stbi_load_from_memory(data, (int)size, width, height, &comp, STBI_rgb_alpha);
+  unsigned char* result = stbi_load_from_memory(data, (int)size, width, height, &comp, STBI_rgb_alpha);
+
+  if (result == nullptr) {
+    result = LoadBitmap(data, size, width, height);
+  }
+
+  return result;
 }
 
 void ImageFree(void* data) { stbi_image_free(data); }
