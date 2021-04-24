@@ -43,17 +43,17 @@ void TextureMap::Insert(const char* name, u32 id, u32 width, u32 height) {
 
   if (element == nullptr) {
     element = Allocate();
-
-    assert(strlen(name) < NULLSPACE_ARRAY_SIZE(element->name));
-
-    strcpy(element->name, name);
-    element->value.id = id;
-    element->value.width = width;
-    element->value.height = height;
-
-    element->next = elements[bucket];
-    elements[bucket] = element;
   }
+
+  assert(strlen(name) < NULLSPACE_ARRAY_SIZE(element->name));
+
+  strcpy(element->name, name);
+  element->value.id = id;
+  element->value.width = width;
+  element->value.height = height;
+
+  element->next = elements[bucket];
+  elements[bucket] = element;
 }
 
 TextureData* TextureMap::Find(const char* name) {

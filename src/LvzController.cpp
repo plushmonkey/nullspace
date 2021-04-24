@@ -24,6 +24,40 @@ constexpr u32 kMagicValue = MAKE_MAGIC('C', 'O', 'N', 'T');
 constexpr u32 kMagicVersion1 = MAKE_MAGIC('C', 'L', 'V', '1');
 constexpr u32 kMagicVersion2 = MAKE_MAGIC('C', 'L', 'V', '2');
 
+enum OverwriteFlag {
+  Overwrite_Bullets,
+  Overwrite_BulletTrails,
+  Overwrite_Ships,
+  Overwrite_Ship1,
+  Overwrite_Ship2,
+  Overwrite_Ship3,
+  Overwrite_Ship4,
+  Overwrite_Ship5,
+  Overwrite_Ship6,
+  Overwrite_Ship7,
+  Overwrite_Ship8,
+  Overwrite_Bombs,
+  Overwrite_BombTrails,
+  Overwrite_Repel,
+  Overwrite_Explode2,
+  Overwrite_EmpBurst
+};
+
+struct ObjectImageList {
+  size_t count;
+  char filenames[256][256];
+
+  bool Contains(const char* filename) {
+    for (size_t i = 0; i < count; ++i) {
+      if (strcmp(filename, filenames[i]) == 0) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+};
+
 enum class DisplayMode { ShowAlways, EnterZone, EnterArena, Kill, Death, ServerControlled };
 
 enum class ReferencePoint {
@@ -250,11 +284,14 @@ void LvzController::OnFileDownload(struct FileRequest* request, u8* data) {
   LvzHeader* lvz_header = (LvzHeader*)data;
 
   if (lvz_header->magic != kMagicValue) {
-    printf("Received lvz file %s that didn't contain lvz format.\n", request->filename);
+    fprintf(stderr, "Received lvz file %s that didn't contain lvz format.\n", request->filename);
     return;
   }
 
   u8* ptr = data + sizeof(LvzHeader);
+
+  ObjectImageList* object_images = memory_arena_push_type(&temp_arena, ObjectImageList);
+  object_images->count = 0;
 
   for (size_t i = 0; i < lvz_header->section_count; ++i) {
     LvzSectionHeader* section_header = (LvzSectionHeader*)ptr;
@@ -292,15 +329,16 @@ void LvzController::OnFileDownload(struct FileRequest* request, u8* data) {
         GLuint texture_id = renderer.CreateTexture(filename, image_data, width, height);
 
         ImageFree(image_data);
-
-        ProcessGraphicFile(filename, section_data, size);
       }
+    } else {
+      ProcessObjects(object_images, section_data, size);
     }
 
     temp_arena.Revert(snapshot);
   }
 
-  // Loop again after processing the image textures to create the lvz objects
+  // Loop again after processing the objects to do graphic replacements.
+  // This is done afterwards because the object images can't be used to replace default graphics.
   ptr = data + sizeof(LvzHeader);
   for (size_t i = 0; i < lvz_header->section_count; ++i) {
     LvzSectionHeader* section_header = (LvzSectionHeader*)ptr;
@@ -330,8 +368,10 @@ void LvzController::OnFileDownload(struct FileRequest* request, u8* data) {
 
     ptr += section_header->compressed_size;
 
-    if (section_header->timestamp == 0 && *filename == 0) {
-      ProcessObjects(section_data, size);
+    if (section_header->timestamp != 0 || *filename != 0) {
+      if (!object_images->Contains(filename)) {
+        ProcessGraphicFile(filename, section_data, size);
+      }
     }
 
     temp_arena.Revert(snapshot);
@@ -366,7 +406,7 @@ void LvzController::ProcessMissing() {
   }
 }
 
-void LvzController::ProcessObjects(u8* data, size_t size) {
+void LvzController::ProcessObjects(struct ObjectImageList* object_images, u8* data, size_t size) {
   ObjectSectionHeader* header = (ObjectSectionHeader*)data;
 
   if (header->magic != kMagicVersion1 && header->magic != kMagicVersion2) return;
@@ -387,6 +427,8 @@ void LvzController::ProcessObjects(u8* data, size_t size) {
 
     while (*ptr++)
       ;
+
+    strcpy(object_images->filenames[object_images->count++], filename);
 
     TextureData* texture_data = renderer.texture_map->Find(filename);
 
@@ -492,7 +534,6 @@ void LoadShip(SpriteRenderer& renderer, const char* filename, u8* data, size_t s
 }
 
 // TODO: Build a system to handle this automatically.
-// Just does ships for now
 void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t size) {
   const char* extension = strstr(filename, ".");
   char extension_free[256];
@@ -504,7 +545,8 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
   memcpy(extension_free, filename, name_size);
   extension_free[name_size] = 0;
 
-  if (null_stricmp(extension_free, "ships") == 0) {
+  if ((overwrite & (1 << Overwrite_Ships)) == 0 && null_stricmp(extension_free, "ships") == 0) {
+    overwrite |= (1 << Overwrite_Ships);
     renderer.FreeSheet(Graphics::ship_sprites[0].texture);
 
     int width, height;
@@ -518,23 +560,32 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
           renderer.LoadSheetFromMemory(filename, image_data, width, height, Vector2f(dim, dim), &count);
       ImageFree(image_data);
     }
-  } else if (null_stricmp(extension_free, "ship1") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Ship1)) == 0 && null_stricmp(extension_free, "ship1") == 0) {
+    overwrite |= (1 << Overwrite_Ship1);
     LoadShip(renderer, filename, data, size, 0);
-  } else if (null_stricmp(extension_free, "ship2") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Ship2)) == 0 && null_stricmp(extension_free, "ship2") == 0) {
+    overwrite |= (1 << Overwrite_Ship2);
     LoadShip(renderer, filename, data, size, 1);
-  } else if (null_stricmp(extension_free, "ship3") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Ship3)) == 0 && null_stricmp(extension_free, "ship3") == 0) {
+    overwrite |= (1 << Overwrite_Ship3);
     LoadShip(renderer, filename, data, size, 2);
-  } else if (null_stricmp(extension_free, "ship4") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Ship4)) == 0 && null_stricmp(extension_free, "ship4") == 0) {
+    overwrite |= (1 << Overwrite_Ship4);
     LoadShip(renderer, filename, data, size, 3);
-  } else if (null_stricmp(extension_free, "ship5") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Ship5)) == 0 && null_stricmp(extension_free, "ship5") == 0) {
+    overwrite |= (1 << Overwrite_Ship5);
     LoadShip(renderer, filename, data, size, 4);
-  } else if (null_stricmp(extension_free, "ship6") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Ship6)) == 0 && null_stricmp(extension_free, "ship6") == 0) {
+    overwrite |= (1 << Overwrite_Ship6);
     LoadShip(renderer, filename, data, size, 5);
-  } else if (null_stricmp(extension_free, "ship7") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Ship7)) == 0 && null_stricmp(extension_free, "ship7") == 0) {
+    overwrite |= (1 << Overwrite_Ship7);
     LoadShip(renderer, filename, data, size, 6);
-  } else if (null_stricmp(extension_free, "ship8") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Ship8)) == 0 && null_stricmp(extension_free, "ship8") == 0) {
+    overwrite |= (1 << Overwrite_Ship8);
     LoadShip(renderer, filename, data, size, 7);
-  } else if (null_stricmp(extension_free, "bullets") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Bullets)) == 0 && null_stricmp(extension_free, "bullets") == 0) {
+    overwrite |= (1 << Overwrite_Bullets);
     renderer.FreeSheet(Graphics::bullet_sprites[0].texture);
 
     int width, height;
@@ -548,7 +599,8 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
       Graphics::CreateBulletAnimations(Graphics::bullet_sprites, count);
       ImageFree(image_data);
     }
-  } else if (null_stricmp(extension_free, "gradient") == 0) {
+  } else if ((overwrite & (1 << Overwrite_BulletTrails)) == 0 && null_stricmp(extension_free, "gradient") == 0) {
+    overwrite |= (1 << Overwrite_BulletTrails);
     renderer.FreeSheet(Graphics::bullet_trail_sprites[0].texture);
 
     int width, height;
@@ -562,7 +614,8 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
       Graphics::CreateBulletTrailAnimations(Graphics::bullet_trail_sprites, count);
       ImageFree(image_data);
     }
-  } else if (null_stricmp(extension_free, "bombs") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Bombs)) == 0 && null_stricmp(extension_free, "bombs") == 0) {
+    overwrite |= (1 << Overwrite_Bombs);
     renderer.FreeSheet(Graphics::bomb_sprites[0].texture);
 
     int width, height;
@@ -576,7 +629,8 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
       Graphics::CreateBombAnimations(Graphics::bomb_sprites, count);
       ImageFree(image_data);
     }
-  } else if (null_stricmp(extension_free, "trail") == 0) {
+  } else if ((overwrite & (1 << Overwrite_BombTrails)) == 0 && null_stricmp(extension_free, "trail") == 0) {
+    overwrite |= (1 << Overwrite_BombTrails);
     renderer.FreeSheet(Graphics::bomb_trail_sprites[0].texture);
 
     int width, height;
@@ -590,7 +644,8 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
       Graphics::CreateBombTrailAnimations(Graphics::bomb_trail_sprites, count);
       ImageFree(image_data);
     }
-  } else if (null_stricmp(extension_free, "repel") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Repel)) == 0 && null_stricmp(extension_free, "repel") == 0) {
+    overwrite |= (1 << Overwrite_Repel);
     renderer.FreeSheet(Graphics::repel_sprites[0].texture);
 
     int width, height;
@@ -605,7 +660,8 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
       Graphics::CreateRepelAnimations(Graphics::repel_sprites, count);
       ImageFree(image_data);
     }
-  } else if (null_stricmp(extension_free, "explode2") == 0) {
+  } else if ((overwrite & (1 << Overwrite_Explode2)) == 0 && null_stricmp(extension_free, "explode2") == 0) {
+    overwrite |= (1 << Overwrite_Explode2);
     renderer.FreeSheet(Graphics::explode2_sprites[0].texture);
 
     int width, height;
@@ -620,7 +676,8 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
       Graphics::CreateBombExplodeAnimations(Graphics::explode2_sprites, count);
       ImageFree(image_data);
     }
-  } else if (null_stricmp(extension_free, "empburst") == 0) {
+  } else if ((overwrite & (1 << Overwrite_EmpBurst)) == 0 && null_stricmp(extension_free, "empburst") == 0) {
+    overwrite |= (1 << Overwrite_EmpBurst);
     renderer.FreeSheet(Graphics::emp_burst_sprites[0].texture);
 
     int width, height;

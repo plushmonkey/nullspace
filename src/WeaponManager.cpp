@@ -71,11 +71,8 @@ void WeaponManager::Update(float dt) {
       if (weapon->data.type == (u16)WeaponType::Bullet || weapon->data.type == (u16)WeaponType::BouncingBullet) {
         if (TICK_DIFF(tick, weapon->last_trail_tick) >= 1) {
           SpriteRenderable& frame = Graphics::anim_bullet_trails[weapon->data.level].frames[0];
-          Vector2f position = weapon->position - frame.dimensions * (0.5f / 16.0f);
-
-          u32 pos_x = (u32)(position.x * 16.0f);
-          u32 pos_y = (u32)(position.y * 16.0f);
-          position = Vector2f(pos_x / 16.0f, pos_y / 16.0f);
+          Vector2f offset = (frame.dimensions * (0.5f / 16.0f));
+          Vector2f position = weapon->position.PixelRounded() - offset.PixelRounded();
 
           animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
           weapon->last_trail_tick = tick;
@@ -84,11 +81,8 @@ void WeaponManager::Update(float dt) {
                  !weapon->data.alternate) {
         if (TICK_DIFF(tick, weapon->last_trail_tick) >= 5) {
           SpriteRenderable& frame = Graphics::anim_bomb_trails[weapon->data.level].frames[0];
-          Vector2f position = weapon->position - frame.dimensions * (0.5f / 16.0f);
-
-          u32 pos_x = (u32)(position.x * 16.0f);
-          u32 pos_y = (u32)(position.y * 16.0f);
-          position = Vector2f(pos_x / 16.0f, pos_y / 16.0f);
+          Vector2f offset = (frame.dimensions * (0.5f / 16.0f));
+          Vector2f position = weapon->position.PixelRounded() - offset.PixelRounded();
 
           animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
           weapon->last_trail_tick = tick;

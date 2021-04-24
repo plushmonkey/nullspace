@@ -68,6 +68,12 @@ struct LvzController {
   size_t pending_animation_count = 0;
   PendingAnimation pending_animations[1024];
 
+  // This blocks the overwriting of graphics files so only the first one of each type will override. This must be
+  // processing in a different order from Continuum or it does something similar. If this doesn't exist then the last
+  // graphic file would be used and it wouldn't match Continuum behavior.
+  // TODO: It's also possible that Continuum uses file timestamp to use the newest one rather than process order?
+  u32 overwrite = 0;
+
   LvzController(MemoryArena& perm_arena, MemoryArena& temp_arena, FileRequester& requester, SpriteRenderer& renderer,
                 PacketDispatcher& dispatcher);
 
@@ -80,7 +86,7 @@ struct LvzController {
 
  private:
   void ProcessGraphicFile(const char* filename, u8* data, size_t size);
-  void ProcessObjects(u8* data, size_t size);
+  void ProcessObjects(struct ObjectImageList* object_images, u8* data, size_t size);
 
   void ProcessMissing();
 };
