@@ -146,16 +146,12 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
   explode2_sprites = LoadTileSheet(renderer, "explode2", Vector2f(80, 80), &count);
   if (!explode2_sprites) return false;
 
-  anim_bomb_explode.frames = explode2_sprites;
-  anim_bomb_explode.frame_count = count;
-  anim_bomb_explode.duration = 1.25f;
+  CreateBombExplodeAnimations(explode2_sprites, count);
 
   emp_burst_sprites = LoadTileSheet(renderer, "empburst", Vector2f(80, 80), &count);
   if (!emp_burst_sprites) return false;
 
-  anim_emp_explode.frames = emp_burst_sprites;
-  anim_emp_explode.frame_count = count;
-  anim_emp_explode.duration = 0.5f;
+  CreateEmpExplodeAnimations(emp_burst_sprites, count);
 
   return true;
 }
@@ -207,36 +203,12 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   bomb_sprites = LoadTileSheet(renderer, "bombs", Vector2f(16, 16), &count);
   if (!bomb_sprites) return false;
 
-  for (size_t i = 0; i < 4; ++i) {
-    anim_bombs[i].frames = bomb_sprites + i * 10;
-    anim_bombs[i].frame_count = 10;
-    anim_bombs[i].duration = kBombAnimDuration;
-  }
-
-  for (size_t i = 0; i < 4; ++i) {
-    anim_emp_bombs[i].frames = bomb_sprites + i * 10 + 40;
-    anim_emp_bombs[i].frame_count = 10;
-    anim_emp_bombs[i].duration = kBombAnimDuration;
-  }
-
-  for (size_t i = 0; i < 4; ++i) {
-    anim_bombs_bounceable[i].frames = bomb_sprites + i * 10 + 80;
-    anim_bombs_bounceable[i].frame_count = 10;
-    anim_bombs_bounceable[i].duration = kBombAnimDuration;
-  }
-
-  anim_thor.frames = bomb_sprites + 120;
-  anim_thor.frame_count = 10;
-  anim_thor.duration = kBombAnimDuration;
+  CreateBombAnimations(bomb_sprites, count);
 
   bomb_trail_sprites = LoadTileSheet(renderer, "trail", Vector2f(16, 16), &count);
   if (!bomb_trail_sprites) return false;
 
-  for (size_t i = 0; i < 4; ++i) {
-    anim_bomb_trails[i].frames = bomb_trail_sprites + i * 10;
-    anim_bomb_trails[i].frame_count = 10;
-    anim_bomb_trails[i].duration = 0.35f;
-  }
+  CreateBombTrailAnimations(bomb_trail_sprites, count);
 
   mine_sprites = LoadTileSheet(renderer, "mines", Vector2f(16, 16), &count);
   if (!mine_sprites) return false;
@@ -256,36 +228,92 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   bullet_sprites = LoadTileSheet(renderer, "bullets", Vector2f(5, 5), &count);
   if (!bullet_sprites) return false;
 
+  CreateBulletAnimations(bullet_sprites, count);
+
+  bullet_trail_sprites = LoadTileSheet(renderer, "gradient", Vector2f(1, 1), &count);
+  if (!bullet_trail_sprites) return false;
+
+  CreateBulletTrailAnimations(bullet_trail_sprites, count);
+
+  repel_sprites = LoadTileSheet(renderer, "repel", Vector2f(96, 96), &count);
+  if (!repel_sprites) return false;
+
+  CreateRepelAnimations(repel_sprites, count);
+
+  return true;
+}
+
+void Graphics::CreateBombAnimations(SpriteRenderable* renderables, int count) {
   for (size_t i = 0; i < 4; ++i) {
-    anim_bullets[i].frames = bullet_sprites + i * 4;
+    anim_bombs[i].frames = renderables + i * 10;
+    anim_bombs[i].frame_count = 10;
+    anim_bombs[i].duration = kBombAnimDuration;
+  }
+
+  for (size_t i = 0; i < 4; ++i) {
+    anim_emp_bombs[i].frames = renderables + i * 10 + 40;
+    anim_emp_bombs[i].frame_count = 10;
+    anim_emp_bombs[i].duration = kBombAnimDuration;
+  }
+
+  for (size_t i = 0; i < 4; ++i) {
+    anim_bombs_bounceable[i].frames = renderables + i * 10 + 80;
+    anim_bombs_bounceable[i].frame_count = 10;
+    anim_bombs_bounceable[i].duration = kBombAnimDuration;
+  }
+
+  anim_thor.frames = renderables + 120;
+  anim_thor.frame_count = 10;
+  anim_thor.duration = kBombAnimDuration;
+}
+
+void Graphics::CreateBombTrailAnimations(SpriteRenderable* renderables, int count) {
+  for (size_t i = 0; i < 4; ++i) {
+    anim_bomb_trails[i].frames = renderables + i * 10;
+    anim_bomb_trails[i].frame_count = 10;
+    anim_bomb_trails[i].duration = 0.35f;
+  }
+}
+
+void Graphics::CreateBombExplodeAnimations(SpriteRenderable* renderables, int count) {
+  anim_bomb_explode.frames = renderables;
+  anim_bomb_explode.frame_count = count;
+  anim_bomb_explode.duration = 1.25f;
+}
+
+void Graphics::CreateEmpExplodeAnimations(SpriteRenderable* renderables, int count) {
+  anim_emp_explode.frames = renderables;
+  anim_emp_explode.frame_count = count;
+  anim_emp_explode.duration = 0.5f;
+}
+
+void Graphics::CreateBulletAnimations(SpriteRenderable* renderables, int count) {
+  for (size_t i = 0; i < 4; ++i) {
+    anim_bullets[i].frames = renderables + i * 4;
     anim_bullets[i].frame_count = 4;
     anim_bullets[i].duration = 0.15f;
   }
 
   for (size_t i = 0; i < 4; ++i) {
-    anim_bullets_bounce[i].frames = bullet_sprites + i * 4 + 20;
+    anim_bullets_bounce[i].frames = renderables + i * 4 + 20;
     anim_bullets_bounce[i].frame_count = 4;
     anim_bullets_bounce[i].duration = 0.15f;
   }
+}
 
-  bullet_trail_sprites = LoadTileSheet(renderer, "gradient", Vector2f(1, 1), &count);
-  if (!bullet_trail_sprites) return false;
-
+void Graphics::CreateBulletTrailAnimations(SpriteRenderable* renderables, int count) {
   for (size_t i = 0; i < 3; ++i) {
-    anim_bullet_trails[i].frames = bullet_trail_sprites + i * 14 + 3 * 14;
+    anim_bullet_trails[i].frames = renderables + i * 14 + 3 * 14;
     anim_bullet_trails[i].frame_count = 14;
     anim_bullet_trails[i].duration = 0.15f;
   }
   anim_bullet_trails[3] = anim_bullet_trails[2];
+}
 
-  repel_sprites = LoadTileSheet(renderer, "repel", Vector2f(96, 96), &count);
-  if (!repel_sprites) return false;
-
+void Graphics::CreateRepelAnimations(SpriteRenderable* renderables, int count) {
   anim_repel.duration = 0.5f;
-  anim_repel.frames = repel_sprites;
+  anim_repel.frames = renderables;
   anim_repel.frame_count = count;
-
-  return true;
 }
 
 bool Graphics::InitializeTiles(SpriteRenderer& renderer) {

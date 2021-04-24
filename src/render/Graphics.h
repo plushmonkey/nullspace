@@ -84,6 +84,14 @@ struct Graphics {
   static void DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector2f& center,
                          const Vector2f& half_extents);
 
+  static void CreateBombAnimations(SpriteRenderable* renderables, int count);
+  static void CreateBombTrailAnimations(SpriteRenderable* renderables, int count);
+  static void CreateBombExplodeAnimations(SpriteRenderable* renderables, int count);
+  static void CreateEmpExplodeAnimations(SpriteRenderable* renderables, int count);
+  static void CreateBulletAnimations(SpriteRenderable* renderables, int count);
+  static void CreateBulletTrailAnimations(SpriteRenderable* renderables, int count);
+  static void CreateRepelAnimations(SpriteRenderable* renderables, int count);
+
  private:
   Graphics() {}
 

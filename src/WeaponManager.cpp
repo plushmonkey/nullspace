@@ -388,6 +388,15 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   for (s32 i = 0; i < tick_diff; ++i) {
     result = Simulate(*weapon, GetCurrentTick(), 1.0f / 100.0f);
     if (result != WeaponSimulateResult::Continue) {
+      if (type == WeaponType::Repel) {
+        // Create an animation even if the repel was instant.
+        Vector2f offset = Graphics::anim_repel.frames[0].dimensions * (0.5f / 16.0f);
+
+        Animation* anim = animation.AddAnimation(Graphics::anim_repel, position.PixelRounded() - offset.PixelRounded());
+        anim->layer = Layer::AfterShips;
+        anim->repeat = false;
+      }
+
       CreateExplosion(*weapon);
       --weapon_count;
       return result;
@@ -436,7 +445,13 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
       weapon->animation.sprite = &Graphics::anim_thor;
     } break;
     case WeaponType::Repel: {
-      weapon->animation.sprite = &Graphics::anim_repel;
+      Vector2f offset = Graphics::anim_repel.frames[0].dimensions * (0.5f / 16.0f);
+
+      Animation* anim = animation.AddAnimation(Graphics::anim_repel, position.PixelRounded() - offset.PixelRounded());
+      anim->layer = Layer::AfterShips;
+      anim->repeat = false;
+
+      weapon->animation.sprite = nullptr;
       weapon->animation.repeat = false;
     } break;
     default: {

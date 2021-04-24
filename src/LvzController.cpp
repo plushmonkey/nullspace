@@ -192,8 +192,6 @@ void LvzController::OnLvzToggle(u8* pkt, size_t size) {
     u16 off : 1;
   };
 
-  return;
-
   for (size_t i = 0; i < (size - 1) / sizeof(u16); ++i) {
     ObjToggle* toggle = (ObjToggle*)(pkt + 1 + i * sizeof(u16));
 
@@ -536,6 +534,107 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
     LoadShip(renderer, filename, data, size, 6);
   } else if (null_stricmp(extension_free, "ship8") == 0) {
     LoadShip(renderer, filename, data, size, 7);
+  } else if (null_stricmp(extension_free, "bullets") == 0) {
+    renderer.FreeSheet(Graphics::bullet_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      Vector2f dim(width / 4.0f, width / 4.0f);
+      Graphics::bullet_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreateBulletAnimations(Graphics::bullet_sprites, count);
+      ImageFree(image_data);
+    }
+  } else if (null_stricmp(extension_free, "gradient") == 0) {
+    renderer.FreeSheet(Graphics::bullet_trail_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      Graphics::bullet_trail_sprites =
+          renderer.LoadSheetFromMemory(filename, image_data, width, height, Vector2f(1, 1), &count);
+      Graphics::CreateBulletTrailAnimations(Graphics::bullet_trail_sprites, count);
+      ImageFree(image_data);
+    }
+  } else if (null_stricmp(extension_free, "bombs") == 0) {
+    renderer.FreeSheet(Graphics::bomb_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      Vector2f dim(width / 10.0f, width / 10.0f);
+      Graphics::bomb_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreateBombAnimations(Graphics::bomb_sprites, count);
+      ImageFree(image_data);
+    }
+  } else if (null_stricmp(extension_free, "trail") == 0) {
+    renderer.FreeSheet(Graphics::bomb_trail_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      Vector2f dim(width / 10.0f, width / 10.0f);
+      Graphics::bomb_trail_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreateBombTrailAnimations(Graphics::bomb_trail_sprites, count);
+      ImageFree(image_data);
+    }
+  } else if (null_stricmp(extension_free, "repel") == 0) {
+    renderer.FreeSheet(Graphics::repel_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      float dim_x = sqrt((width * height) / 10.0f);
+      Vector2f dim(dim_x, dim_x);
+      Graphics::repel_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreateRepelAnimations(Graphics::repel_sprites, count);
+      ImageFree(image_data);
+    }
+  } else if (null_stricmp(extension_free, "explode2") == 0) {
+    renderer.FreeSheet(Graphics::explode2_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      float dim_x = sqrt((width * height) / 44.0f);
+      Vector2f dim(dim_x, dim_x);
+      Graphics::explode2_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreateBombExplodeAnimations(Graphics::explode2_sprites, count);
+      ImageFree(image_data);
+    }
+  } else if (null_stricmp(extension_free, "empburst") == 0) {
+    renderer.FreeSheet(Graphics::emp_burst_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      float dim_x = sqrt((width * height) / 10.0f);
+      Vector2f dim(dim_x, dim_x);
+      Graphics::emp_burst_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreateEmpExplodeAnimations(Graphics::emp_burst_sprites, count);
+      ImageFree(image_data);
+    }
   }
 }
 
