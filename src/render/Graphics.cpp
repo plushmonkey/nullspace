@@ -134,7 +134,7 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
 
   anim_bullet_explode.frames = explode0_sprites;
   anim_bullet_explode.frame_count = count;
-  anim_bullet_explode.duration = 0.2f;
+  anim_bullet_explode.duration = 0.4f;
 
   explode1_sprites = LoadTileSheet(renderer, "explode1", Vector2f(48, 48), &count);
   if (!explode1_sprites) return false;

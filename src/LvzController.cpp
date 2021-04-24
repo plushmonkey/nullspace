@@ -246,6 +246,7 @@ void LvzController::OnLvzToggle(u8* pkt, size_t size) {
         LvzObject* obj = objects + i;
 
         if (obj->object_id == toggle->id) {
+          animations[obj->animation_index].t = 0.0f;
           if (obj->map_object) {
             active_map_objects[active_map_object_count++] = obj;
           } else {

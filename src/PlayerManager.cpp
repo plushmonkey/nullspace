@@ -48,6 +48,16 @@ static void OnPlayerDeathPkt(void* user, u8* pkt, size_t size) {
   manager->OnPlayerDeath(pkt, size);
 }
 
+static void OnFlagClaimPkt(void* user, u8* pkt, size_t size) {
+  PlayerManager* manager = (PlayerManager*)user;
+  manager->OnFlagClaim(pkt, size);
+}
+
+static void OnFlagDropPkt(void* user, u8* pkt, size_t size) {
+  PlayerManager* manager = (PlayerManager*)user;
+  manager->OnFlagDrop(pkt, size);
+}
+
 PlayerManager::PlayerManager(Connection& connection, PacketDispatcher& dispatcher) : connection(connection) {
   dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
@@ -56,6 +66,8 @@ PlayerManager::PlayerManager(Connection& connection, PacketDispatcher& dispatche
   dispatcher.Register(ProtocolS2C::LargePosition, OnLargePositionPkt, this);
   dispatcher.Register(ProtocolS2C::SmallPosition, OnSmallPositionPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerDeath, OnPlayerDeathPkt, this);
+  dispatcher.Register(ProtocolS2C::FlagClaim, OnFlagClaimPkt, this);
+  dispatcher.Register(ProtocolS2C::DropFlag, OnFlagDropPkt, this);
 }
 
 void PlayerManager::Update(float dt) {
@@ -227,6 +239,7 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
 
     player->lerp_time = 0.0f;
     player->warp_animation.t = 0.0f;
+    player->flags = 0;
   }
 }
 
@@ -334,6 +347,29 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position) {
   } else {
     player.lerp_time = 200.0f / 1000.0f;
     player.lerp_velocity = (projected_pos - player.position) * (1.0f / player.lerp_time);
+  }
+}
+
+void PlayerManager::OnFlagClaim(u8* pkt, size_t size) {
+  u16 flag_id = *(u16*)(pkt + 1);
+  u16 player_id = *(u16*)(pkt + 3);
+
+  Player* player = GetPlayerById(player_id);
+
+  if (player) {
+    player->flags++;
+  }
+}
+
+void PlayerManager::OnFlagDrop(u8* pkt, size_t size) {
+  u16 player_id = *(u16*)(pkt + 1);
+
+  Player* player = GetPlayerById(player_id);
+
+  if (player) {
+    if (player->flags > 0) {
+      player->flags--;
+    }
   }
 }
 

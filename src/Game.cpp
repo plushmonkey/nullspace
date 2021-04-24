@@ -174,7 +174,7 @@ void Game::Render(float dt) {
       } else if (player->enter_delay <= 0.0f) {
         size_t index = player->ship * 40 + player->direction;
 
-        Vector2f offset = Graphics::ship_sprites[index].dimensions* (0.5f / 16.0f);
+        Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
         Vector2f position = player->position.PixelRounded() - offset.PixelRounded();
 
         sprite_renderer.Draw(camera, Graphics::ship_sprites[index], position, Layer::Ships);
@@ -201,8 +201,13 @@ void Game::Render(float dt) {
 
         offset = offset.PixelRounded();
 
-        char display[32];
-        sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
+        char display[48];
+
+        if (player->flags > 0) {
+          sprintf(display, "%s(%d:%d)[%d]", player->name, player->bounty, player->flags, player->ping * 10);
+        } else {
+          sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
+        }
 
         u32 team_freq = me->frequency;
 

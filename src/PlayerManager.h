@@ -32,6 +32,8 @@ struct PlayerManager {
   void OnPlayerFreqAndShipChange(u8* pkt, size_t size);
   void OnLargePositionPacket(u8* pkt, size_t size);
   void OnSmallPositionPacket(u8* pkt, size_t size);
+  void OnFlagClaim(u8* pkt, size_t size);
+  void OnFlagDrop(u8* pkt, size_t size);
 
   void OnPositionPacket(Player& player, const Vector2f& position);
 };
