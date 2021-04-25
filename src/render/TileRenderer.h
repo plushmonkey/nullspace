@@ -7,8 +7,9 @@
 
 namespace null {
 
-struct MemoryArena;
 struct Camera;
+struct Map;
+struct MemoryArena;
 
 struct TileRenderer {
   ShaderProgram shader;
@@ -23,15 +24,21 @@ struct TileRenderer {
   GLuint vao = -1;
   GLuint vbo = -1;
 
+  // This is the radar that is used when pressing show radar key.
   GLuint radar_texture = -1;
   SpriteRenderable radar_renderable;
+
+  // This is the fully rendered radar that is used for the small radar view
+  GLuint full_radar_texture = -1;
+  SpriteRenderable full_radar_renderable;
 
   bool Initialize();
   void Render(Camera& camera);
   bool CreateMapBuffer(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim);
+  bool CreateRadar(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim, u16 mapzoom);
 
  private:
-  bool RenderRadar(MemoryArena& temp_arena, const char* filename, u32 surface_width, u32 surface_height);
+  void RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions, SpriteRenderable& renderable, GLuint* texture, GLint filter);
 };
 
 }  // namespace null

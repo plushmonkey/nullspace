@@ -11,7 +11,7 @@ u32 Hash(const char* str) {
   u32 hash = 5381;
   char c;
 
-  while (c = *str++) {
+  while ((c = *str++)) {
     hash = hash * 33 ^ c;
   }
 

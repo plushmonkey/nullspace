@@ -195,10 +195,11 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
   // Store entire map tile id data on gpu
   glTexImage2D(GL_TEXTURE_2D, 0, GL_R32UI, 1024, 1024, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, tiledata);
 
-  return RenderRadar(temp_arena, filename, (u32)surface_dim.x, (u32)surface_dim.y);
+  return true;
 }
 
-bool TileRenderer::RenderRadar(MemoryArena& temp_arena, const char* filename, u32 surface_width, u32 surface_height) {
+bool TileRenderer::CreateRadar(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim,
+                               u16 mapzoom) {
   Map map;
 
   if (!map.Load(temp_arena, filename)) {
@@ -206,98 +207,116 @@ bool TileRenderer::RenderRadar(MemoryArena& temp_arena, const char* filename, u3
     return false;
   }
 
+  u32 surface_width = (u32)surface_dim.x;
+  u32 surface_height = (u32)surface_dim.y;
+
   if (surface_width <= 64 * 2) {
     fprintf(stderr, "Surface width too small to generate radar.\n");
     return false;
   }
 
   u32 radar_dim = (u32)((surface_width / 2.0f) - 64.0f);
-  float multiplier = 1024.0f / surface_height;
-  u32 dim = (u32)(surface_width * multiplier);
 
-  // TODO: Generate better full screen radar.
-  // I tried copying what Continuum does to generate the radar but exact pixel values results in filter errors.
-  // Nearest min filter leaves out a lot of wall pixels.
-  // Mipmapping results in a lot of blur.
-  // Some combination of them with a sharpen shader might work.
-  // The actual texture generated from it is perfect, but rendering it at a smaller size doesn't work.
-  // Maybe the sizes are wrong? - It would result in bad interpolation
-  // Alternative generation method would be to use the same as tile rendering then apply any changes necessary after
-  GLuint base_texture;
-  glGenTextures(1, &base_texture);
-  glBindTexture(GL_TEXTURE_2D, base_texture);
+  if (mapzoom < 1) {
+    mapzoom = 1;
+  }
 
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, dim, dim, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-  // glGenerateMipmap(GL_TEXTURE_2D);
+  u32 full_dim = (surface_width * 8) / mapzoom;
+
+  RenderRadar(map, temp_arena, full_dim, full_radar_renderable, &full_radar_texture, GL_LINEAR);
+  RenderRadar(map, temp_arena, radar_dim, radar_renderable, &radar_texture, GL_NEAREST);
+
+  return true;
+}
+
+void TileRenderer::RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions, SpriteRenderable& renderable,
+                               GLuint* texture, GLint filter) {
+  glGenTextures(1, texture);
+  glBindTexture(GL_TEXTURE_2D, *texture);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, dimensions, dimensions, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+  if (filter != GL_NEAREST && filter != GL_LINEAR) {
+    glGenerateMipmap(GL_TEXTURE_2D);
+  }
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-  // GLint param = GL_NEAREST_MIPMAP_NEAREST;
-  GLint param = GL_LINEAR;
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, param);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-  u32* data = (u32*)temp_arena.Allocate(dim * dim * sizeof(u32));
+  u32* data = (u32*)temp_arena.Allocate(dimensions * dimensions * sizeof(u32));
 
-  u32 y_tile_index = 0;
-  u16 last_y = 0xFFFF;
+  if (dimensions < 1024) {
+    for (u16 y = 0; y < dimensions; ++y) {
+      for (u16 x = 0; x < dimensions; ++x) {
+        size_t index = y * dimensions + x;
+        data[index] = 0xFF0A190A;
+      }
+    }
+    for (u16 y = 0; y < 1024; ++y) {
+      u16 dest_y = (u16)((y / 1024.0f) * dimensions);
 
-  for (size_t gen_y = 0; gen_y < dim; ++gen_y) {
-    u16 y = y_tile_index / dim;
+      for (u16 x = 0; x < 1024; ++x) {
+        u16 dest_x = (u16)((x / 1024.0f) * dimensions);
 
-    u32 x_tile_index = 0;
-    u16 last_x = 0xFFFF;
-    for (size_t gen_x = 0; gen_x < dim; ++gen_x) {
-      u16 x = x_tile_index / dim;
-      TileId id = map.GetTileId(x, y);
+        TileId id = map.GetTileId(x, y);
 
-      // TODO: Remove this once proper radar is implemented
-      if (id == 0) {
-        bool same_x = x == last_x && x < 1023;
-        bool same_y = y == last_y && y < 1023;
+        size_t index = dest_y * dimensions + dest_x;
 
-        if (same_x && same_y) {
-          id = map.GetTileId(x + 1, y + 1);
-        } else if (same_x && !same_y) {
-          id = map.GetTileId(x + 1, y);
-        } else if (!same_x && same_y) {
-          id = map.GetTileId(x, y + 1);
+        if (id == 0 || id > 241) {
+          // Don't write because multiple writes to this area should prioritize walls. If a write happens here then
+          // walls could be overwritten with empty space.
+        } else if (id == 171) {
+          data[index] = 0xFF185218;
+        } else {
+          data[index] = 0xFF5a5a5a;
         }
       }
+    }
+  } else {
+    u32 y_tile_index = 0;
 
-      size_t index = gen_y * dim + gen_x;
+    for (size_t gen_y = 0; gen_y < dimensions; ++gen_y) {
+      u16 y = y_tile_index / dimensions;
 
-      // TODO: other types
-      if (id == 0 || id > 241) {
-        data[index] = 0xFF0A190A;
-      } else if (id == 171) {
-        data[index] = 0xFF185218;
-      } else {
-        data[index] = 0xFF5a5a5a;
+      u32 x_tile_index = 0;
+      for (size_t gen_x = 0; gen_x < dimensions; ++gen_x) {
+        u16 x = x_tile_index / dimensions;
+        TileId id = map.GetTileId(x, y);
+
+        size_t index = gen_y * dimensions + gen_x;
+
+        // TODO: other types
+        if (id == 0 || id > 241) {
+          data[index] = 0xFF0A190A;
+        } else if (id == 171) {
+          data[index] = 0xFF185218;
+        } else {
+          data[index] = 0xFF5a5a5a;
+        }
+
+        x_tile_index += 1024;
       }
 
-      x_tile_index += 1024;
-      last_x = x;
+      y_tile_index += 1024;
     }
-
-    y_tile_index += 1024;
-    last_y = y;
   }
 
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, dim, dim, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, dimensions, dimensions, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
-  // glGenerateMipmap(GL_TEXTURE_2D);
+  if (filter != GL_NEAREST && filter != GL_LINEAR) {
+    glGenerateMipmap(GL_TEXTURE_2D);
+  }
 
-  radar_renderable.texture = base_texture;
+  renderable.texture = *texture;
 
-  radar_renderable.dimensions = Vector2f((float)radar_dim, (float)radar_dim);
-  radar_renderable.uvs[0] = Vector2f(0, 0);
-  radar_renderable.uvs[1] = Vector2f(1, 0);
-  radar_renderable.uvs[2] = Vector2f(0, 1);
-  radar_renderable.uvs[3] = Vector2f(1, 1);
-
-  return true;
+  renderable.dimensions = Vector2f((float)dimensions, (float)dimensions);
+  renderable.uvs[0] = Vector2f(0, 0);
+  renderable.uvs[1] = Vector2f(1, 0);
+  renderable.uvs[2] = Vector2f(0, 1);
+  renderable.uvs[3] = Vector2f(1, 1);
 }
 
 }  // namespace null

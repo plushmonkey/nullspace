@@ -83,7 +83,13 @@ void Game::Update(const InputState& input, float dt) {
 
   if (tile_renderer.tilemap_texture == -1 && connection.login_state == Connection::LoginState::Complete) {
     if (!tile_renderer.CreateMapBuffer(temp_arena, connection.map.filename, ui_camera.surface_dim)) {
-      fprintf(stderr, "Failed to create map/radar.\n");
+      fprintf(stderr, "Failed to create renderable map.\n");
+    }
+
+    // TODO: Create new radar when mapzoom changes.
+    if (!tile_renderer.CreateRadar(temp_arena, connection.map.filename, ui_camera.surface_dim,
+                                   connection.settings.MapZoomFactor)) {
+      fprintf(stderr, "Failed to create radar.\n");
     }
 
     if (me) {
@@ -273,10 +279,10 @@ void Game::Render(float dt) {
 
 void Game::RenderRadar(Player* me) {
   if (tile_renderer.radar_renderable.texture != -1 && me) {
-    SpriteRenderable& radar_renderable = tile_renderer.radar_renderable;
     float border = 6.0f;
 
     if (render_radar) {
+      SpriteRenderable& radar_renderable = tile_renderer.radar_renderable;
       Vector2f position = ui_camera.surface_dim - radar_renderable.dimensions - Vector2f(border, border);
       sprite_renderer.Draw(ui_camera, radar_renderable, position, Layer::TopMost);
 
@@ -296,12 +302,11 @@ void Game::RenderRadar(Player* me) {
     } else {
       // calculate uvs for displayable map
       SpriteRenderable visible;
-      visible.texture = radar_renderable.texture;
-      // TODO: find real width
-      s16 dim = (s16)(ui_camera.surface_dim.x * 0.165f);
+      visible.texture = tile_renderer.full_radar_renderable.texture;
+      s16 dim = ((((u16)ui_camera.surface_dim.x / 6) / 4) * 8) / 2;
       u16 map_zoom = connection.settings.MapZoomFactor;
-      float range = ((map_zoom / 48.0f) * 512.0f);
 
+      float range = (map_zoom / 48.0f) * 512.0f;
       Vector2f center = me->position;
 
       // Cap the radar to map range
@@ -310,8 +315,8 @@ void Game::RenderRadar(Player* me) {
       if (center.x + range > 1024) center.x = 1024 - range;
       if (center.y + range > 1024) center.y = 1024 - range;
 
-      Vector2f min(center.x - range, center.y - range);
-      Vector2f max(center.x + range, center.y + range);
+      Vector2f min = Vector2f((center.x - range), (center.y - range)).PixelRounded();
+      Vector2f max = Vector2f((center.x + range), (center.y + range)).PixelRounded();
 
       float uv_multiplier = 1.0f / 1024.0f;
       Vector2f min_uv(min.x * uv_multiplier, min.y * uv_multiplier);
