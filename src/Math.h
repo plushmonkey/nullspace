@@ -184,11 +184,11 @@ inline float BoxPointDistance(Vector2f box_pos, Vector2f box_extent, Vector2f p)
   return std::sqrt(dx * dx + dy * dy);
 }
 
-inline bool RayBoxIntersect(Vector2f origin, Vector2f direction, Vector2f box_pos, Vector2f box_extent, float* dist,
-                            Vector2f* norm) {
+inline bool RayBoxIntersect(const Vector2f& origin, const Vector2f& direction, const Vector2f& box_pos,
+                            const Vector2f& box_extent, float* dist, Vector2f* norm) {
   Vector2f recip(1.0f / direction.x, 1.0f / direction.y);
-  Vector2f lb = box_pos + Vector2f(0, box_extent.y);
-  Vector2f rt = box_pos + Vector2f(box_extent.x, 0);
+  const Vector2f& lb = box_pos;
+  Vector2f rt = box_pos + box_extent;
 
   float t1 = (float)((lb.x - origin.x) * recip.x);
   float t2 = (float)((rt.x - origin.x) * recip.x);
