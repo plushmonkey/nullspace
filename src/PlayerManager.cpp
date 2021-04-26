@@ -529,12 +529,14 @@ void PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
     // TODO: Handle special tiles like warp here
 
     if (axis == 0 && map.IsSolid(check, other)) {
-      if (BoxBoxIntersect(collider_min, collider_max, Vector2f(check, other), Vector2f(check + 1, other + 1))) {
+      if (BoxBoxIntersect(collider_min, collider_max, Vector2f((float)check, (float)other),
+                          Vector2f((float)check + 1, (float)other + 1))) {
         collided = true;
         break;
       }
     } else if (axis == 1 && map.IsSolid(other, check)) {
-      if (BoxBoxIntersect(collider_min, collider_max, Vector2f(other, check), Vector2f(other + 1, check + 1))) {
+      if (BoxBoxIntersect(collider_min, collider_max, Vector2f((float)other, (float)check),
+                          Vector2f((float)other + 1, (float)check + 1))) {
         collided = true;
         break;
       }

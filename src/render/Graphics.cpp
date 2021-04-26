@@ -316,6 +316,16 @@ void Graphics::CreateRepelAnimations(SpriteRenderable* renderables, int count) {
   anim_repel.frame_count = count;
 }
 
+void Graphics::CreateFlagAnimations(SpriteRenderable* renderables, int count) {
+  anim_flag.duration = 1.0f;
+  anim_flag.frames = renderables;
+  anim_flag.frame_count = count / 2;
+
+  anim_flag_team.duration = 1.0f;
+  anim_flag_team.frames = renderables + count / 2;
+  anim_flag_team.frame_count = count / 2;
+}
+
 bool Graphics::InitializeTiles(SpriteRenderer& renderer) {
   constexpr float kAsteroidDuration = 1.5f;
 
@@ -359,13 +369,7 @@ bool Graphics::InitializeTiles(SpriteRenderer& renderer) {
   flag_sprites = LoadTileSheet(renderer, "flag", Vector2f(16, 16), &count);
   if (!flag_sprites) return false;
 
-  anim_flag.duration = 1.0f;
-  anim_flag.frames = flag_sprites;
-  anim_flag.frame_count = count / 2;
-
-  anim_flag_team.duration = 1.0f;
-  anim_flag_team.frames = flag_sprites + count / 2;
-  anim_flag_team.frame_count = count / 2;
+  CreateFlagAnimations(flag_sprites, count);
 
   goal_sprites = LoadTileSheet(renderer, "goal", Vector2f(16, 16), &count);
   if (!goal_sprites) return false;

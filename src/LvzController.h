@@ -67,6 +67,8 @@ struct LvzController {
 
   size_t pending_animation_count = 0;
   PendingAnimation pending_animations[1024];
+  // TODO: Pending object updates for objects that weren't downloaded yet
+
 
   // This blocks the overwriting of graphics files so only the first one of each type will override. This must be
   // processing in a different order from Continuum or it does something similar. If this doesn't exist then the last

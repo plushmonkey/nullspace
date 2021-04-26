@@ -1,5 +1,6 @@
 #include "Game.h"
 
+#include <cassert>
 #include <cstdio>
 
 #include "Memory.h"
@@ -9,7 +10,7 @@
 
 namespace null {
 
-void OnCharacterPress(void* user, int codepoint, int mods) {
+static void OnCharacterPress(void* user, int codepoint, int mods) {
   Game* game = (Game*)user;
 
   game->chat.OnCharacterPress(codepoint, mods);
@@ -22,6 +23,18 @@ void OnCharacterPress(void* user, int codepoint, int mods) {
   } else if (game->menu_open) {
     game->HandleMenuKey(codepoint, mods);
   }
+}
+
+static void OnFlagClaimPkt(void* user, u8* pkt, size_t size) {
+  Game* game = (Game*)user;
+
+  game->OnFlagClaim(pkt, size);
+}
+
+static void OnFlagPositionPkt(void* user, u8* pkt, size_t size) {
+  Game* game = (Game*)user;
+
+  game->OnFlagPosition(pkt, size);
 }
 
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height)
@@ -41,6 +54,8 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       lvz(perm_arena, temp_arena, connection.requester, sprite_renderer, dispatcher) {
   float zmax = (float)Layer::Count;
   ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -zmax, zmax);
+  dispatcher.Register(ProtocolS2C::FlagPosition, OnFlagPositionPkt, this);
+  dispatcher.Register(ProtocolS2C::FlagClaim, OnFlagClaimPkt, this);
 }
 
 bool Game::Initialize(InputState& input) {
@@ -118,17 +133,21 @@ void Game::Render(float dt) {
 
   animation.Update(dt);
   tile_renderer.Render(camera);
-  animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim);
 
   Player* me = player_manager.GetSelf();
+  u32 self_freq = 0;
+  if (me) {
+    self_freq = me->ship < 8 ? me->frequency : specview.spectate_frequency;
+  }
+
+  animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim, flags, flag_count,
+                                self_freq);
 
   if (me) {
     // TODO: Formalize layers
     // Draw animations and weapons before ships and names so they are below
     animation.Render(camera, sprite_renderer);
     weapon_manager.Render(camera, sprite_renderer);
-
-    u32 self_freq = me->ship < 8 ? me->frequency : specview.spectate_frequency;
 
     player_manager.Render(camera, sprite_renderer, self_freq);
 
@@ -358,6 +377,32 @@ void Game::RenderMenu() {
   }
 
   sprite_renderer.Render(ui_camera);
+}
+
+void Game::OnFlagClaim(u8* pkt, size_t size) {
+  u16 id = *(u16*)(pkt + 1);
+
+  assert(id < NULLSPACE_ARRAY_SIZE(flags));
+
+  flags[id].dropped = false;
+}
+
+void Game::OnFlagPosition(u8* pkt, size_t size) {
+  u16 id = *(u16*)(pkt + 1);
+  u16 x = *(u16*)(pkt + 3);
+  u16 y = *(u16*)(pkt + 5);
+  u16 owner = *(u16*)(pkt + 7);
+
+  assert(id < NULLSPACE_ARRAY_SIZE(flags));
+
+  if (id + 1 > flag_count) {
+    flag_count = id + 1;
+  }
+
+  flags[id].id = id;
+  flags[id].owner = owner;
+  flags[id].position = Vector2f((float)x, (float)y);
+  flags[id].dropped = true;
 }
 
 }  // namespace null

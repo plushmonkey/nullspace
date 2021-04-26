@@ -40,7 +40,6 @@ struct Graphics {
   static SpriteRenderable* color_sprites;
 
   static SpriteRenderable* flag_sprites;
-  static SpriteRenderable* flag_team_sprites;
   static SpriteRenderable* goal_sprites;
   static SpriteRenderable* asteroid_small1_sprites;
   static SpriteRenderable* asteroid_small2_sprites;
@@ -91,6 +90,7 @@ struct Graphics {
   static void CreateBulletAnimations(SpriteRenderable* renderables, int count);
   static void CreateBulletTrailAnimations(SpriteRenderable* renderables, int count);
   static void CreateRepelAnimations(SpriteRenderable* renderables, int count);
+  static void CreateFlagAnimations(SpriteRenderable* renderables, int count);
 
  private:
   Graphics() {}

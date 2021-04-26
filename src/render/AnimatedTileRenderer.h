@@ -26,7 +26,8 @@ struct AnimatedTileRenderer {
   void Update(float dt);
 
   // TODO: Pass in game flags to render
-  void Render(SpriteRenderer& renderer, Map& map, Camera& camera, const Vector2f& screen_dim);
+  void Render(SpriteRenderer& renderer, Map& map, Camera& camera, const Vector2f& screen_dim, struct GameFlag* flags,
+              size_t flag_count, u32 freq);
 };
 
 }  // namespace null
