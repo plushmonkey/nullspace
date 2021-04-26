@@ -6,8 +6,11 @@
 
 namespace null {
 
+struct Camera;
 struct Connection;
+struct InputState;
 struct PacketDispatcher;
+struct SpriteRenderer;
 
 struct PlayerManager {
   Connection& connection;
@@ -19,11 +22,14 @@ struct PlayerManager {
 
   PlayerManager(Connection& connection, PacketDispatcher& dispatcher);
 
-  void Update(float dt);
+  void Update(const InputState& input, float dt);
+  void Render(Camera& camera, SpriteRenderer& renderer, u32 self_freq);
 
   Player* GetSelf();
   Player* GetPlayerById(u16 id, size_t* index = nullptr);
   void SendPositionPacket();
+  void SimulatePlayer(Player& player, float dt);
+  void SimulateAxis(Player& player, float dt, int axis);
 
   void OnPlayerIdChange(u8* pkt, size_t size);
   void OnPlayerEnter(u8* pkt, size_t size);

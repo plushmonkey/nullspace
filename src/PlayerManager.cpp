@@ -4,12 +4,15 @@
 #include <cstdio>
 
 #include "Buffer.h"
+#include "InputState.h"
 #include "Tick.h"
 #include "net/Checksum.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
 #include "render/Animation.h"
+#include "render/Camera.h"
 #include "render/Graphics.h"
+#include "render/SpriteRenderer.h"
 
 namespace null {
 
@@ -70,14 +73,35 @@ PlayerManager::PlayerManager(Connection& connection, PacketDispatcher& dispatche
   dispatcher.Register(ProtocolS2C::DropFlag, OnFlagDropPkt, this);
 }
 
-void PlayerManager::Update(float dt) {
+void PlayerManager::Update(const InputState& input, float dt) {
   null::Tick current_tick = GetCurrentTick();
+  Player* self = GetPlayerById(player_id);
+
+  if (!self) return;
+
+  for (size_t i = 0; i < this->player_count; ++i) {
+    Player* player = this->players + i;
+
+    if (player->ship == 8) continue;
+
+    SimulatePlayer(*player, dt);
+
+    player->explode_animation.t += dt;
+    player->warp_animation.t += dt;
+
+    if (player->enter_delay > 0.0f) {
+      player->enter_delay -= dt;
+
+      if (!player->explode_animation.IsAnimating()) {
+        player->position = Vector2f(0, 0);
+        player->velocity = Vector2f(0, 0);
+        player->lerp_time = 0.0f;
+      }
+    }
+  }
 
   s32 position_delay = 100;
-
-  // TODO: varying delay based on movement
-  Player* player = GetPlayerById(player_id);
-  if (player && player->ship != 8) {
+  if (self && self->ship != 8) {
     position_delay = 10;
   }
 
@@ -87,6 +111,76 @@ void PlayerManager::Update(float dt) {
       TICK_DIFF(current_tick, last_position_tick) >= position_delay) {
     SendPositionPacket();
     last_position_tick = current_tick;
+  }
+}
+
+void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_freq) {
+  Player* self = GetPlayerById(player_id);
+
+  if (!self) return;
+
+  // Draw player ships
+  for (size_t i = 0; i < this->player_count; ++i) {
+    Player* player = this->players + i;
+
+    if (player->ship == 8) continue;
+    if (player->position == Vector2f(0, 0)) continue;
+
+    if (player->explode_animation.IsAnimating()) {
+      SpriteRenderable& renderable = player->explode_animation.GetFrame();
+      Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
+
+      renderer.Draw(camera, renderable, position, Layer::AfterShips);
+    } else if (player->enter_delay <= 0.0f) {
+      size_t index = player->ship * 40 + player->direction;
+
+      Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
+      Vector2f position = player->position.PixelRounded() - offset.PixelRounded();
+
+      renderer.Draw(camera, Graphics::ship_sprites[index], position, Layer::Ships);
+
+      if (player->warp_animation.IsAnimating()) {
+        SpriteRenderable& renderable = player->warp_animation.GetFrame();
+        Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
+
+        renderer.Draw(camera, renderable, position, Layer::AfterShips);
+      }
+    }
+  }
+
+  // Draw player names - This is done in separate loop to batch sprite sheet renderables
+  for (size_t i = 0; i < this->player_count; ++i) {
+    Player* player = this->players + i;
+
+    if (player->ship == 8) continue;
+    if (player->position == Vector2f(0, 0)) continue;
+
+    if (player->enter_delay <= 0.0f) {
+      size_t index = player->ship * 40 + player->direction;
+      Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
+
+      offset = offset.PixelRounded();
+
+      char display[48];
+
+      if (player->flags > 0) {
+        sprintf(display, "%s(%d:%d)[%d]", player->name, player->bounty, player->flags, player->ping * 10);
+      } else {
+        sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
+      }
+
+      TextColor color = TextColor::Blue;
+
+      if (player->frequency == self_freq) {
+        color = TextColor::Yellow;
+      } else if (player->flags > 0) {
+        color = TextColor::DarkRed;
+      }
+
+      Vector2f position = player->position.PixelRounded() + offset;
+
+      renderer.DrawText(camera, display, color, position, Layer::AfterShips);
+    }
   }
 }
 
@@ -209,12 +303,21 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
   u8 green_id = buffer.ReadU8();
   u16 killer_id = buffer.ReadU16();
   u16 killed_id = buffer.ReadU16();
+  u16 bounty = buffer.ReadU16();
+  u16 flag_transfer = buffer.ReadU16();
 
-  Player* player = GetPlayerById(killed_id);
-  if (player) {
+  Player* killed = GetPlayerById(killed_id);
+  Player* killer = GetPlayerById(killer_id);
+
+  if (killed) {
     // Hide the player until they send a new position packet
-    player->enter_delay = connection.settings.EnterDelay / 100.0f;
-    player->explode_animation.t = 0.0f;
+    killed->enter_delay = connection.settings.EnterDelay / 100.0f;
+    killed->explode_animation.t = 0.0f;
+    killed->flags = 0;
+  }
+
+  if (killer) {
+    killer->flags += flag_transfer;
   }
 }
 
@@ -335,8 +438,21 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position) {
     player.warp_animation.t = 0.0f;
   }
 
-  // TODO: Simulate through map
-  Vector2f projected_pos = position + player.velocity * (player.ping / 100.0f);
+  Vector2f previous_pos = player.position;
+
+  // Hard set the new position so we can simulate from it to catch up to where the player would be now after ping ticks
+  player.position = position;
+
+  // Simulate per tick because the simulation can be unstable with large dt
+  for (int i = 0; i < player.ping; ++i) {
+    SimulatePlayer(player, (1.0f / 100.0f));
+  }
+
+  Vector2f projected_pos = player.position;
+
+  // Set the player back to where they were before the simulation so they can be lerped to new position.
+  player.position = previous_pos;
+
   float abs_dx = abs(projected_pos.x - player.position.x);
   float abs_dy = abs(projected_pos.y - player.position.y);
 
@@ -346,7 +462,7 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position) {
     player.lerp_time = 0.0f;
   } else {
     player.lerp_time = 200.0f / 1000.0f;
-    player.lerp_velocity = (projected_pos - player.position) * (1.0f / player.lerp_time);
+    player.lerp_velocity = (projected_pos - player.position.PixelRounded()) * (1.0f / player.lerp_time);
   }
 }
 
@@ -371,6 +487,76 @@ void PlayerManager::OnFlagDrop(u8* pkt, size_t size) {
       player->flags--;
     }
   }
+}
+
+void PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
+  float bounce_factor = 16.0f / connection.settings.BounceFactor;
+  Map& map = connection.map;
+
+  int axis_flip = axis == 0 ? 1 : 0;
+
+  float radius = connection.settings.ShipSettings[player.ship].GetRadius();
+
+  float previous = player.position.values[axis];
+
+  player.position.values[axis] += player.velocity.values[axis] * dt;
+  float delta = player.velocity.values[axis] * dt;
+
+  if (player.lerp_time > 0.0f) {
+    float timestep = dt;
+    if (player.lerp_time < timestep) {
+      timestep = player.lerp_time;
+    }
+
+    player.position.values[axis] += player.lerp_velocity.values[axis] * timestep;
+    delta += player.lerp_velocity.values[axis] * timestep;
+  }
+
+  u16 check = (u16)(player.position.values[axis] + radius);
+
+  if (delta < 0) {
+    check = (u16)(player.position.values[axis] - radius);
+  }
+
+  s16 start = (s16)(player.position.values[axis_flip] - radius - 1);
+  s16 end = (s16)(player.position.values[axis_flip] + radius + 1);
+
+  Vector2f collider_min = player.position.PixelRounded() - Vector2f(radius, radius);
+  Vector2f collider_max = player.position.PixelRounded() + Vector2f(radius, radius);
+
+  bool collided = check < 0 || check > 1023;
+  for (s16 other = start; other < end && !collided; ++other) {
+    // TODO: Handle special tiles like warp here
+
+    if (axis == 0 && map.IsSolid(check, other)) {
+      if (BoxBoxIntersect(collider_min, collider_max, Vector2f(check, other), Vector2f(check + 1, other + 1))) {
+        collided = true;
+        break;
+      }
+    } else if (axis == 1 && map.IsSolid(other, check)) {
+      if (BoxBoxIntersect(collider_min, collider_max, Vector2f(other, check), Vector2f(other + 1, check + 1))) {
+        collided = true;
+        break;
+      }
+    }
+  }
+
+  if (collided) {
+    player.position.values[axis] = previous;
+    player.velocity.values[axis] *= -bounce_factor;
+    player.velocity.values[axis_flip] *= bounce_factor;
+
+    player.lerp_time = 0.0f;
+    player.lerp_velocity.values[axis] *= -bounce_factor;
+    player.lerp_velocity.values[axis_flip] *= bounce_factor;
+  }
+}
+
+void PlayerManager::SimulatePlayer(Player& player, float dt) {
+  SimulateAxis(player, dt, 0);
+  SimulateAxis(player, dt, 1);
+
+  player.lerp_time -= dt;
 }
 
 }  // namespace null

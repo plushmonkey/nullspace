@@ -174,6 +174,12 @@ inline bool BoxContainsPoint(const Vector2f& min, const Vector2f& max, const Vec
   return (point.x >= min.x && point.x <= max.x) && (point.y >= min.y && point.y <= max.y);
 }
 
+inline bool BoxBoxIntersect(const Vector2f& first_min, const Vector2f& first_max, const Vector2f& second_min,
+                            const Vector2f& second_max) {
+  return (first_max.x >= second_min.x && first_min.x < second_max.x && first_max.y >= second_min.y &&
+          first_min.y < second_max.y);
+}
+
 inline float BoxPointDistance(Vector2f box_pos, Vector2f box_extent, Vector2f p) {
   Vector2f bmin = box_pos;
   Vector2f bmax = box_pos + box_extent;

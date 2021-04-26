@@ -131,8 +131,9 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
   for (int i = 0; i < 10 && dist > 0.0f; ++i) {
     CastResult result = map.Cast(weapon.position, Normalize(weapon.velocity), dist);
 
+    weapon.position = result.position;
+
     if (!result.hit) {
-      weapon.position = result.position;
       break;
     }
 

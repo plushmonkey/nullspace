@@ -9,10 +9,6 @@
 
 namespace null {
 
-#define SIM_TEST 0
-
-void Simulate(Connection& connection, PlayerManager& player_manager, float dt);
-
 void OnCharacterPress(void* user, int codepoint, int mods) {
   Game* game = (Game*)user;
 
@@ -74,10 +70,8 @@ bool Game::Initialize(InputState& input) {
 }
 
 void Game::Update(const InputState& input, float dt) {
-  player_manager.Update(dt);
+  player_manager.Update(input, dt);
   weapon_manager.Update(dt);
-
-  Simulate(connection, player_manager, dt);
 
   Player* me = player_manager.GetSelf();
 
@@ -94,37 +88,6 @@ void Game::Update(const InputState& input, float dt) {
 
     if (me) {
       me->position = Vector2f(512, 512);
-    }
-  }
-
-  for (size_t i = 0; i < player_manager.player_count; ++i) {
-    Player* player = player_manager.players + i;
-
-    if (player->ship == 8) continue;
-
-    player->position += player->velocity * dt;
-
-    player->explode_animation.t += dt;
-    player->warp_animation.t += dt;
-
-    if (player->enter_delay > 0.0f) {
-      player->enter_delay -= dt;
-
-      if (!player->explode_animation.IsAnimating()) {
-        player->position = Vector2f(0, 0);
-        player->velocity = Vector2f(0, 0);
-        player->lerp_time = 0.0f;
-      }
-    }
-
-    if (player->lerp_time > 0.0f) {
-      float timestep = dt;
-      if (player->lerp_time < timestep) {
-        timestep = player->lerp_time;
-      }
-
-      player->position += player->lerp_velocity * timestep;
-      player->lerp_time -= timestep;
     }
   }
 
@@ -165,70 +128,9 @@ void Game::Render(float dt) {
     animation.Render(camera, sprite_renderer);
     weapon_manager.Render(camera, sprite_renderer);
 
-    // Draw player ships
-    for (size_t i = 0; i < player_manager.player_count; ++i) {
-      Player* player = player_manager.players + i;
+    u32 self_freq = me->ship < 8 ? me->frequency : specview.spectate_frequency;
 
-      if (player->ship == 8) continue;
-      if (player->position == Vector2f(0, 0)) continue;
-
-      if (player->explode_animation.IsAnimating()) {
-        SpriteRenderable& renderable = player->explode_animation.GetFrame();
-        Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
-
-        sprite_renderer.Draw(camera, renderable, position, Layer::AfterShips);
-      } else if (player->enter_delay <= 0.0f) {
-        size_t index = player->ship * 40 + player->direction;
-
-        Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
-        Vector2f position = player->position.PixelRounded() - offset.PixelRounded();
-
-        sprite_renderer.Draw(camera, Graphics::ship_sprites[index], position, Layer::Ships);
-
-        if (player->warp_animation.IsAnimating()) {
-          SpriteRenderable& renderable = player->warp_animation.GetFrame();
-          Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
-
-          sprite_renderer.Draw(camera, renderable, position, Layer::AfterShips);
-        }
-      }
-    }
-
-    // Draw player names - This is done in separate loop to batch sprite sheet renderables
-    for (size_t i = 0; i < player_manager.player_count; ++i) {
-      Player* player = player_manager.players + i;
-
-      if (player->ship == 8) continue;
-      if (player->position == Vector2f(0, 0)) continue;
-
-      if (player->enter_delay <= 0.0f) {
-        size_t index = player->ship * 40 + player->direction;
-        Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
-
-        offset = offset.PixelRounded();
-
-        char display[48];
-
-        if (player->flags > 0) {
-          sprintf(display, "%s(%d:%d)[%d]", player->name, player->bounty, player->flags, player->ping * 10);
-        } else {
-          sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
-        }
-
-        u32 team_freq = me->frequency;
-
-        if (me->ship == 8) {
-          team_freq = specview.spectate_frequency;
-        }
-
-        if (me) {
-          TextColor color = team_freq == player->frequency ? TextColor::Yellow : TextColor::Blue;
-          Vector2f position = player->position.PixelRounded() + offset;
-
-          sprite_renderer.DrawText(camera, display, color, position, Layer::AfterShips);
-        }
-      }
-    }
+    player_manager.Render(camera, sprite_renderer, self_freq);
 
     sprite_renderer.Render(camera);
 
@@ -351,13 +253,18 @@ void Game::RenderRadar(Player* me) {
         if (p.x >= min.x && p.x < max.x && p.y >= min.y && p.y < max.y) {
           size_t sprite_index = 34;
           bool render = true;
-
-          if (player->bounty > 100) {
-            sprite_index = 33;
-          }
+          Vector2f indicator_dim = player->flags > 0 ? Vector2f(3, 3) : Vector2f(2, 2);
 
           if (player->frequency == team_freq) {
             sprite_index = 29;
+          } else {
+            if (player->bounty > 100) {
+              sprite_index = 33;
+            }
+
+            if (player->flags > 0) {
+              sprite_index = 31;
+            }
           }
 
           bool is_me = player->id == specview.spectate_id || (player == me && me->ship != 8);
@@ -373,7 +280,7 @@ void Game::RenderRadar(Player* me) {
             Vector2f center_radar = position + half_extents;
             Vector2f start = center_radar + Vector2f(percent.x * half_extents.x, percent.y * half_extents.y);
 
-            renderable.dimensions = Vector2f(2, 2);
+            renderable.dimensions = indicator_dim;
 
             sprite_renderer.Draw(ui_camera, renderable, start, Layer::TopMost);
           }
@@ -451,62 +358,6 @@ void Game::RenderMenu() {
   }
 
   sprite_renderer.Render(ui_camera);
-}
-
-// Test fun code
-void Simulate(Connection& connection, PlayerManager& player_manager, float dt) {
-  static int last_request = 0;
-
-  if (connection.login_state != Connection::LoginState::Complete) return;
-
-  Player* player = player_manager.GetSelf();
-  if (!player) return;
-
-#if SIM_TEST
-  if (player->ship == 8 && TICK_DIFF(GetCurrentTick(), last_request) > 300) {
-    player->ship = 1;
-    player->position = Vector2f(512, 512);
-
-#pragma pack(push, 1)
-    struct {
-      u8 type;
-      u8 ship;
-    } request = {0x18, player->ship};
-#pragma pack(pop)
-
-    printf("Sending ship request packet\n");
-
-    connection.packet_sequencer.SendReliableMessage(connection, (u8*)&request, sizeof(request));
-    last_request = GetCurrentTick();
-    return;
-  }
-
-  // static Vector2f waypoints[] = {Vector2f(570, 465), Vector2f(420, 450), Vector2f(480, 585), Vector2f(585, 545)};
-  static Vector2f waypoints[] = {Vector2f(570, 455), Vector2f(455, 455), Vector2f(455, 570), Vector2f(570, 570)};
-  static size_t waypoint_index = 0;
-
-  Vector2f target = waypoints[waypoint_index];
-
-  player->velocity = Normalize(target - player->position) * 12.0f;
-  player->weapon.level = 1;
-  player->weapon.type = 2;
-
-  float rads = std::atan2(target.y - player->position.y, target.x - player->position.x);
-  float angle = rads * (180.0f / 3.14159f);
-  int rot = (int)std::round(angle / 9.0f) + 10;
-
-  if (rot < 0) {
-    rot += 40;
-  }
-
-  player->direction = rot;
-
-  if (target.DistanceSq(player->position) <= 2.0f * 2.0f) {
-    waypoint_index = (waypoint_index + 1) % NULLSPACE_ARRAY_SIZE(waypoints);
-  }
-#else
-    // player->position = Vector2f(512, 512);
-#endif
 }
 
 }  // namespace null
