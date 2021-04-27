@@ -167,6 +167,7 @@
     <ClCompile Include="src\FileRequester.cpp" />
     <ClCompile Include="src\LvzController.cpp" />
     <ClCompile Include="src\render\AnimatedTileRenderer.cpp" />
+    <ClCompile Include="src\render\BackgroundRenderer.cpp" />
     <ClCompile Include="src\render\Graphics.cpp" />
     <ClCompile Include="src\render\Image.cpp" />
     <ClCompile Include="src\net\Checksum.cpp" />
@@ -199,6 +200,7 @@
     <ClInclude Include="src\FileRequester.h" />
     <ClInclude Include="src\LvzController.h" />
     <ClInclude Include="src\render\AnimatedTileRenderer.h" />
+    <ClInclude Include="src\render\BackgroundRenderer.h" />
     <ClInclude Include="src\render\Graphics.h" />
     <ClInclude Include="src\render\Image.h" />
     <ClInclude Include="src\InputState.h" />

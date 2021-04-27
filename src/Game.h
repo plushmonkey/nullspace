@@ -12,6 +12,7 @@
 #include "net/PacketDispatcher.h"
 #include "render/AnimatedTileRenderer.h"
 #include "render/Animation.h"
+#include "render/BackgroundRenderer.h"
 #include "render/Camera.h"
 #include "render/SpriteRenderer.h"
 #include "render/TileRenderer.h"
@@ -40,6 +41,7 @@ struct Game {
   TileRenderer tile_renderer;
   AnimatedTileRenderer animated_tile_renderer;
   SpriteRenderer sprite_renderer;
+  BackgroundRenderer background_renderer;
   StatBox statbox;
   ChatController chat;
   SpectateView specview;

@@ -79,6 +79,11 @@ bool Game::Initialize(InputState& input) {
     return false;
   }
 
+  if (!background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
+    fprintf(stderr, "Failed to initialize background renderer.\n");
+    return false;
+  }
+
   input.SetCallback(OnCharacterPress, this);
 
   return true;
@@ -132,6 +137,7 @@ void Game::Render(float dt) {
   lvz.Render(ui_camera, camera);
 
   animation.Update(dt);
+  background_renderer.Render(camera, sprite_renderer, ui_camera.surface_dim);
   tile_renderer.Render(camera);
 
   Player* me = player_manager.GetSelf();
