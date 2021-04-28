@@ -74,10 +74,7 @@ bool Game::Initialize(InputState& input) {
     return false;
   }
 
-  if (!animated_tile_renderer.Initialize()) {
-    fprintf(stderr, "Failed to initialize animated tile renderer.\n");
-    return false;
-  }
+  animated_tile_renderer.Initialize();
 
   if (!background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
     fprintf(stderr, "Failed to initialize background renderer.\n");
@@ -90,6 +87,8 @@ bool Game::Initialize(InputState& input) {
 }
 
 void Game::Update(const InputState& input, float dt) {
+  connection.map.UpdateDoors(connection.settings);
+
   player_manager.Update(input, dt);
   weapon_manager.Update(dt);
 
@@ -105,6 +104,8 @@ void Game::Update(const InputState& input, float dt) {
                                    connection.settings.MapZoomFactor)) {
       fprintf(stderr, "Failed to create radar.\n");
     }
+
+    animated_tile_renderer.InitializeDoors(tile_renderer);
 
     if (me) {
       me->position = Vector2f(512, 512);

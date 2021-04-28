@@ -46,7 +46,7 @@ void main() {
   ivec2 fetchp = ivec2(varying_position);
   uint tile_id = texelFetch(tiledata, fetchp, 0).r;
 
-  if (tile_id == 0u || tile_id == 170u || tile_id == 172u || tile_id > 190u) {
+  if (tile_id == 0u || tile_id == 170u || tile_id == 172u || tile_id > 190u || (tile_id >= 162u && tile_id <= 169u)) {
     discard;
   }
 
@@ -54,7 +54,7 @@ void main() {
   vec2 uv = (varying_position - floor(varying_position));
 
   color = texture(tilemap, vec3(uv, tile_id - 1u));
-  if (color.r == 0 && color.g == 0 && color.b == 0) {
+  if (tile_id > 172u && color.r == 0 && color.g == 0 && color.b == 0) {
     discard;
   }
 }
@@ -170,6 +170,33 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
       glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, tile_id, 16, 16, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
     }
   }
+
+  glGenTextures(1, &door_texture);
+  glBindTexture(GL_TEXTURE_2D, door_texture);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+  int door_width = 16 * 8;
+  int door_height = 16;
+  u32* door_data = (u32*)temp_arena.Allocate(door_width * door_height * 4);
+
+  for (u32 y = 0; y < door_height; ++y) {
+    for (u32 x = 0; x < door_width; ++x) {
+      size_t tilemap_x = x + 9 * 16;
+      size_t tilemap_y = y + 8 * 16;
+      size_t tilemap_index = tilemap_y * 16 * 19 + tilemap_x;
+      size_t door_index = y * door_width + x;
+
+      door_data[door_index] = tilemap[tilemap_index];
+    }
+  }
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, door_width, door_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, door_data);
 
   ImageFree(tilemap);
 

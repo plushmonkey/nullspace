@@ -369,12 +369,21 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         ArenaSettings* settings = (ArenaSettings*)(pkt);
 
         this->settings = *settings;
+
+        if (settings->DoorMode >= 0) {
+          // Force update
+          map.last_seed_tick = GetCurrentTick() - settings->DoorDelay;
+          map.UpdateDoors(*settings);
+        }
       } break;
       case ProtocolS2C::Security: {
         security.prize_seed = buffer.ReadU32();
         security.door_seed = buffer.ReadU32();
         security.timestamp = buffer.ReadU32();
         security.checksum_key = buffer.ReadU32();
+
+        map.door_rng.Seed(security.door_seed);
+        map.last_seed_tick = security.timestamp - time_diff;
 
         if (security.checksum_key && map.checksum) {
           SendSecurityPacket();
@@ -441,6 +450,9 @@ void Connection::OnDownloadComplete(struct FileRequest* request, u8* data) {
     fprintf(stderr, "Failed to load map %s.\n", request->filename);
     return;
   }
+
+  map.door_rng.Seed(security.door_seed);
+  map.last_seed_tick = security.timestamp - time_diff;
 
   if (security.checksum_key) {
     SendSecurityPacket();

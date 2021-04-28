@@ -14,6 +14,7 @@ struct MemoryArena;
 struct TileRenderer {
   ShaderProgram shader;
 
+  GLuint door_texture = -1;
   GLuint tilemap_texture = -1;
   GLuint tiledata_texture = -1;
 
@@ -38,7 +39,8 @@ struct TileRenderer {
   bool CreateRadar(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim, u16 mapzoom);
 
  private:
-  void RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions, SpriteRenderable& renderable, GLuint* texture, GLint filter);
+  void RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions, SpriteRenderable& renderable, GLuint* texture,
+                   GLint filter);
 };
 
 }  // namespace null

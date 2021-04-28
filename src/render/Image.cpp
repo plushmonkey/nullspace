@@ -134,6 +134,8 @@ unsigned char* LoadBitmap(FILE* file, int* width, int* height) {
 
   u8* data = new u8[size];
 
+  fread(data, 1, size, file);
+
   unsigned char* result = LoadBitmap(data, size, width, height);
 
   delete[] data;

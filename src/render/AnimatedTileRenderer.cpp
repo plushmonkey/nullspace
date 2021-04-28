@@ -6,12 +6,13 @@
 #include "Camera.h"
 #include "Graphics.h"
 #include "SpriteRenderer.h"
+#include "TileRenderer.h"
 
 namespace null {
 
 inline void Animate(Animation& anim, float dt) {
   anim.t += dt;
-  if (anim.t >= anim.sprite->duration) {
+  if (anim.sprite && anim.t >= anim.sprite->duration) {
     anim.t -= anim.sprite->duration;
   }
 }
@@ -26,6 +27,8 @@ void AnimatedTileRenderer::Update(float dt) {
   Animate(anim_asteroid_large, dt);
   Animate(anim_space_station, dt);
   Animate(anim_wormhole, dt);
+  Animate(anim_doors[0], dt);
+  Animate(anim_doors[1], dt);
 }
 
 void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& camera, const Vector2f& screen_dim,
@@ -47,6 +50,16 @@ void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& ca
     renderer.Draw(camera, *renderable, flag->position, Layer::AfterTiles);
   }
 
+  for (size_t i = 0; i < map.door_count; ++i) {
+    Tile* door = map.doors + i;
+    int index = (door->id - 162) / 4;
+
+    if (map.GetTileId(door->x, door->y) == 170) continue;
+
+    SpriteRenderable& renderable = anim_doors[index].GetFrame();
+    renderer.Draw(camera, renderable, Vector2f((float)door->x, (float)door->y), Layer::Tiles);
+  }
+
   for (s32 y = (s32)min.y - 5; y < (s32)max.y + 5; ++y) {
     if (y < 0 || y > 1023) continue;
 
@@ -55,11 +68,7 @@ void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& ca
 
       u32 id = map.GetTileId((u16)x, (u16)y);
 
-      if (id == 170) {
-        // TODO: Determine if flag is owned
-        // SpriteRenderable& renderable = anim_flag.GetFrame();
-        // renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::AfterTiles);
-      } else if (id == 172) {
+      if (id == 172) {
         // TODO: Determine if goal is team
         SpriteRenderable& renderable = anim_goal.GetFrame();
         renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Tiles);
@@ -83,7 +92,7 @@ void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& ca
   }
 }
 
-bool AnimatedTileRenderer::Initialize() {
+void AnimatedTileRenderer::Initialize() {
   anim_flag.sprite = &Graphics::anim_flag;
   anim_flag.t = 0.0f;
 
@@ -111,7 +120,33 @@ bool AnimatedTileRenderer::Initialize() {
   anim_wormhole.sprite = &Graphics::anim_wormhole;
   anim_wormhole.t = 0.0f;
 
-  return true;
+  anim_doors[0].sprite = nullptr;
+  anim_doors[1].sprite = nullptr;
+}
+
+void AnimatedTileRenderer::InitializeDoors(TileRenderer& tile_renderer) {
+  for (size_t i = 0; i < 8; ++i) {
+    float uv_x_start = i / 8.0f;
+    float uv_x_end = (i + 1) / 8.0f;
+
+    door_renderables[i].texture = tile_renderer.door_texture;
+    door_renderables[i].dimensions = Vector2f(16.0f, 16.0f);
+    door_renderables[i].uvs[0] = Vector2f(uv_x_start, 0.0f);
+    door_renderables[i].uvs[1] = Vector2f(uv_x_end, 0.0f);
+    door_renderables[i].uvs[2] = Vector2f(uv_x_start, 1.0f);
+    door_renderables[i].uvs[3] = Vector2f(uv_x_end, 1.0f);
+  }
+
+  for (size_t i = 0; i < 2; ++i) {
+    door_sprites[i].duration = 0.4f;
+    door_sprites[i].frames = door_renderables + i * 4;
+    door_sprites[i].frame_count = 4;
+  }
+
+  anim_doors[0].t = 0.0f;
+  anim_doors[0].sprite = door_sprites + 0;
+  anim_doors[1].t = 0.0f;
+  anim_doors[1].sprite = door_sprites + 1;
 }
 
 }  // namespace null

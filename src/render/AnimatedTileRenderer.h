@@ -8,6 +8,7 @@ namespace null {
 struct Camera;
 struct Map;
 struct SpriteRenderer;
+struct TileRenderer;
 struct Vector2f;
 
 struct AnimatedTileRenderer {
@@ -21,8 +22,13 @@ struct AnimatedTileRenderer {
   Animation anim_asteroid_large;
   Animation anim_space_station;
   Animation anim_wormhole;
+  Animation anim_doors[2];
 
-  bool Initialize();
+  SpriteRenderable door_renderables[8];
+  AnimatedSprite door_sprites[2];
+
+  void Initialize();
+  void InitializeDoors(TileRenderer& tile_renderer);
   void Update(float dt);
 
   // TODO: Pass in game flags to render
