@@ -274,7 +274,6 @@ struct nullspace {
       glfwSwapBuffers(window);
 
       if (glfwWindowShouldClose(window)) {
-        glfwTerminate();
         break;
       }
 
@@ -283,6 +282,8 @@ struct nullspace {
 
       trans_arena.Reset();
     }
+
+    glfwTerminate();
 
     buffer.Reset();
     buffer.WriteU8(0x00);  // Core
@@ -365,7 +366,12 @@ struct nullspace {
 
     glViewport(0, 0, width, height);
 
-    glfwSwapInterval(kVerticalSync);
+    // Don't enable vsync with borderless fullscreen because glfw does dwm flushes instead.
+    // There seems to be a bug with glfw that causes screen tearing if this is set.
+    if (!(kVerticalSync && kWindowType == WindowType::BorderlessFullscreen)) {
+      glfwSwapInterval(kVerticalSync);
+    }
+
     glfwSetWindowUserPointer(window, &window_state);
     glfwSetKeyCallback(window, OnKeyboardChange);
     glfwSetCharCallback(window, OnCharacter);

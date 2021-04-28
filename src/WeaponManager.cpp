@@ -164,7 +164,15 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
     Vector2f r(radius, radius);
     Vector2f& pos = player->position;
 
-    if (BoxContainsPoint(pos - r, pos + r, weapon.position)) {
+    if (weapon.data.type == (u16)WeaponType::ProximityBomb) {
+      float prox = (float)(connection.settings.ProximityDistance + weapon.data.level);
+      Vector2f p(prox, prox);
+
+      // TODO: Is this box-box or box-circle intersection?
+      if (BoxBoxIntersect(pos - r, pos + r, weapon.position - p, weapon.position + p)) {
+        return WeaponSimulateResult::PlayerExplosion;
+      }
+    } else if (BoxContainsPoint(pos - r, pos + r, weapon.position)) {
       return WeaponSimulateResult::PlayerExplosion;
     }
   }
