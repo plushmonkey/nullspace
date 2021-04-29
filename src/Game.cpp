@@ -402,7 +402,7 @@ void Game::OnFlagPosition(u8* pkt, size_t size) {
 
   assert(id < NULLSPACE_ARRAY_SIZE(flags));
 
-  if (id + 1 > flag_count) {
+  if (id + 1 > (u16)flag_count) {
     flag_count = id + 1;
   }
 

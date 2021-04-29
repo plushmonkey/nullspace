@@ -153,7 +153,7 @@ void Map::UpdateDoors(const ArenaSettings& settings) {
 
       seed = table[6] + table[5] + table[4] + table[3] + table[2] + table[1] + table[0];
     } else if (settings.DoorMode >= 0) {
-      seed = settings.DoorMode;
+      seed = (u8)settings.DoorMode;
     }
 
     SeedDoors(seed);

@@ -181,12 +181,12 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-  int door_width = 16 * 8;
-  int door_height = 16;
+  u32 door_width = 16 * 8;
+  u32 door_height = 16;
   u32* door_data = (u32*)temp_arena.Allocate(door_width * door_height * 4);
 
-  for (u32 y = 0; y < door_height; ++y) {
-    for (u32 x = 0; x < door_width; ++x) {
+  for (size_t y = 0; y < door_height; ++y) {
+    for (size_t x = 0; x < door_width; ++x) {
       size_t tilemap_x = x + 9 * 16;
       size_t tilemap_y = y + 8 * 16;
       size_t tilemap_index = tilemap_y * 16 * 19 + tilemap_x;
