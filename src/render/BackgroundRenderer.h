@@ -19,6 +19,8 @@ struct BackgroundRenderer {
   SpriteRenderable* renderables = nullptr;
 
   bool Initialize(MemoryArena& perm_arena, MemoryArena& temp_arena, const Vector2f& surface_dim);
+  void Cleanup();
+
   void Render(Camera& camera, SpriteRenderer& renderer, const Vector2f& surface_dim);
 
 private:

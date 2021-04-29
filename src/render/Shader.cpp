@@ -67,4 +67,9 @@ bool ShaderProgram::Initialize(const char* vertex_code, const char* fragment_cod
 
 void ShaderProgram::Use() { glUseProgram(program); }
 
+void ShaderProgram::Cleanup() {
+  glDeleteProgram(program);
+  program = -1;
+}
+
 }  // namespace null

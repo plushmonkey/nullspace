@@ -346,4 +346,16 @@ void TileRenderer::RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions
   renderable.uvs[3] = Vector2f(1, 1);
 }
 
+void TileRenderer::Cleanup() {
+  shader.Cleanup();
+  glDeleteTextures(1, &door_texture);
+  glDeleteTextures(1, &tilemap_texture);
+  glDeleteTextures(1, &tiledata_texture);
+  glDeleteTextures(1, &radar_texture);
+  glDeleteTextures(1, &full_radar_texture);
+
+  glDeleteVertexArrays(1, &vao);
+  glDeleteBuffers(1, &vbo);
+}
+
 }  // namespace null

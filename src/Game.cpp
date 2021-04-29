@@ -18,6 +18,10 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
   game->specview.OnCharacterPress(codepoint, mods);
 
   if (codepoint == NULLSPACE_KEY_ESCAPE) {
+    if (game->connection.login_state <= Connection::LoginState::MapDownload) {
+      game->menu_quit = true;
+    }
+
     game->menu_open = !game->menu_open;
     game->chat.display_full = game->menu_open;
   } else if (game->menu_open) {
@@ -86,7 +90,7 @@ bool Game::Initialize(InputState& input) {
   return true;
 }
 
-void Game::Update(const InputState& input, float dt) {
+bool Game::Update(const InputState& input, float dt) {
   connection.map.UpdateDoors(connection.settings);
 
   player_manager.Update(input, dt);
@@ -128,6 +132,8 @@ void Game::Update(const InputState& input, float dt) {
   render_radar = input.IsDown(InputAction::DisplayMap);
   animated_tile_renderer.Update(dt);
   lvz.Update(dt);
+
+  return !menu_quit;
 }
 
 void Game::Render(float dt) {
@@ -138,7 +144,10 @@ void Game::Render(float dt) {
   lvz.Render(ui_camera, camera);
 
   animation.Update(dt);
-  background_renderer.Render(camera, sprite_renderer, ui_camera.surface_dim);
+  // TODO: Moving stars during load
+  if (connection.login_state == Connection::LoginState::Complete) {
+    background_renderer.Render(camera, sprite_renderer, ui_camera.surface_dim);
+  }
   tile_renderer.Render(camera);
 
   Player* me = player_manager.GetSelf();
@@ -329,6 +338,7 @@ void Game::HandleMenuKey(int codepoint, int mods) {
 
       connection.Send((u8*)&pkt, sizeof(pkt));
       connection.Disconnect();
+      menu_quit = true;
     } break;
     default: {
       menu_open = false;
@@ -410,6 +420,12 @@ void Game::OnFlagPosition(u8* pkt, size_t size) {
   flags[id].owner = owner;
   flags[id].position = Vector2f((float)x, (float)y);
   flags[id].dropped = true;
+}
+
+void Game::Cleanup() {
+  background_renderer.Cleanup();
+  sprite_renderer.Cleanup();
+  tile_renderer.Cleanup();
 }
 
 }  // namespace null

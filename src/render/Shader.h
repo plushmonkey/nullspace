@@ -9,6 +9,8 @@ struct ShaderProgram {
   bool Initialize(const char* vertex_code, const char* fragment_code);
   void Use();
 
+  void Cleanup();
+
   GLuint program;
 };
 

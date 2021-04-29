@@ -316,4 +316,14 @@ void SpriteRenderer::Render(Camera& camera) {
   texture_push_buffer.Reset();
 }
 
+void SpriteRenderer::Cleanup() {
+  shader.Cleanup();
+  glDeleteTextures((GLsizei)texture_count, textures);
+  glDeleteVertexArrays(1, &vao);
+  glDeleteBuffers(1, &vbo);
+
+  renderable_count = 0;
+  texture_count = 0;
+}
+
 }  // namespace null

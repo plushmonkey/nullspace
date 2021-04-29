@@ -58,6 +58,8 @@ struct SpriteRenderer {
                 TextAlignment alignment = TextAlignment::Left);
 
   void Render(Camera& camera);
+
+  void Cleanup();
 };
 
 }  // namespace null

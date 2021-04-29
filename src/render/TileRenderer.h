@@ -38,6 +38,8 @@ struct TileRenderer {
   bool CreateMapBuffer(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim);
   bool CreateRadar(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim, u16 mapzoom);
 
+  void Cleanup();
+
  private:
   void RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions, SpriteRenderable& renderable, GLuint* texture,
                    GLint filter);

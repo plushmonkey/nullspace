@@ -49,6 +49,7 @@ struct Game {
   float fps;
   bool render_radar = false;
   bool menu_open = false;
+  bool menu_quit = false;
 
   size_t flag_count = 0;
   GameFlag flags[256];
@@ -56,7 +57,9 @@ struct Game {
   Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height);
 
   bool Initialize(InputState& input);
-  void Update(const InputState& input, float dt);
+  void Cleanup();
+
+  bool Update(const InputState& input, float dt);
 
   void Render(float dt);
   void RenderRadar(Player* player);
