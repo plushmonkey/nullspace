@@ -4,6 +4,15 @@ project(nullspace VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 
+set(IMGUI_SOURCES
+  lib/imgui/imgui.cpp
+  lib/imgui/imgui_demo.cpp
+  lib/imgui/imgui_draw.cpp
+  lib/imgui/imgui_tables.cpp
+  lib/imgui/imgui_widgets.cpp
+  lib/imgui/backends/imgui_impl_glfw.cpp
+  lib/imgui/backends/imgui_impl_opengl3.cpp)
+  
 if(WIN32)
 add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_GLFW_WIN32 -D_MBCS -DNDEBUG)
 set(GLFW_SOURCES
@@ -31,11 +40,13 @@ include(GNUInstallDirs)
 file(GLOB_RECURSE SOURCES src/*.cpp)
 list(APPEND SOURCES lib/glad/src/glad.cpp)
 list(APPEND SOURCES ${GLFW_SOURCES})
+list(APPEND SOURCES ${IMGUI_SOURCES})
 
 add_executable(nullspace ${SOURCES})
 
 target_include_directories(nullspace PRIVATE
                            lib
+                           lib/imgui
                            lib/glad/include
                            lib/glfw/include)
                            
