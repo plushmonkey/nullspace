@@ -183,6 +183,8 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
 
   u32 door_width = 16 * 8;
   u32 door_height = 16;
+
+  ArenaSnapshot snapshot = temp_arena.GetSnapshot();
   u32* door_data = (u32*)temp_arena.Allocate(door_width * door_height * 4);
 
   for (size_t y = 0; y < door_height; ++y) {
@@ -198,6 +200,7 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
 
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, door_width, door_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, door_data);
 
+  temp_arena.Revert(snapshot);
   ImageFree(tilemap);
 
   // Setup tile id data
@@ -222,6 +225,7 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
   // Store entire map tile id data on gpu
   glTexImage2D(GL_TEXTURE_2D, 0, GL_R32UI, 1024, 1024, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, tiledata);
 
+  temp_arena.Revert(snapshot);
   return true;
 }
 
@@ -273,6 +277,7 @@ void TileRenderer::RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
+  ArenaSnapshot snapshot = temp_arena.GetSnapshot();
   u32* data = (u32*)temp_arena.Allocate(dimensions * dimensions * sizeof(u32));
 
   if (dimensions < 1024) {
@@ -332,6 +337,8 @@ void TileRenderer::RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions
   }
 
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, dimensions, dimensions, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+  temp_arena.Revert(snapshot);
 
   if (filter != GL_NEAREST && filter != GL_LINEAR) {
     glGenerateMipmap(GL_TEXTURE_2D);

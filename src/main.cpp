@@ -98,6 +98,8 @@ struct nullspace {
   char name[20] = {0};
   char password[256] = {0};
 
+  size_t selected_zone_index = 0;
+
   nullspace() : perm_arena(nullptr, 0), trans_arena(nullptr, 0) {}
 
   bool Initialize() {
@@ -181,25 +183,20 @@ struct nullspace {
   }
 
   bool HandleMainMenu() {
-    static size_t selected_index = 0;
-
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
     if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter))) {
-      JoinZone(selected_index);
+      JoinZone(selected_zone_index);
     }
 
-    ImGui::Begin("Debug");
-    {
-      //
+    if (ImGui::Begin("Debug")) {
       ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+      ImGui::End();
     }
-    ImGui::End();
 
-    ImGui::Begin("Profile", 0, ImGuiWindowFlags_NoCollapse);
-    {
+    if (ImGui::Begin("Profile", 0, ImGuiWindowFlags_NoCollapse)) {
       ImGui::Text("Name");
       ImGui::PushItemWidth(-1);
       ImGui::InputText("##ProfileName", name, NULLSPACE_ARRAY_SIZE(name));
@@ -209,34 +206,34 @@ struct nullspace {
       ImGui::PushItemWidth(-1);
       ImGui::InputText("##ProfilePassword", password, NULLSPACE_ARRAY_SIZE(password), ImGuiInputTextFlags_Password);
       ImGui::PopItemWidth();
+      ImGui::End();
     }
-    ImGui::End();
 
-    ImGui::Begin("Zones", 0, ImGuiWindowFlags_NoCollapse);
-    {
+    if (ImGui::Begin("Zones", 0, ImGuiWindowFlags_NoCollapse)) {
       ImGui::Text("Players Ping Zone Name");
       ImGui::Separator();
-      ImGui::BeginListBox("##ZoneList", ImVec2(-FLT_MIN, 0.0f));
 
-      for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(kServers); ++i) {
-        bool selected = selected_index == i;
-        char output[1024];
+      if (ImGui::BeginListBox("##ZoneList", ImVec2(-FLT_MIN, 0.0f))) {
+        for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(kServers); ++i) {
+          bool selected = selected_zone_index == i;
+          char output[1024];
 
-        // TODO: Get ping and player count
-        u32 ping = 0;
-        u32 player_count = 0;
+          // TODO: Get ping and player count
+          u32 ping = 0;
+          u32 player_count = 0;
 
-        sprintf(output, "%6d %5d %s", ping, player_count, kServers[i].name);
-        if (ImGui::Selectable(output, &selected, ImGuiSelectableFlags_AllowDoubleClick)) {
-          selected_index = i;
+          sprintf(output, "%6d %5d %s", ping, player_count, kServers[i].name);
+          if (ImGui::Selectable(output, &selected, ImGuiSelectableFlags_AllowDoubleClick)) {
+            selected_zone_index = i;
 
-          if (ImGui::IsMouseDoubleClicked(0)) {
-            JoinZone(selected_index);
+            if (ImGui::IsMouseDoubleClicked(0)) {
+              JoinZone(selected_zone_index);
+            }
           }
         }
-      }
 
-      ImGui::EndListBox();
+        ImGui::EndListBox();
+      }
 
       float width = ImGui::GetWindowWidth();
       float button_width = 60.0f;
@@ -247,7 +244,7 @@ struct nullspace {
       ImGui::Text("");
       ImGui::SetCursorPosX(center - button_width - 5.0f);
       if (ImGui::Button("Play", ImVec2(button_width, 0.0f))) {
-        JoinZone(selected_index);
+        JoinZone(selected_zone_index);
       }
 
       ImGui::SameLine();
@@ -256,9 +253,8 @@ struct nullspace {
       if (ImGui::Button("Quit", ImVec2(button_width, 0.0f))) {
         return false;
       }
+      ImGui::End();
     }
-
-    ImGui::End();
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -327,8 +323,6 @@ struct nullspace {
       printf("Disconnected from server.\n");
     }
   }
-
-  GLFWwindow* CreateServerSelectWindow(int& width, int& height) { GLFWwindow* window = nullptr; }
 
   GLFWwindow* CreateGameWindow(int& width, int& height) {
     GLFWwindow* window = nullptr;
