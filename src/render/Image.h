@@ -1,6 +1,8 @@
 #ifndef NULLSPACE_RENDER_IMAGE_H_
 #define NULLSPACE_RENDER_IMAGE_H_
 
+#include <cstddef>
+
 namespace null {
 
 // Image loading function that typically passes to stb_image.

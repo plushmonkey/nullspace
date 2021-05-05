@@ -46,8 +46,6 @@ inline bool FileExists(MemoryArena& temp_arena, const char* filename, u32 checks
 
   u32 crc = crc32(file_data, file_size);
 
-  fclose(file);
-
   return crc == checksum;
 }
 

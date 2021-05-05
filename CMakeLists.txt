@@ -32,7 +32,7 @@ set(GLFW_SOURCES
   lib/glfw/src/win32_window.cpp
   lib/glfw/src/window.cpp)
 elseif(UNIX)
-add_definitions(-DNDEBUG)
+add_definitions(-DNDEBUG -DIMGUI_IMPL_OPENGL_LOADER_GLAD)
 endif()
 
 include(GNUInstallDirs)

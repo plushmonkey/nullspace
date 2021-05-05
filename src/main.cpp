@@ -76,8 +76,8 @@ const char* kServerName = kServers[kServerIndex].name;
 const char* kServerIp = kServers[kServerIndex].server;
 u16 kServerPort = kServers[kServerIndex].port;
 
-void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_action, int mods);
-void OnCharacter(GLFWwindow* window, unsigned int codepoint);
+static void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_action, int mods);
+static void OnCharacter(GLFWwindow* window, unsigned int codepoint);
 
 enum class GameScreen { MainMenu, Playing };
 
