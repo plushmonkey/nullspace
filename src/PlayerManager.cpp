@@ -7,6 +7,7 @@
 #include "Buffer.h"
 #include "InputState.h"
 #include "Tick.h"
+#include "WeaponManager.h"
 #include "net/Checksum.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
@@ -100,9 +101,17 @@ void PlayerManager::Update(float dt) {
       player->enter_delay -= dt;
 
       if (!player->explode_animation.IsAnimating()) {
-        player->position = Vector2f(0, 0);
+        if (player != self) {
+          player->position = Vector2f(0, 0);
+          player->lerp_time = 0.0f;
+        }
+
         player->velocity = Vector2f(0, 0);
-        player->lerp_time = 0.0f;
+      }
+
+      if (player == self && player->enter_delay <= 0.0f) {
+        Spawn();
+        player->warp_animation.t = 0.0f;
       }
     }
   }
@@ -153,6 +162,10 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
 
         renderer.Draw(camera, renderable, position, Layer::AfterShips);
       }
+    } else if (player == self && player->enter_delay > 0 && !player->explode_animation.IsAnimating()) {
+      char output[256];
+      sprintf(output, "%.1f", player->enter_delay);
+      renderer.DrawText(camera, output, TextColor::DarkRed, camera.position, Layer::TopMost, TextAlignment::Center);
     }
   }
 
@@ -193,6 +206,55 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
   }
 }
 
+void PlayerManager::OnWeaponHit(Weapon& weapon) {
+  WeaponType type = (WeaponType)weapon.data.type;
+  Player* self = GetSelf();
+
+  if (!self || self->enter_delay > 0) return;
+
+  int damage = 0;
+  switch (type) {
+    case WeaponType::Bullet:
+    case WeaponType::BouncingBullet: {
+      // if (connection.settings.ExactDamage) {
+      if (1) {
+        damage = (connection.settings.BulletDamageLevel / 1000) +
+                 (connection.settings.BulletDamageUpgrade / 1000) * weapon.data.level;
+      } else {
+        // TODO: random
+      }
+    } break;
+    case WeaponType::Thor:
+    case WeaponType::Bomb:
+    case WeaponType::ProximityBomb: {
+      // TODO: Real calculation
+      damage = connection.settings.BombDamageLevel / 1000;
+      if (weapon.flags & WEAPON_FLAG_EMP) {
+        damage = (int)(damage * (connection.settings.EBombDamagePercent / 1000.0f));
+      }
+    } break;
+    default: {
+    } break;
+  }
+
+  if (self->energy < damage) {
+#pragma pack(push, 1)
+    struct {
+      u8 type;
+      u16 killer_pid;
+      u16 bounty;
+    } death_pkt = {0x05, weapon.player_id, self->bounty};
+#pragma pack(pop)
+
+    connection.packet_sequencer.SendReliableMessage(connection, (u8*)&death_pkt, sizeof(death_pkt));
+    self->enter_delay = (connection.settings.EnterDelay / 100.0f) + self->explode_animation.sprite->duration;
+    self->explode_animation.t = 0.0f;
+    self->energy = 0;
+  } else {
+    self->energy -= damage;
+  }
+}
+
 void PlayerManager::SendPositionPacket() {
   u8 data[kMaxPacketSize];
   NetworkBuffer buffer(data, kMaxPacketSize);
@@ -208,7 +270,7 @@ void PlayerManager::SendPositionPacket() {
   u16 vel_y = (u16)(player->velocity.y * 16.0f * 10.0f);
 
   u16 weapon = *(u16*)&player->weapon;
-  u16 energy = connection.settings.ShipSettings[player->ship].MaximumEnergy;
+  u16 energy = (u16)player->energy;
   s32 time_diff = connection.time_diff;
 
   u8 direction = (u8)(player->orientation * 40.0f);
@@ -326,7 +388,7 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
 
   if (killed) {
     // Hide the player until they send a new position packet
-    killed->enter_delay = connection.settings.EnterDelay / 100.0f;
+    killed->enter_delay = (connection.settings.EnterDelay / 100.0f) + killed->explode_animation.sprite->duration;
     killed->explode_animation.t = 0.0f;
     killed->flags = 0;
   }
@@ -334,6 +396,42 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
   if (killer) {
     killer->flags += flag_transfer;
   }
+}
+
+void PlayerManager::Spawn() {
+  Player* player = GetSelf();
+  if (!player) return;
+
+  u8 ship = player->ship;
+
+  // TODO: read correct frequency
+  float x_center = abs((float)connection.settings.SpawnSettings[0].X);
+  float y_center = abs((float)connection.settings.SpawnSettings[0].Y);
+  int radius = connection.settings.SpawnSettings[0].Radius;
+
+  // TODO: Switch to initial once status is implemented
+  player->energy = connection.settings.ShipSettings[player->ship].MaximumEnergy;
+
+  if (radius == 0) {
+    player->position = Vector2f(x_center, y_center);
+    player->bounty = connection.settings.ShipSettings[ship].InitialBounty;
+  } else {
+    // Try 100 times to spawn in a random spot. TODO: Improve this to find open space better
+    for (int i = 0; i < 100; ++i) {
+      float x_offset = (float)((rand() % (radius * 2)) - radius);
+      float y_offset = (float)((rand() % (radius * 2)) - radius);
+
+      Vector2f spawn(x_center + x_offset, y_center + y_offset);
+
+      if (!connection.map.IsSolid((u16)spawn.x, (u16)spawn.y) || i == 99) {
+        player->position = spawn;
+        player->bounty = connection.settings.ShipSettings[ship].InitialBounty;
+        break;
+      }
+    }
+  }
+
+  SendPositionPacket();
 }
 
 void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
@@ -360,29 +458,7 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
     player->flags = 0;
 
     if (pid == player_id) {
-      // TODO: read correct frequency
-      float x_center = abs((float)connection.settings.SpawnSettings[0].X);
-      float y_center = abs((float)connection.settings.SpawnSettings[0].Y);
-      int radius = connection.settings.SpawnSettings[0].Radius;
-
-      if (radius == 0) {
-        player->position = Vector2f(x_center, y_center);
-        player->bounty = connection.settings.ShipSettings[ship].InitialBounty;
-      } else {
-        // Try 100 times to spawn in a random spot. TODO: Improve this to find open space better
-        for (int i = 0; i < 100; ++i) {
-          float x_offset = (float)((rand() % (radius * 2)) - radius);
-          float y_offset = (float)((rand() % (radius * 2)) - radius);
-
-          Vector2f spawn(x_center + x_offset, y_center + y_offset);
-
-          if (!connection.map.IsSolid((u16)spawn.x, (u16)spawn.y) || i == 99) {
-            player->position = spawn;
-            player->bounty = connection.settings.ShipSettings[ship].InitialBounty;
-            break;
-          }
-        }
-      }
+      Spawn();
     }
   }
 }

@@ -17,6 +17,7 @@ struct Graphics {
 
   static SpriteRenderable* text_sprites;
   static SpriteRenderable* textf_sprites;
+  static SpriteRenderable* energyfont_sprites;
 
   static SpriteRenderable* ship_sprites;
   static SpriteRenderable* spectate_sprites;

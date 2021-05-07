@@ -19,6 +19,70 @@ constexpr u32 namelen = 10;
 constexpr float kFontWidth = 8.0f;
 constexpr float kFontHeight = 12.0f;
 
+struct ChatSpan {
+  const char* begin;
+  const char* end;
+};
+
+void WrapChat(const char* mesg, s32 linesize, ChatSpan* lines, size_t* linecount) {
+  // Trim front
+  while (*mesg && *mesg == ' ') ++mesg;
+
+  s32 size = (s32)strlen(mesg);
+
+  if (size < linesize) {
+    lines[0].begin = mesg;
+    lines[0].end = mesg + size;
+    *linecount = 1;
+    return;
+  }
+
+  s32 last_end = 0;
+  for (int count = 1; count <= 16; ++count) {
+    s32 end = last_end + linesize;
+
+    if (end >= size) {
+      end = last_end + size;
+      lines[count - 1].begin = mesg + last_end;
+      lines[count - 1].end = mesg + end;
+      *linecount = count;
+      break;
+    }
+
+    if (mesg[end] == ' ') {
+      // Go backwards to trim off last space
+      for (; end >= 0; --end) {
+        if (mesg[end] != ' ') {
+          ++end;
+          break;
+        }
+      }
+    } else {
+      for (; end >= 0; --end) {
+        // Go backwards looking for a space
+        if (mesg[end] == ' ') {
+          break;
+        }
+      }
+    }
+
+    if (end <= last_end) {
+      end = last_end + linesize;
+    }
+
+    lines[count - 1].begin = mesg + last_end;
+    lines[count - 1].end = mesg + end;
+
+    last_end = end;
+    *linecount = count;
+
+    // Trim again for next line
+    while (last_end < size && mesg[last_end] == ' ') {
+      ++last_end;
+    }
+  }
+}
+
 static void OnChatPacketRaw(void* user, u8* packet, size_t size) {
   ChatController* controller = (ChatController*)user;
 
@@ -45,6 +109,11 @@ void ChatController::SendInput() {
   u16 target = 0;
   char* mesg = input;
   int channel = 1;
+
+  if (HandleInputCommands()) {
+    input[0] = 0;
+    return;
+  }
 
   if (type == ChatType::Private) {
     Player* selected = statbox.GetSelectedPlayer();
@@ -115,68 +184,23 @@ void ChatController::SendInput() {
   input[0] = 0;
 }
 
-struct ChatSpan {
-  const char* begin;
-  const char* end;
-};
-
-void WrapChat(const char* mesg, s32 linesize, ChatSpan* lines, size_t* linecount) {
-  // Trim front
-  while (*mesg && *mesg == ' ') ++mesg;
-
-  s32 size = (s32)strlen(mesg);
-
-  if (size < linesize) {
-    lines[0].begin = mesg;
-    lines[0].end = mesg + size;
-    *linecount = 1;
-    return;
+bool ChatController::HandleInputCommands() {
+  if (input[0] == '=') {
+    if (input[1] >= '0' && input[1] <= '9') {
+      // TODO: Check energy
+      u16 freq = atoi(input + 1);
+#pragma pack(push, 1)
+      struct {
+        u8 type;
+        u16 freq;
+      } request = {0x0F, freq};
+#pragma pack(pop)
+      connection.packet_sequencer.SendReliableMessage(connection, (u8*)&request, sizeof(request));
+    }
+    return true;
   }
 
-  s32 last_end = 0;
-  for (int count = 1; count <= 16; ++count) {
-    s32 end = last_end + linesize;
-
-    if (end >= size) {
-      end = last_end + size;
-      lines[count - 1].begin = mesg + last_end;
-      lines[count - 1].end = mesg + end;
-      *linecount = count;
-      break;
-    }
-
-    if (mesg[end] == ' ') {
-      // Go backwards to trim off last space
-      for (; end >= 0; --end) {
-        if (mesg[end] != ' ') {
-          ++end;
-          break;
-        }
-      }
-    } else {
-      for (; end >= 0; --end) {
-        // Go backwards looking for a space
-        if (mesg[end] == ' ') {
-          break;
-        }
-      }
-    }
-
-    if (end <= last_end) {
-      end = last_end + linesize;
-    }
-
-    lines[count - 1].begin = mesg + last_end;
-    lines[count - 1].end = mesg + end;
-
-    last_end = end;
-    *linecount = count;
-
-    // Trim again for next line
-    while (last_end < size && mesg[last_end] == ' ') {
-      ++last_end;
-    }
-  }
+  return false;
 }
 
 void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {

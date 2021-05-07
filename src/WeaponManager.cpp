@@ -36,11 +36,7 @@ void WeaponManager::Update(float dt) {
     WeaponSimulateResult result = Simulate(*weapon, tick, dt);
 
     if (result != WeaponSimulateResult::Continue && weapon->link_id != kInvalidLink) {
-      assert(link_removal_count < NULLSPACE_ARRAY_SIZE(link_removals));
-
-      WeaponLinkRemoval* removal = link_removals + link_removal_count++;
-      removal->link_id = weapon->link_id;
-      removal->result = result;
+      AddLinkRemoval(weapon->link_id, result);
     }
 
     if (result == WeaponSimulateResult::PlayerExplosion || result == WeaponSimulateResult::WallExplosion) {
@@ -102,6 +98,7 @@ void WeaponManager::Update(float dt) {
         }
 
         if (removed) {
+          assert(weapon_count > 0);
           weapons[i--] = weapons[--weapon_count];
         }
       }
@@ -161,14 +158,40 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
 
       // TODO: Is this box-box or box-circle intersection?
       if (BoxBoxIntersect(pos - r, pos + r, weapon.position - p, weapon.position + p)) {
+        if (player->id == player_manager.player_id && !HasLinkRemoved(weapon.link_id)) {
+          player_manager.OnWeaponHit(weapon);
+        }
+
         return WeaponSimulateResult::PlayerExplosion;
       }
     } else if (BoxContainsPoint(pos - r, pos + r, weapon.position)) {
+      if (player->id == player_manager.player_id && !HasLinkRemoved(weapon.link_id)) {
+        player_manager.OnWeaponHit(weapon);
+      }
+
       return WeaponSimulateResult::PlayerExplosion;
     }
   }
 
   return WeaponSimulateResult::Continue;
+}
+
+bool WeaponManager::HasLinkRemoved(u32 link_id) {
+  for (size_t i = 0; i < link_removal_count; ++i) {
+    if (link_removals[i].link_id == link_id) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void WeaponManager::AddLinkRemoval(u32 link_id, WeaponSimulateResult result) {
+  assert(link_removal_count < NULLSPACE_ARRAY_SIZE(link_removals));
+
+  WeaponLinkRemoval* removal = link_removals + link_removal_count++;
+  removal->link_id = link_id;
+  removal->result = result;
 }
 
 void WeaponManager::CreateExplosion(Weapon& weapon) {
@@ -284,16 +307,19 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, const Vector2
 
       result = GenerateWeapon(pid, weapon, timestamp, position - offset, velocity, heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
+        AddLinkRemoval(link_id, result);
         destroy_link = true;
       }
 
       result = GenerateWeapon(pid, weapon, timestamp, position + offset, velocity, heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
+        AddLinkRemoval(link_id, result);
         destroy_link = true;
       }
     } else {
       result = GenerateWeapon(pid, weapon, timestamp, position, velocity, heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
+        AddLinkRemoval(link_id, result);
         destroy_link = true;
       }
     }
@@ -305,10 +331,12 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, const Vector2
 
       result = GenerateWeapon(pid, weapon, timestamp, position, velocity, first_heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
+        AddLinkRemoval(link_id, result);
         destroy_link = true;
       }
       result = GenerateWeapon(pid, weapon, timestamp, position, velocity, second_heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
+        AddLinkRemoval(link_id, result);
         destroy_link = true;
       }
     }
@@ -338,6 +366,7 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   weapon->position = position;
   weapon->bounces_remaining = 0;
   weapon->flags = 0;
+  weapon->link_id = link_id;
 
   WeaponType type = (WeaponType)weapon->data.type;
 
@@ -389,6 +418,7 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
 
   for (s32 i = 0; i < tick_diff; ++i) {
     result = Simulate(*weapon, GetCurrentTick(), 1.0f / 100.0f);
+
     if (result != WeaponSimulateResult::Continue) {
       if (type == WeaponType::Repel) {
         // Create an animation even if the repel was instant.
@@ -404,8 +434,6 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
       return result;
     }
   }
-
-  weapon->link_id = link_id;
 
   weapon->animation.t = 0.0f;
   weapon->animation.sprite = nullptr;

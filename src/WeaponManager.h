@@ -41,6 +41,7 @@ struct SpriteRenderer;
 
 enum class WeaponSimulateResult { Continue, WallExplosion, PlayerExplosion, TimedOut };
 
+// TODO: this could be a single u32 if performance is ever a concern
 struct WeaponLinkRemoval {
   u32 link_id;
   WeaponSimulateResult result;
@@ -64,6 +65,9 @@ struct WeaponManager {
   void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer);
   WeaponSimulateResult Simulate(Weapon& weapon, u32 current_tick, float dt);
+
+  void AddLinkRemoval(u32 link_id, WeaponSimulateResult result);
+  bool HasLinkRemoved(u32 link_id);
 
   void CreateExplosion(Weapon& weapon);
 

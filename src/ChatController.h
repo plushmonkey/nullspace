@@ -55,6 +55,7 @@ struct ChatController {
   void OnCharacterPress(int codepoint, int mods);
 
   void SendInput();
+  bool HandleInputCommands();
   ChatType GetInputType();
 };
 

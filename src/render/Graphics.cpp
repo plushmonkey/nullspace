@@ -11,6 +11,7 @@ constexpr float kMineAnimDuration = 1.0f;
 
 SpriteRenderable* Graphics::text_sprites = nullptr;
 SpriteRenderable* Graphics::textf_sprites = nullptr;
+SpriteRenderable* Graphics::energyfont_sprites = nullptr;
 
 SpriteRenderable* Graphics::ship_sprites = nullptr;
 SpriteRenderable* Graphics::spectate_sprites = nullptr;
@@ -145,7 +146,7 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
 
   anim_ship_explode.frames = explode1_sprites;
   anim_ship_explode.frame_count = count;
-  anim_ship_explode.duration = 1.0f;
+  anim_ship_explode.duration = 0.8f;
 
   explode2_sprites = LoadTileSheet(renderer, "explode2", Vector2f(80, 80), &count);
   if (!explode2_sprites) return false;
@@ -168,6 +169,9 @@ bool Graphics::InitializeFont(SpriteRenderer& renderer) {
 
   textf_sprites = LoadTileSheet(renderer, "tallfontf", Vector2f(8, 12), &count);
   if (!textf_sprites) return false;
+
+  energyfont_sprites = LoadTileSheet(renderer, "engyfont", Vector2f(16, 24), &count);
+  if (!energyfont_sprites) return false;
 
   for (size_t i = ' '; i < '~'; ++i) {
     character_set[i] = Graphics::text_sprites + i - ' ';

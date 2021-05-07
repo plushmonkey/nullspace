@@ -49,8 +49,8 @@ struct Player {
   u16 losses;
 
   u16 bounty;
-  u16 energy;
 
+  float energy;
   float orientation;
 
   u8 ship;

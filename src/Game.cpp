@@ -177,9 +177,10 @@ void Game::Render(float dt) {
     weapon_manager.Render(camera, sprite_renderer);
 
     player_manager.Render(camera, sprite_renderer, self_freq);
-    ship_controller.Render(camera, sprite_renderer);
 
     sprite_renderer.Render(camera);
+
+    ship_controller.Render(ui_camera, camera, sprite_renderer);
 
     RenderRadar(me);
 
@@ -220,7 +221,7 @@ void Game::Render(float dt) {
 
   char fps_text[32];
   sprintf(fps_text, "FPS: %d", (int)(fps + 0.5f));
-  sprite_renderer.DrawText(ui_camera, fps_text, TextColor::Pink, Vector2f(ui_camera.surface_dim.x, 0), Layer::TopMost,
+  sprite_renderer.DrawText(ui_camera, fps_text, TextColor::Pink, Vector2f(ui_camera.surface_dim.x, 24), Layer::TopMost,
                            TextAlignment::Right);
 
   specview.Render(ui_camera, sprite_renderer);

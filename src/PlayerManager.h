@@ -11,6 +11,7 @@ struct Connection;
 struct InputState;
 struct PacketDispatcher;
 struct SpriteRenderer;
+struct Weapon;
 
 struct PlayerManager {
   Connection& connection;
@@ -24,6 +25,9 @@ struct PlayerManager {
 
   void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer, u32 self_freq);
+
+  void OnWeaponHit(Weapon& weapon);
+  void Spawn();
 
   Player* GetSelf();
   Player* GetPlayerById(u16 id, size_t* index = nullptr);

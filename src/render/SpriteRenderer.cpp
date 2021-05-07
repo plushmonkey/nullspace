@@ -201,9 +201,9 @@ void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color,
   float start_x = current_pos.x;
 
   if (alignment == TextAlignment::Center) {
-    start_x -= (length * 8.0f) / 2.0f;
+    start_x -= ((length * 8.0f) / 2.0f) * camera.scale;
   } else if (alignment == TextAlignment::Right) {
-    start_x -= (length * 8.0f);
+    start_x -= (length * 8.0f) * camera.scale;
   }
 
   current_pos.x = start_x;
