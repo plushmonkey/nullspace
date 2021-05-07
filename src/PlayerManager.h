@@ -29,7 +29,7 @@ struct PlayerManager {
   Player* GetPlayerById(u16 id, size_t* index = nullptr);
   void SendPositionPacket();
   void SimulatePlayer(Player& player, float dt);
-  void SimulateAxis(Player& player, float dt, int axis);
+  bool SimulateAxis(Player& player, float dt, int axis);
 
   void OnPlayerIdChange(u8* pkt, size_t size);
   void OnPlayerEnter(u8* pkt, size_t size);

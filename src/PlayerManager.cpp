@@ -314,6 +314,7 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   player->explode_animation.sprite = &Graphics::anim_ship_explode;
   player->explode_animation.t = Graphics::anim_ship_explode.duration;
   player->enter_delay = 0.0f;
+  player->last_bounce_tick = 0;
 
   printf("%s entered arena\n", name);
 }
@@ -547,14 +548,12 @@ void PlayerManager::OnFlagDrop(u8* pkt, size_t size) {
   }
 }
 
-void PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
+bool PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
   float bounce_factor = 16.0f / connection.settings.BounceFactor;
   Map& map = connection.map;
 
   int axis_flip = axis == 0 ? 1 : 0;
-
   float radius = connection.settings.ShipSettings[player.ship].GetRadius();
-
   float previous = player.position.values[axis];
 
   player.position.values[axis] += player.velocity.values[axis] * dt;
@@ -602,6 +601,12 @@ void PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
   }
 
   if (collided) {
+    u32 tick = GetCurrentTick();
+    // Don't perform a bunch of wall slowdowns so the player doesn't get very slow against walls.
+    if (TICK_DIFF(tick, player.last_bounce_tick) < 1) {
+      bounce_factor = 1.0f;
+    }
+
     player.position.values[axis] = previous;
     player.velocity.values[axis] *= -bounce_factor;
     player.velocity.values[axis_flip] *= bounce_factor;
@@ -609,12 +614,20 @@ void PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
     player.lerp_time = 0.0f;
     player.lerp_velocity.values[axis] *= -bounce_factor;
     player.lerp_velocity.values[axis_flip] *= bounce_factor;
+
+    return true;
   }
+
+  return false;
 }
 
 void PlayerManager::SimulatePlayer(Player& player, float dt) {
-  SimulateAxis(player, dt, 0);
-  SimulateAxis(player, dt, 1);
+  bool x_bounce = SimulateAxis(player, dt, 0);
+  bool y_bounce = SimulateAxis(player, dt, 1);
+
+  if (x_bounce || y_bounce) {
+    player.last_bounce_tick = GetCurrentTick();
+  }
 
   player.lerp_time -= dt;
 }

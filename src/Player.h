@@ -58,6 +58,8 @@ struct Player {
   u8 ping;
   u8 koth;
 
+  u32 last_bounce_tick;
+
   u16 attach_parent;
   u16 flags;
 
