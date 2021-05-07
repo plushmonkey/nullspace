@@ -281,6 +281,10 @@ void Game::RenderRadar(Player* me) {
         Player* player = player_manager.players + i;
 
         if (player->ship >= 8) continue;
+        if ((player->togglables & Status_Stealth) && !(me->togglables & Status_XRadar) &&
+            player->frequency != team_freq) {
+          continue;
+        }
 
         Vector2f p = player->position;
         Vector2f percent((p.x - center.x) * (1.0f / range), (p.y - center.y) * (1.0f / range));

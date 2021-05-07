@@ -61,6 +61,12 @@ static void OnFlagDropPkt(void* user, u8* pkt, size_t size) {
   manager->OnFlagDrop(pkt, size);
 }
 
+inline bool IsPlayerVisible(Player* self, u32 self_freq, Player* player) {
+  if (self_freq == player->frequency) return true;
+
+  return (!(player->togglables & Status_Cloak)) || (self->togglables & Status_XRadar);
+}
+
 PlayerManager::PlayerManager(Connection& connection, PacketDispatcher& dispatcher) : connection(connection) {
   dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
@@ -162,13 +168,14 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
 
       renderer.Draw(camera, renderable, position, Layer::AfterShips);
     } else if (player->enter_delay <= 0.0f) {
-      size_t index = player->ship * 40 + (u8)(player->orientation * 40.0f);
+      if (IsPlayerVisible(self, self_freq, player)) {
+        size_t index = player->ship * 40 + (u8)(player->orientation * 40.0f);
 
-      Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
-      Vector2f position = player->position.PixelRounded() - offset.PixelRounded();
+        Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
+        Vector2f position = player->position.PixelRounded() - offset.PixelRounded();
 
-      renderer.Draw(camera, Graphics::ship_sprites[index], position, Layer::Ships);
-
+        renderer.Draw(camera, Graphics::ship_sprites[index], position, Layer::Ships);
+      }
       if (player->warp_animation.IsAnimating()) {
         SpriteRenderable& renderable = player->warp_animation.GetFrame();
         Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
@@ -184,6 +191,7 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
 
     if (player->ship == 8) continue;
     if (player->position == Vector2f(0, 0)) continue;
+    if (!IsPlayerVisible(self, self_freq, player)) continue;
 
     if (player->enter_delay <= 0.0f) {
       size_t index = player->ship * 40 + (u8)(player->orientation * 40.0f);
