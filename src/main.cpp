@@ -493,6 +493,8 @@ static void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_
     window_state->input.OnCharacter(NULLSPACE_KEY_CONTROL, mods);
   } else if (key == GLFW_KEY_F2 && key_action != GLFW_RELEASE) {
     window_state->input.OnCharacter(NULLSPACE_KEY_F2, mods);
+  } else if (key == GLFW_KEY_END  && key_action != GLFW_RELEASE) {
+    window_state->input.OnCharacter(NULLSPACE_KEY_END, mods);
   }
 
   const ActionKey* action = nullptr;

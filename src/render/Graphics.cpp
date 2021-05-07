@@ -32,6 +32,7 @@ SpriteRenderable* Graphics::bullet_trail_sprites = nullptr;
 SpriteRenderable* Graphics::repel_sprites = nullptr;
 
 SpriteRenderable* Graphics::color_sprites = nullptr;
+SpriteRenderable* Graphics::icon_sprites = nullptr;
 
 SpriteRenderable* Graphics::flag_sprites = nullptr;
 SpriteRenderable* Graphics::goal_sprites = nullptr;
@@ -115,6 +116,9 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
 
   color_sprites = LoadTileSheet(renderer, "colors", Vector2f(128, 1), &count);
   if (!color_sprites) return false;
+
+  icon_sprites = LoadTileSheet(renderer, "Icons", Vector2f(26, 24), &count);
+  if (!icon_sprites) return false;
 
   ship_sprites = LoadTileSheet(renderer, "ships", Vector2f(36, 36), &count);
   if (!ship_sprites) return false;

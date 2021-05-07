@@ -38,6 +38,7 @@ struct Graphics {
   static SpriteRenderable* repel_sprites;
 
   static SpriteRenderable* color_sprites;
+  static SpriteRenderable* icon_sprites;
 
   static SpriteRenderable* flag_sprites;
   static SpriteRenderable* goal_sprites;

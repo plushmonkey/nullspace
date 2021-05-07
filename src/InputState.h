@@ -5,6 +5,10 @@
 
 namespace null {
 
+// TODO: All of this needs redone to handle os repeating presses correctly
+
+// Reserved key presses that exist in ascii space outside of normal characters
+#define NULLSPACE_KEY_END 1
 #define NULLSPACE_KEY_BACKSPACE 8
 #define NULLSPACE_KEY_ENTER 10
 #define NULLSPACE_KEY_PASTE 26

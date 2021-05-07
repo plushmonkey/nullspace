@@ -5,9 +5,11 @@
 
 namespace null {
 
+struct Camera;
 struct Connection;
 struct InputState;
 struct Player;
+struct SpriteRenderer;
 struct StatBox;
 
 constexpr u16 kInvalidSpectateId = -1;
@@ -23,6 +25,7 @@ struct SpectateView {
   SpectateView(Connection& connection, StatBox& statbox);
 
   void Update(const InputState& input, float dt);
+  void Render(Camera& ui_camera, SpriteRenderer& renderer);
 
   void OnCharacterPress(int codepoint, int mods);
 

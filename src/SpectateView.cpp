@@ -7,6 +7,9 @@
 #include "StatBox.h"
 #include "Tick.h"
 #include "net/Connection.h"
+#include "render/Camera.h"
+#include "render/Graphics.h"
+#include "render/SpriteRenderer.h"
 
 namespace null {
 
@@ -64,6 +67,20 @@ void SpectateView::Update(const InputState& input, float dt) {
       spectate_id = kInvalidSpectateId;
     }
   }
+}
+
+void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
+  Player* self = statbox.player_manager.GetSelf();
+
+  if (!self) return;
+  if (self->ship != 8) return;
+
+  // TODO: find real position for indicators
+  float y = (ui_camera.surface_dim.y * 0.57f) + 1.0f;
+  float x = ui_camera.surface_dim.x - 26;
+  size_t icon_index = (self->togglables & Status_XRadar) ? 36 : 37;
+
+  renderer.Draw(ui_camera, Graphics::icon_sprites[icon_index], Vector2f(x, y), Layer::Gauges);
 }
 
 void SpectateView::SpectateSelected() {

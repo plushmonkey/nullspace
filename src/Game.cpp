@@ -1,5 +1,7 @@
 #include "Game.h"
 
+#include <time.h>
+
 #include <cassert>
 #include <cstdio>
 
@@ -20,6 +22,11 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
 
     game->menu_open = !game->menu_open;
     game->chat.display_full = game->menu_open;
+  } else if (codepoint == NULLSPACE_KEY_END) {
+    Player* self = game->player_manager.GetSelf();
+    if (self) {
+      self->togglables ^= Status_XRadar;
+    }
   } else if (game->menu_open) {
     if (game->HandleMenuKey(codepoint, mods)) {
       return;
@@ -211,6 +218,8 @@ void Game::Render(float dt) {
   sprite_renderer.DrawText(ui_camera, fps_text, TextColor::Pink, Vector2f(ui_camera.surface_dim.x, 0), Layer::TopMost,
                            TextAlignment::Right);
 
+  specview.Render(ui_camera, sprite_renderer);
+
   sprite_renderer.Render(ui_camera);
 }
 
@@ -327,6 +336,25 @@ void Game::RenderRadar(Player* me) {
       }
 
       Graphics::DrawBorder(sprite_renderer, ui_camera, position + half_extents, half_extents);
+
+      // Render text above radar
+      time_t t;
+      time(&t);
+      tm* ti = localtime(&t);
+      char output[256];
+      int hour = ti->tm_hour;
+      bool pm = hour >= 12;
+      if (hour > 12) {
+        hour -= 12;
+      }
+
+      u32 map_coord_x = (u32)floor(me->position.x / (1024 / 20.0f));
+      u32 map_coord_y = (u32)floor(me->position.y / (1024 / 20.0f)) + 1;
+
+      sprintf(output, "%d:%2d%s  %c%d", hour, ti->tm_min, pm ? "pm" : "am", map_coord_x + 'A', map_coord_y);
+      sprite_renderer.DrawText(ui_camera, output, TextColor::White,
+                               Vector2f(ui_camera.surface_dim.x - 5, position.y - 16), Layer::TopMost,
+                               TextAlignment::Right);
     }
   }
 }
