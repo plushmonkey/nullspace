@@ -68,6 +68,8 @@ struct WeaponManager {
   void CreateExplosion(Weapon& weapon);
 
   void OnWeaponPacket(u8* pkt, size_t size);
+  void FireWeapons(Player& player, WeaponData weapon, const Vector2f& position, const Vector2f& velocity,
+                   u32 timestamp);
 
   WeaponSimulateResult GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp,
                                       const Vector2f& position, const Vector2f& velocity, const Vector2f& heading,

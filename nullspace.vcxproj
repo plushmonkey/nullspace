@@ -195,6 +195,7 @@
     <ClCompile Include="src\render\SpriteRenderer.cpp" />
     <ClCompile Include="src\render\TextureMap.cpp" />
     <ClCompile Include="src\render\TileRenderer.cpp" />
+    <ClCompile Include="src\ShipController.cpp" />
     <ClCompile Include="src\SpectateView.cpp" />
     <ClCompile Include="src\StatBox.cpp" />
     <ClCompile Include="src\Tick.cpp" />
@@ -243,6 +244,7 @@
     <ClInclude Include="src\render\SpriteRenderer.h" />
     <ClInclude Include="src\render\TextureMap.h" />
     <ClInclude Include="src\render\TileRenderer.h" />
+    <ClInclude Include="src\ShipController.h" />
     <ClInclude Include="src\SpectateView.h" />
     <ClInclude Include="src\StatBox.h" />
     <ClInclude Include="src\Tick.h" />

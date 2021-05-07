@@ -24,6 +24,7 @@ struct CastResult {
 struct ArenaSettings;
 
 using TileId = u8;
+constexpr u32 kTileSafe = 171;
 
 struct Map {
   bool Load(MemoryArena& arena, const char* filename);

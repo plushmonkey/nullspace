@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 
 #include "Buffer.h"
 #include "InputState.h"
@@ -79,7 +80,7 @@ PlayerManager::PlayerManager(Connection& connection, PacketDispatcher& dispatche
   dispatcher.Register(ProtocolS2C::DropFlag, OnFlagDropPkt, this);
 }
 
-void PlayerManager::Update(const InputState& input, float dt) {
+void PlayerManager::Update(float dt) {
   null::Tick current_tick = GetCurrentTick();
   Player* self = GetPlayerById(player_id);
 
@@ -107,38 +108,9 @@ void PlayerManager::Update(const InputState& input, float dt) {
   }
 
   s32 position_delay = 100;
+
   if (self && self->ship != 8) {
     position_delay = 10;
-
-    ShipSettings& ship_settings = connection.settings.ShipSettings[self->ship];
-
-    // TDOO: Move input into a ship controller
-    // TODO: Real calculations with ship status
-    u8 direction = (u8)(self->orientation * 40.0f);
-    if (input.IsDown(InputAction::Forward)) {
-      self->velocity += OrientationToHeading(direction) * (ship_settings.MaximumThrust * (10.0f / 16.0f)) * dt;
-    }
-    if (input.IsDown(InputAction::Backward)) {
-      self->velocity -= OrientationToHeading(direction) * (ship_settings.MaximumThrust * (10.0f / 16.0f)) * dt;
-    }
-
-    if (input.IsDown(InputAction::Left)) {
-      float rotation = ship_settings.MaximumRotation / 400.0f;
-      self->orientation -= rotation * dt;
-      if (self->orientation < 0) {
-        self->orientation += 1.0f;
-      }
-    }
-
-    if (input.IsDown(InputAction::Right)) {
-      float rotation = ship_settings.MaximumRotation / 400.0f;
-      self->orientation += rotation * dt;
-      if (self->orientation >= 1.0f) {
-        self->orientation -= 1.0f;
-      }
-    }
-
-    self->velocity.Truncate(ship_settings.MaximumSpeed / 10.0f / 16.0f);
   }
 
   // Continuum client seems to send position update every second while spectating.
@@ -146,7 +118,6 @@ void PlayerManager::Update(const InputState& input, float dt) {
   if (connection.login_state == Connection::LoginState::Complete &&
       TICK_DIFF(current_tick, last_position_tick) >= position_delay) {
     SendPositionPacket();
-    last_position_tick = current_tick;
   }
 }
 
@@ -259,6 +230,7 @@ void PlayerManager::SendPositionPacket() {
   buffer.data[10] = checksum;
 
   connection.Send(buffer);
+  last_position_tick = GetCurrentTick();
 }
 
 Player* PlayerManager::GetSelf() { return GetPlayerById(player_id); }
@@ -315,6 +287,8 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   player->explode_animation.t = Graphics::anim_ship_explode.duration;
   player->enter_delay = 0.0f;
   player->last_bounce_tick = 0;
+
+  memset(&player->weapon, 0, sizeof(player->weapon));
 
   printf("%s entered arena\n", name);
 }
@@ -386,13 +360,29 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
     player->flags = 0;
 
     if (pid == player_id) {
-      // TODO: Spawn with random position and read correct frequency
+      // TODO: read correct frequency
       float x_center = abs((float)connection.settings.SpawnSettings[0].X);
       float y_center = abs((float)connection.settings.SpawnSettings[0].Y);
+      int radius = connection.settings.SpawnSettings[0].Radius;
 
-      Vector2f spawn_center(x_center, y_center);
-      player->position = spawn_center;
-      player->bounty = connection.settings.ShipSettings[ship].InitialBounty;
+      if (radius == 0) {
+        player->position = Vector2f(x_center, y_center);
+        player->bounty = connection.settings.ShipSettings[ship].InitialBounty;
+      } else {
+        // Try 100 times to spawn in a random spot. TODO: Improve this to find open space better
+        for (int i = 0; i < 100; ++i) {
+          float x_offset = (float)((rand() % (radius * 2)) - radius);
+          float y_offset = (float)((rand() % (radius * 2)) - radius);
+
+          Vector2f spawn(x_center + x_offset, y_center + y_offset);
+
+          if (!connection.map.IsSolid((u16)spawn.x, (u16)spawn.y) || i == 99) {
+            player->position = spawn;
+            player->bounty = connection.settings.ShipSettings[ship].InitialBounty;
+            break;
+          }
+        }
+      }
     }
   }
 }
@@ -611,7 +601,6 @@ bool PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
     player.velocity.values[axis] *= -bounce_factor;
     player.velocity.values[axis_flip] *= bounce_factor;
 
-    player.lerp_time = 0.0f;
     player.lerp_velocity.values[axis] *= -bounce_factor;
     player.lerp_velocity.values[axis_flip] *= bounce_factor;
 

@@ -251,15 +251,22 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
   u32 server_timestamp = ((server_tick & 0xFFFF0000) | timestamp);
   u32 local_timestamp = server_timestamp - connection.time_diff - ping;
 
-  WeaponData data = *(WeaponData*)&weapon_data;
-  WeaponType type = (WeaponType)data.type;
-
   Player* player = player_manager.GetPlayerById(pid);
   if (!player) return;
 
   Vector2f position(x / 16.0f, y / 16.0f);
+  WeaponData data = *(WeaponData*)&weapon_data;
 
-  ShipSettings& ship_settings = connection.settings.ShipSettings[player->ship];
+  FireWeapons(*player, data, position, velocity, local_timestamp);
+}
+
+void WeaponManager::FireWeapons(Player& player, WeaponData weapon, const Vector2f& position, const Vector2f& velocity,
+                                u32 timestamp) {
+  ShipSettings& ship_settings = connection.settings.ShipSettings[player.ship];
+  WeaponType type = (WeaponType)weapon.type;
+
+  u8 direction = (u8)(player.orientation * 40.0f);
+  u16 pid = player.id;
 
   if (type == WeaponType::Bullet || type == WeaponType::BouncingBullet) {
     bool dbarrel = ship_settings.DoubleBarrel;
@@ -275,32 +282,32 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
       Vector2f perp = Perpendicular(heading);
       Vector2f offset = perp * (ship_settings.GetRadius() * 0.75f);
 
-      result = GenerateWeapon(pid, data, local_timestamp, position - offset, velocity, heading, link_id);
+      result = GenerateWeapon(pid, weapon, timestamp, position - offset, velocity, heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         destroy_link = true;
       }
 
-      result = GenerateWeapon(pid, data, local_timestamp, position + offset, velocity, heading, link_id);
+      result = GenerateWeapon(pid, weapon, timestamp, position + offset, velocity, heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         destroy_link = true;
       }
     } else {
-      result = GenerateWeapon(pid, data, local_timestamp, position, velocity, heading, link_id);
+      result = GenerateWeapon(pid, weapon, timestamp, position, velocity, heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         destroy_link = true;
       }
     }
 
-    if (data.alternate) {
+    if (weapon.alternate) {
       float rads = Radians(ship_settings.MultiFireAngle / 111.0f);
       Vector2f first_heading = Rotate(heading, rads);
       Vector2f second_heading = Rotate(heading, -rads);
 
-      result = GenerateWeapon(pid, data, local_timestamp, position, velocity, first_heading, link_id);
+      result = GenerateWeapon(pid, weapon, timestamp, position, velocity, first_heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         destroy_link = true;
       }
-      result = GenerateWeapon(pid, data, local_timestamp, position, velocity, second_heading, link_id);
+      result = GenerateWeapon(pid, weapon, timestamp, position, velocity, second_heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         destroy_link = true;
       }
@@ -317,7 +324,7 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
     }
 
   } else {
-    GenerateWeapon(pid, data, local_timestamp, position, velocity, OrientationToHeading(direction), kInvalidLink);
+    GenerateWeapon(pid, weapon, timestamp, position, velocity, OrientationToHeading(direction), kInvalidLink);
   }
 }
 

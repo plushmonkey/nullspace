@@ -439,10 +439,10 @@ const ActionKey kDefaultKeys[] = {
     ActionKey(InputAction::Backward, GLFW_KEY_DOWN),
     ActionKey(InputAction::Afterburner, GLFW_KEY_LEFT_SHIFT),
     ActionKey(InputAction::Afterburner, GLFW_KEY_RIGHT_SHIFT),
+    ActionKey(InputAction::Mine, GLFW_KEY_TAB, GLFW_MOD_SHIFT),
     ActionKey(InputAction::Bomb, GLFW_KEY_TAB),
     ActionKey(InputAction::Bullet, GLFW_KEY_LEFT_CONTROL),
     ActionKey(InputAction::Bullet, GLFW_KEY_RIGHT_CONTROL),
-    ActionKey(InputAction::Mine, GLFW_KEY_TAB, GLFW_MOD_SHIFT),
     ActionKey(InputAction::Thor, GLFW_KEY_F6),
     ActionKey(InputAction::Burst, GLFW_KEY_DELETE, GLFW_MOD_SHIFT),
     ActionKey(InputAction::Multifire, GLFW_KEY_DELETE),
@@ -493,8 +493,26 @@ static void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_
     window_state->input.OnCharacter(NULLSPACE_KEY_CONTROL, mods);
   } else if (key == GLFW_KEY_F2 && key_action != GLFW_RELEASE) {
     window_state->input.OnCharacter(NULLSPACE_KEY_F2, mods);
-  } else if (key == GLFW_KEY_END  && key_action != GLFW_RELEASE) {
+  } else if (key == GLFW_KEY_END && key_action != GLFW_RELEASE) {
     window_state->input.OnCharacter(NULLSPACE_KEY_END, mods);
+  } else if (key == GLFW_KEY_DELETE && key_action != GLFW_RELEASE) {
+    window_state->input.OnCharacter(NULLSPACE_KEY_DELETE, mods);
+  }
+
+  bool shift = key == GLFW_KEY_RIGHT_SHIFT || key == GLFW_KEY_LEFT_SHIFT;
+  bool ctrl = key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL;
+  // TODO: Redo all of the input. This is really bad
+  if (shift || ctrl) {
+    int mod = shift ? GLFW_MOD_SHIFT : GLFW_MOD_CONTROL;
+
+    for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(kDefaultKeys); ++i) {
+      const ActionKey* action = kDefaultKeys + i;
+      int req_mods = kDefaultKeys[i].mods;
+
+      if ((req_mods & mod) && key_action == GLFW_RELEASE) {
+        window_state->input.SetAction(action->action, false);
+      }
+    }
   }
 
   const ActionKey* action = nullptr;

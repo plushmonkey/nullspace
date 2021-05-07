@@ -27,6 +27,8 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
     if (self) {
       self->togglables ^= Status_XRadar;
     }
+  } else if (codepoint == NULLSPACE_KEY_DELETE) {
+    game->ship_controller.multifire = !game->ship_controller.multifire;
   } else if (game->menu_open) {
     if (game->HandleMenuKey(codepoint, mods)) {
       return;
@@ -64,6 +66,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       statbox(player_manager, dispatcher),
       chat(dispatcher, connection, player_manager, statbox),
       specview(connection, statbox),
+      ship_controller(player_manager, weapon_manager),
       lvz(perm_arena, temp_arena, connection.requester, sprite_renderer, dispatcher) {
   float zmax = (float)Layer::Count;
   ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -zmax, zmax);
@@ -102,7 +105,8 @@ bool Game::Initialize(InputState& input) {
 bool Game::Update(const InputState& input, float dt) {
   connection.map.UpdateDoors(connection.settings);
 
-  player_manager.Update(input, dt);
+  player_manager.Update(dt);
+  ship_controller.Update(input, dt);
   weapon_manager.Update(dt);
 
   Player* me = player_manager.GetSelf();
@@ -173,6 +177,7 @@ void Game::Render(float dt) {
     weapon_manager.Render(camera, sprite_renderer);
 
     player_manager.Render(camera, sprite_renderer, self_freq);
+    ship_controller.Render(camera, sprite_renderer);
 
     sprite_renderer.Render(camera);
 

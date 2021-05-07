@@ -22,7 +22,7 @@ struct PlayerManager {
 
   PlayerManager(Connection& connection, PacketDispatcher& dispatcher);
 
-  void Update(const InputState& input, float dt);
+  void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer, u32 self_freq);
 
   Player* GetSelf();

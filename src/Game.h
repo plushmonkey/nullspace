@@ -5,6 +5,7 @@
 #include "InputState.h"
 #include "LvzController.h"
 #include "PlayerManager.h"
+#include "ShipController.h"
 #include "SpectateView.h"
 #include "StatBox.h"
 #include "WeaponManager.h"
@@ -45,6 +46,7 @@ struct Game {
   StatBox statbox;
   ChatController chat;
   SpectateView specview;
+  ShipController ship_controller;
   LvzController lvz;
   float fps;
   bool render_radar = false;

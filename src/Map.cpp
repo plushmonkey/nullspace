@@ -198,7 +198,6 @@ bool Map::IsSolid(u16 x, u16 y) const {
 u32 Map::GetChecksum(u32 key) const {
   constexpr u32 kTileStart = 1;
   constexpr u32 kTileEnd = 160;
-  constexpr u32 kTileSafe = 171;
 
   int basekey = key;
 
