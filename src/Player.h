@@ -9,6 +9,17 @@ namespace null {
 
 using PlayerId = u16;
 
+enum StatusFlag {
+  Status_Stealth = (1 << 0),
+  Status_Cloak = (1 << 1),
+  Status_XRadar = (1 << 2),
+  Status_Antiwarp = (1 << 3),
+  Status_Flash = (1 << 4),
+  Status_Safety = (1 << 5),
+  Status_UFO = (1 << 6),
+  Status_InputChange = (1 << 7)
+};
+
 struct WeaponData {
   u16 type : 5;
   u16 level : 2;
@@ -40,17 +51,17 @@ struct Player {
   u16 bounty;
   u16 energy;
 
+  float orientation;
+
   u8 ship;
-  u8 direction;
   u8 togglables;
   u8 ping;
+  u8 koth;
 
   u16 attach_parent;
   u16 flags;
 
   u16 timestamp;
-  u8 koth;
-
   WeaponData weapon;
 
   float enter_delay;

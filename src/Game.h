@@ -64,7 +64,7 @@ struct Game {
   void Render(float dt);
   void RenderRadar(Player* player);
   void RenderMenu();
-  void HandleMenuKey(int codepoint, int mods);
+  bool HandleMenuKey(int codepoint, int mods);
 
   void OnFlagClaim(u8* pkt, size_t size);
   void OnFlagPosition(u8* pkt, size_t size);

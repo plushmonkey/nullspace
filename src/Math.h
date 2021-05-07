@@ -141,8 +141,8 @@ struct Vector2f {
   Vector2f Perpendicular() const { return Vector2f(-y, x); }
 
   inline Vector2f PixelRounded() const {
-    u32 x32 = (u32)(x * 16.0f);
-    u32 y32 = (u32)(y * 16.0f);
+    s32 x32 = (s32)(x * 16.0f);
+    s32 y32 = (s32)(y * 16.0f);
     return Vector2f(x32 / 16.0f, y32 / 16.0f);
   }
 };
@@ -782,6 +782,15 @@ struct Frustum {
 #endif
   }
 };
+
+inline Vector2f OrientationToHeading(u8 discrete_rotation) {
+  const float kToRads = (3.14159f / 180.0f);
+  float rads = (((40 - (discrete_rotation + 30)) % 40) * 9.0f) * kToRads;
+  float x = cos(rads);
+  float y = -sin(rads);
+
+  return Vector2f(x, y);
+}
 
 }  // namespace null
 

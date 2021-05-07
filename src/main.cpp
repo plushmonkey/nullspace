@@ -51,7 +51,7 @@ enum class WindowType { Windowed, Fullscreen, BorderlessFullscreen };
 constexpr bool kVerticalSync = false;
 constexpr WindowType kWindowType = WindowType::Windowed;
 
-const char* kPlayerName = "nullspace";
+const char* kPlayerName = "null space";
 const char* kPlayerPassword = "none";
 
 struct ServerInfo {
@@ -62,7 +62,7 @@ struct ServerInfo {
 
 ServerInfo kServers[] = {
     {"local", "127.0.0.1", 5000},
-    {"subgame", "192.168.0.13", 5001},
+    {"subgame", "192.168.0.169", 5001},
     {"SSCE Hyperspace", "162.248.95.143", 5005},
     {"SSCJ Devastation", "69.164.220.203", 7022},
     {"SSCJ MetalGear CTF", "69.164.220.203", 14000},

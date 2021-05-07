@@ -103,6 +103,36 @@ void PlayerManager::Update(const InputState& input, float dt) {
   s32 position_delay = 100;
   if (self && self->ship != 8) {
     position_delay = 10;
+
+    ShipSettings& ship_settings = connection.settings.ShipSettings[self->ship];
+
+    // TDOO: Move input into a ship controller
+    // TODO: Real calculations with ship status
+    u8 direction = (u8)(self->orientation * 40.0f);
+    if (input.IsDown(InputAction::Forward)) {
+      self->velocity += OrientationToHeading(direction) * (ship_settings.MaximumThrust * (10.0f / 16.0f)) * dt;
+    }
+    if (input.IsDown(InputAction::Backward)) {
+      self->velocity -= OrientationToHeading(direction) * (ship_settings.MaximumThrust * (10.0f / 16.0f)) * dt;
+    }
+
+    if (input.IsDown(InputAction::Left)) {
+      float rotation = ship_settings.MaximumRotation / 400.0f;
+      self->orientation -= rotation * dt;
+      if (self->orientation < 0) {
+        self->orientation += 1.0f;
+      }
+    }
+
+    if (input.IsDown(InputAction::Right)) {
+      float rotation = ship_settings.MaximumRotation / 400.0f;
+      self->orientation += rotation * dt;
+      if (self->orientation >= 1.0f) {
+        self->orientation -= 1.0f;
+      }
+    }
+
+    self->velocity.Truncate(ship_settings.MaximumSpeed / 10.0f / 16.0f);
   }
 
   // Continuum client seems to send position update every second while spectating.
@@ -132,7 +162,7 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
 
       renderer.Draw(camera, renderable, position, Layer::AfterShips);
     } else if (player->enter_delay <= 0.0f) {
-      size_t index = player->ship * 40 + player->direction;
+      size_t index = player->ship * 40 + (u8)(player->orientation * 40.0f);
 
       Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
       Vector2f position = player->position.PixelRounded() - offset.PixelRounded();
@@ -156,7 +186,7 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
     if (player->position == Vector2f(0, 0)) continue;
 
     if (player->enter_delay <= 0.0f) {
-      size_t index = player->ship * 40 + player->direction;
+      size_t index = player->ship * 40 + (u8)(player->orientation * 40.0f);
       Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
 
       offset = offset.PixelRounded();
@@ -202,8 +232,10 @@ void PlayerManager::SendPositionPacket() {
   u16 energy = connection.settings.ShipSettings[player->ship].MaximumEnergy;
   s32 time_diff = connection.time_diff;
 
+  u8 direction = (u8)(player->orientation * 40.0f);
+
   buffer.WriteU8(0x03);                           // Type
-  buffer.WriteU8(player->direction);              // Direction
+  buffer.WriteU8(direction);                      // Direction
   buffer.WriteU32(GetCurrentTick() + time_diff);  // Timestamp
   buffer.WriteU16(vel_x);                         // X velocity
   buffer.WriteU16(y);                             // Y
@@ -343,6 +375,16 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
     player->lerp_time = 0.0f;
     player->warp_animation.t = 0.0f;
     player->flags = 0;
+
+    if (pid == player_id) {
+      // TODO: Spawn with random position and read correct frequency
+      float x_center = abs((float)connection.settings.SpawnSettings[0].X);
+      float y_center = abs((float)connection.settings.SpawnSettings[0].Y);
+
+      Vector2f spawn_center(x_center, y_center);
+      player->position = spawn_center;
+      player->bounty = connection.settings.ShipSettings[ship].InitialBounty;
+    }
   }
 }
 
@@ -360,7 +402,7 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
   Player* player = GetPlayerById(pid);
 
   if (player) {
-    player->direction = direction;
+    player->orientation = direction / 40.0f;
     player->velocity.y = vel_y / 16.0f / 10.0f;
     player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
 
@@ -369,6 +411,10 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
     player->ping = buffer.ReadU8();
     u16 y = buffer.ReadU16();
     player->bounty = buffer.ReadU16();
+
+    if (player->togglables & Status_Flash) {
+      player->warp_animation.t = 0.0f;
+    }
 
     Vector2f pkt_position(x / 16.0f, y / 16.0f);
     // Put packet timestamp into local time
@@ -409,13 +455,17 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
   Player* player = GetPlayerById(pid);
 
   if (player) {
-    player->direction = direction;
+    player->orientation = direction / 40.0f;
     player->ping = ping;
     player->bounty = bounty;
     player->togglables = buffer.ReadU8();
     player->velocity.y = (s16)buffer.ReadU16() / 16.0f / 10.0f;
     u16 y = buffer.ReadU16();
     player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
+
+    if (player->togglables & Status_Flash) {
+      player->warp_animation.t = 0.0f;
+    }
 
     Vector2f pkt_position(x / 16.0f, y / 16.0f);
     // Put packet timestamp into local time

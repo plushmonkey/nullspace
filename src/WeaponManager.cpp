@@ -14,15 +14,6 @@
 
 namespace null {
 
-static Vector2f GetHeading(u8 discrete_rotation) {
-  const float kToRads = (3.14159f / 180.0f);
-  float rads = (((40 - (discrete_rotation + 30)) % 40) * 9.0f) * kToRads;
-  float x = cos(rads);
-  float y = -sin(rads);
-
-  return Vector2f(x, y);
-}
-
 static void OnLargePositionPkt(void* user, u8* pkt, size_t size) {
   WeaponManager* manager = (WeaponManager*)user;
 
@@ -222,7 +213,8 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer) {
       Player* player = player_manager.GetPlayerById(weapon->player_id);
       if (player) {
         // TODO: Render opposite rotation based on initial orientation
-        size_t index = player->ship * 40 + player->direction;
+        u8 direction = (u8)(player->orientation * 40);
+        size_t index = player->ship * 40 + direction;
         SpriteRenderable& frame = Graphics::ship_sprites[index];
         Vector2f position = weapon->position - frame.dimensions * (0.5f / 16.0f);
 
@@ -272,7 +264,7 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
   if (type == WeaponType::Bullet || type == WeaponType::BouncingBullet) {
     bool dbarrel = ship_settings.DoubleBarrel;
 
-    Vector2f heading = GetHeading(direction);
+    Vector2f heading = OrientationToHeading(direction);
 
     u32 link_id = next_link_id++;
 
@@ -325,7 +317,7 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
     }
 
   } else {
-    GenerateWeapon(pid, data, local_timestamp, position, velocity, GetHeading(direction), kInvalidLink);
+    GenerateWeapon(pid, data, local_timestamp, position, velocity, OrientationToHeading(direction), kInvalidLink);
   }
 }
 

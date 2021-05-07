@@ -13,10 +13,6 @@ namespace null {
 static void OnCharacterPress(void* user, int codepoint, int mods) {
   Game* game = (Game*)user;
 
-  game->chat.OnCharacterPress(codepoint, mods);
-  game->statbox.OnCharacterPress(codepoint, mods);
-  game->specview.OnCharacterPress(codepoint, mods);
-
   if (codepoint == NULLSPACE_KEY_ESCAPE) {
     if (game->connection.login_state <= Connection::LoginState::MapDownload) {
       game->menu_quit = true;
@@ -25,8 +21,14 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
     game->menu_open = !game->menu_open;
     game->chat.display_full = game->menu_open;
   } else if (game->menu_open) {
-    game->HandleMenuKey(codepoint, mods);
+    if (game->HandleMenuKey(codepoint, mods)) {
+      return;
+    }
   }
+
+  game->chat.OnCharacterPress(codepoint, mods);
+  game->statbox.OnCharacterPress(codepoint, mods);
+  game->specview.OnCharacterPress(codepoint, mods);
 }
 
 static void OnFlagClaimPkt(void* user, u8* pkt, size_t size) {
@@ -160,8 +162,6 @@ void Game::Render(float dt) {
                                 self_freq);
 
   if (me) {
-    // TODO: Formalize layers
-    // Draw animations and weapons before ships and names so they are below
     animation.Render(camera, sprite_renderer);
     weapon_manager.Render(camera, sprite_renderer);
 
@@ -327,7 +327,9 @@ void Game::RenderRadar(Player* me) {
   }
 }
 
-void Game::HandleMenuKey(int codepoint, int mods) {
+bool Game::HandleMenuKey(int codepoint, int mods) {
+  bool handled = false;
+
   switch (codepoint) {
     case 'q':
     case 'Q': {
@@ -339,11 +341,51 @@ void Game::HandleMenuKey(int codepoint, int mods) {
       connection.Send((u8*)&pkt, sizeof(pkt));
       connection.Disconnect();
       menu_quit = true;
+      handled = true;
+    } break;
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8': {
+      int ship = codepoint - '1';
+      Player* self = player_manager.GetSelf();
+
+      if (self && self->ship != ship) {
+        struct {
+          u8 type;
+          u8 ship;
+        } request = {0x18, (u8)ship};
+        printf("Sending ship request for %d\n", ship + 1);
+
+        connection.packet_sequencer.SendReliableMessage(connection, (u8*)&request, sizeof(request));
+      }
+      handled = true;
+    } break;
+    case 's':
+    case 'S': {
+      Player* self = player_manager.GetSelf();
+
+      if (self && self->ship != 8) {
+        struct {
+          u8 type;
+          u8 ship;
+        } request = {0x18, 0x08};
+        printf("Sending spectate request.\n");
+
+        connection.packet_sequencer.SendReliableMessage(connection, (u8*)&request, sizeof(request));
+      }
+      handled = true;
     } break;
     default: {
-      menu_open = false;
     } break;
   }
+
+  menu_open = false;
+  return handled;
 }
 
 void Game::RenderMenu() {
