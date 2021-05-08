@@ -22,15 +22,17 @@ ShipController::ShipController(PlayerManager& player_manager, WeaponManager& wea
 void ShipController::Update(const InputState& input, float dt) {
   Player* self = player_manager.GetSelf();
 
-  if (self == nullptr || self->ship >= 8) return;
-  if (self->enter_delay > 0.0f) return;
+  if (self == nullptr || self->ship >= 8 || self->enter_delay > 0.0f) {
+    exhaust_count = 0;
+    return;
+  }
 
   Connection& connection = player_manager.connection;
   ShipSettings& ship_settings = connection.settings.ShipSettings[self->ship];
 
-  self->energy += (ship_settings.InitialRecharge / 10.0f) * dt;
-  if (self->energy > ship_settings.InitialEnergy) {
-    self->energy = ship_settings.InitialEnergy;
+  self->energy += (ship_settings.MaximumRecharge / 10.0f) * dt;
+  if (self->energy > ship_settings.MaximumEnergy) {
+    self->energy = ship_settings.MaximumEnergy;
   }
 
   // TODO: Real calculations with ship status
@@ -39,15 +41,15 @@ void ShipController::Update(const InputState& input, float dt) {
   bool thrust_forward = false;
 
   if (input.IsDown(InputAction::Backward)) {
-    self->velocity -= OrientationToHeading(direction) * (ship_settings.InitialThrust * (10.0f / 16.0f)) * dt;
+    self->velocity -= OrientationToHeading(direction) * (ship_settings.MaximumThrust * (10.0f / 16.0f)) * dt;
     thrust_backward = true;
   } else if (input.IsDown(InputAction::Forward)) {
-    self->velocity += OrientationToHeading(direction) * (ship_settings.InitialThrust * (10.0f / 16.0f)) * dt;
+    self->velocity += OrientationToHeading(direction) * (ship_settings.MaximumThrust * (10.0f / 16.0f)) * dt;
     thrust_forward = true;
   }
 
   if (input.IsDown(InputAction::Left)) {
-    float rotation = ship_settings.InitialRotation / 400.0f;
+    float rotation = ship_settings.MaximumRotation / 400.0f;
     self->orientation -= rotation * dt;
     if (self->orientation < 0) {
       self->orientation += 1.0f;
@@ -55,14 +57,14 @@ void ShipController::Update(const InputState& input, float dt) {
   }
 
   if (input.IsDown(InputAction::Right)) {
-    float rotation = ship_settings.InitialRotation / 400.0f;
+    float rotation = ship_settings.MaximumRotation / 400.0f;
     self->orientation += rotation * dt;
     if (self->orientation >= 1.0f) {
       self->orientation -= 1.0f;
     }
   }
 
-  self->velocity.Truncate(ship_settings.InitialSpeed / 10.0f / 16.0f);
+  self->velocity.Truncate(ship_settings.MaximumSpeed / 10.0f / 16.0f);
 
   FireWeapons(*self, input, dt);
 

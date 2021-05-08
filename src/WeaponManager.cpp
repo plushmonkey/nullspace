@@ -146,7 +146,7 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
 
     if (player->ship == 8) continue;
     if (player->frequency == weapon.frequency) continue;
-    if (player->explode_animation.IsAnimating()) continue;
+    if (player->enter_delay > 0) continue;
 
     float radius = connection.settings.ShipSettings[player->ship].GetRadius();
     Vector2f r(radius, radius);

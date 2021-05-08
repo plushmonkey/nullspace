@@ -201,6 +201,16 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
 
       Vector2f position = player->position.PixelRounded() + offset;
 
+      // TODO: real max energy
+      float max_energy = (float)connection.settings.ShipSettings[player->ship].MaximumEnergy;
+      if (player->id == player_id && player->energy < max_energy * 0.5f) {
+        TextColor energy_color = player->energy < max_energy * 0.25f ? TextColor::DarkRed : TextColor::Yellow;
+        char energy_output[16];
+        sprintf(energy_output, "%d", (u32)player->energy);
+        renderer.DrawText(camera, energy_output, energy_color, position, Layer::AfterShips);
+        position.y += (12.0f / 16.0f);
+      }
+
       renderer.DrawText(camera, display, color, position, Layer::AfterShips);
     }
   }
