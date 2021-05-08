@@ -398,6 +398,9 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
 
   if (killer) {
     killer->flags += flag_transfer;
+    if (killer->id == player_id) {
+      killer->bounty += connection.settings.BountyIncreaseForKill;
+    }
   }
 }
 

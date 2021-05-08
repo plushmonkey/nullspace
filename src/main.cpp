@@ -181,12 +181,23 @@ struct nullspace {
       JoinZone(selected_zone_index);
     }
 
-    if (ImGui::Begin("Debug")) {
+    ImGui::SetNextWindowPos(ImVec2(surface_width - 212.0f, 2), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(210, 50), ImGuiCond_Always);
+
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    if (ImGui::Begin("Debug", 0, window_flags)) {
       ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
       ImGui::End();
     }
 
-    if (ImGui::Begin("Profile", 0, ImGuiWindowFlags_NoCollapse)) {
+    float profile_width = 250;
+    float profile_height = 140;
+
+    ImGui::SetNextWindowPos(
+        ImVec2(surface_width / 4.0f - profile_width / 2, surface_height / 2.0f - profile_height / 2), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(profile_width, profile_height), ImGuiCond_Always);
+
+    if (ImGui::Begin("Profile", 0, window_flags)) {
       ImGui::Text("Name");
       ImGui::PushItemWidth(-1);
       ImGui::InputText("##ProfileName", name, NULLSPACE_ARRAY_SIZE(name));
@@ -199,7 +210,15 @@ struct nullspace {
       ImGui::End();
     }
 
-    if (ImGui::Begin("Zones", 0, ImGuiWindowFlags_NoCollapse)) {
+    float zones_width = 300;
+    float zones_height = 230;
+
+    ImGui::SetNextWindowPos(
+      ImVec2(surface_width / 2.0f + zones_width / 2, surface_height / 2.0f - zones_height / 2), ImGuiCond_Always);
+
+    ImGui::SetNextWindowSize(ImVec2(zones_width, zones_height), ImGuiCond_Always);
+
+    if (ImGui::Begin("Zones", 0, window_flags)) {
       ImGui::Text("Players Ping Zone Name");
       ImGui::Separator();
 
