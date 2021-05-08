@@ -189,13 +189,8 @@ bool ChatController::HandleInputCommands() {
     if (input[1] >= '0' && input[1] <= '9') {
       // TODO: Check energy
       u16 freq = atoi(input + 1);
-#pragma pack(push, 1)
-      struct {
-        u8 type;
-        u16 freq;
-      } request = {0x0F, freq};
-#pragma pack(pop)
-      connection.packet_sequencer.SendReliableMessage(connection, (u8*)&request, sizeof(request));
+
+      connection.SendFrequencyChange(freq);
     }
     return true;
   }

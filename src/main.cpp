@@ -168,17 +168,7 @@ struct nullspace {
 
     window_state.screen = GameScreen::Playing;
 
-    // Send Continuum encryption request
-#pragma pack(push, 1)
-    struct {
-      u8 core;
-      u8 request;
-      u32 key;
-      u16 version;
-    } request = {0x00, 0x01, 0x00, 0x11};
-#pragma pack(pop)
-
-    game->connection.Send((u8*)&request, sizeof(request));
+    game->connection.SendEncryptionRequest();
     return true;
   }
 
@@ -314,12 +304,7 @@ struct nullspace {
     glfwTerminate();
 
     if (game && game->connection.connected) {
-      struct {
-        u8 core;
-        u8 type;
-      } disconnect = {0x00, 0x07};
-
-      game->connection.Send((u8*)&disconnect, sizeof(u16));
+      game->connection.SendDisconnect();
       printf("Disconnected from server.\n");
     }
   }

@@ -53,7 +53,6 @@ struct Connection {
   bool connected = false;
   ContinuumEncrypt encrypt;
   FileRequester requester;
-
   PacketSequencer packet_sequencer;
   NetworkBuffer buffer;
 
@@ -88,6 +87,13 @@ struct Connection {
   void OnDownloadComplete(struct FileRequest* request, u8* data);
   void SendSecurityPacket();
   void SendSyncTimeRequestPacket(bool reliable);
+
+  void SendDisconnect();
+  void SendEncryptionRequest();
+  void SendSpectateRequest(u16 pid);
+  void SendShipRequest(u8 ship);
+  void SendDeath(u16 killer, u16 bounty);
+  void SendFrequencyChange(u16 freq);
 };
 
 }  // namespace null

@@ -372,12 +372,7 @@ bool Game::HandleMenuKey(int codepoint, int mods) {
   switch (codepoint) {
     case 'q':
     case 'Q': {
-      struct {
-        u8 core;
-        u8 type;
-      } pkt = {0x00, 0x07};
-
-      connection.Send((u8*)&pkt, sizeof(pkt));
+      connection.SendDisconnect();
       connection.Disconnect();
       menu_quit = true;
       handled = true;
@@ -394,13 +389,8 @@ bool Game::HandleMenuKey(int codepoint, int mods) {
       Player* self = player_manager.GetSelf();
 
       if (self && self->ship != ship) {
-        struct {
-          u8 type;
-          u8 ship;
-        } request = {0x18, (u8)ship};
         printf("Sending ship request for %d\n", ship + 1);
-
-        connection.packet_sequencer.SendReliableMessage(connection, (u8*)&request, sizeof(request));
+        connection.SendShipRequest((u8)ship);
       }
       handled = true;
     } break;
@@ -409,13 +399,9 @@ bool Game::HandleMenuKey(int codepoint, int mods) {
       Player* self = player_manager.GetSelf();
 
       if (self && self->ship != 8) {
-        struct {
-          u8 type;
-          u8 ship;
-        } request = {0x18, 0x08};
         printf("Sending spectate request.\n");
 
-        connection.packet_sequencer.SendReliableMessage(connection, (u8*)&request, sizeof(request));
+        connection.SendShipRequest(8);
       }
       handled = true;
     } break;

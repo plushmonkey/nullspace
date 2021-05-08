@@ -558,6 +558,71 @@ size_t Connection::Send(u8* data, size_t size) {
   return bytes;
 }
 
+void Connection::SendDisconnect() {
+  struct {
+    u8 core;
+    u8 type;
+  } disconnect = {0x00, 0x07};
+
+  Send((u8*)&disconnect, sizeof(u16));
+}
+
+void Connection::SendEncryptionRequest() {
+#pragma pack(push, 1)
+  struct {
+    u8 core;
+    u8 request;
+    u32 key;
+    u16 version;
+  } request = {0x00, 0x01, 0x00, 0x11};
+#pragma pack(pop)
+
+  Send((u8*)&request, sizeof(request));
+}
+
+void Connection::SendSpectateRequest(u16 pid) {
+#pragma pack(push, 1)
+  struct {
+    u8 type;
+    u16 pid;
+  } spectate_request = {0x08, pid};
+#pragma pack(pop)
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&spectate_request, sizeof(spectate_request));
+}
+
+void Connection::SendShipRequest(u8 ship) {
+  struct {
+    u8 type;
+    u8 ship;
+  } request = {0x18, ship};
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&request, sizeof(request));
+}
+
+void Connection::SendDeath(u16 killer, u16 bounty) {
+#pragma pack(push, 1)
+  struct {
+    u8 type;
+    u16 killer_pid;
+    u16 bounty;
+  } death_pkt = {0x05, killer, bounty};
+#pragma pack(pop)
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&death_pkt, sizeof(death_pkt));
+}
+
+void Connection::SendFrequencyChange(u16 freq) {
+#pragma pack(push, 1)
+  struct {
+    u8 type;
+    u16 freq;
+  } request = { 0x0F, freq };
+#pragma pack(pop)
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&request, sizeof(request));
+}
+
 void Connection::Disconnect() {
   closesocket(this->fd);
   this->connected = false;

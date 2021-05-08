@@ -94,14 +94,7 @@ void SpectateView::SpectateSelected() {
     spectate_frequency = selected->frequency;
     last_spectate_packet = tick;
 
-#pragma pack(push, 1)
-    struct {
-      u8 type;
-      u16 pid;
-    } spectate_request = {0x08, spectate_id};
-#pragma pack(pop)
-
-    connection.packet_sequencer.SendReliableMessage(connection, (u8*)&spectate_request, sizeof(spectate_request));
+    connection.SendSpectateRequest(spectate_id);
   }
 }
 

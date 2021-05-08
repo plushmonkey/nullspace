@@ -248,15 +248,8 @@ void PlayerManager::OnWeaponHit(Weapon& weapon) {
   }
 
   if (self->energy < damage) {
-#pragma pack(push, 1)
-    struct {
-      u8 type;
-      u16 killer_pid;
-      u16 bounty;
-    } death_pkt = {0x05, weapon.player_id, self->bounty};
-#pragma pack(pop)
+    connection.SendDeath(weapon.player_id, self->bounty);
 
-    connection.packet_sequencer.SendReliableMessage(connection, (u8*)&death_pkt, sizeof(death_pkt));
     self->enter_delay = (connection.settings.EnterDelay / 100.0f) + self->explode_animation.sprite->duration;
     self->explode_animation.t = 0.0f;
     self->energy = 0;
