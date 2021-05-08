@@ -418,6 +418,13 @@ void PlayerManager::Spawn() {
   // TODO: Switch to initial once status is implemented
   player->energy = connection.settings.ShipSettings[player->ship].MaximumEnergy;
 
+  if (x_center == 0) {
+    x_center = 512;
+  }
+  if (y_center == 0) {
+    y_center = 512;
+  }
+
   if (radius == 0) {
     player->position = Vector2f(x_center, y_center);
     player->bounty = connection.settings.ShipSettings[ship].InitialBounty;

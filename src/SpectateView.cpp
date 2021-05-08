@@ -99,7 +99,9 @@ void SpectateView::SpectateSelected() {
 }
 
 void SpectateView::OnCharacterPress(int codepoint, int mods) {
-  if (codepoint == NULLSPACE_KEY_CONTROL) {
+  Player* self = statbox.player_manager.GetSelf();
+
+  if (self && self->ship == 8 && codepoint == NULLSPACE_KEY_CONTROL) {
     SpectateSelected();
   }
 }

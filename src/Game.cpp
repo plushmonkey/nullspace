@@ -358,7 +358,7 @@ void Game::RenderRadar(Player* me) {
       u32 map_coord_x = (u32)floor(me->position.x / (1024 / 20.0f));
       u32 map_coord_y = (u32)floor(me->position.y / (1024 / 20.0f)) + 1;
 
-      sprintf(output, "%d:%2d%s  %c%d", hour, ti->tm_min, pm ? "pm" : "am", map_coord_x + 'A', map_coord_y);
+      sprintf(output, "%d:%02d%s  %c%d", hour, ti->tm_min, pm ? "pm" : "am", map_coord_x + 'A', map_coord_y);
       sprite_renderer.DrawText(ui_camera, output, TextColor::White,
                                Vector2f(ui_camera.surface_dim.x - 5, position.y - 16), Layer::TopMost,
                                TextAlignment::Right);
