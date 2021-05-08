@@ -35,6 +35,8 @@ SpriteRenderable* Graphics::repel_sprites = nullptr;
 SpriteRenderable* Graphics::color_sprites = nullptr;
 SpriteRenderable* Graphics::icon_sprites = nullptr;
 
+SpriteRenderable* Graphics::exhaust_sprites = nullptr;
+
 SpriteRenderable* Graphics::flag_sprites = nullptr;
 SpriteRenderable* Graphics::goal_sprites = nullptr;
 SpriteRenderable* Graphics::asteroid_small1_sprites = nullptr;
@@ -63,6 +65,7 @@ AnimatedSprite Graphics::anim_repel;
 
 AnimatedSprite Graphics::anim_ship_explode;
 AnimatedSprite Graphics::anim_ship_warp;
+AnimatedSprite Graphics::anim_ship_exhaust;
 
 AnimatedSprite Graphics::anim_flag;
 AnimatedSprite Graphics::anim_flag_team;
@@ -157,6 +160,11 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
   if (!emp_burst_sprites) return false;
 
   CreateEmpExplodeAnimations(emp_burst_sprites, count);
+
+  exhaust_sprites = LoadTileSheet(renderer, "exhaust", Vector2f(16, 16), &count);
+  if (!exhaust_sprites) return false;
+
+  CreateExhaustAnimations(exhaust_sprites, count);
 
   return true;
 }
@@ -332,6 +340,12 @@ void Graphics::CreateFlagAnimations(SpriteRenderable* renderables, int count) {
   anim_flag_team.duration = 1.0f;
   anim_flag_team.frames = renderables + count / 2;
   anim_flag_team.frame_count = count / 2;
+}
+
+void Graphics::CreateExhaustAnimations(SpriteRenderable* renderables, int count) {
+  anim_ship_exhaust.duration = 0.6f;
+  anim_ship_exhaust.frames = renderables;
+  anim_ship_exhaust.frame_count = count / 2;
 }
 
 bool Graphics::InitializeTiles(SpriteRenderer& renderer) {

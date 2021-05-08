@@ -31,6 +31,7 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
     game->ship_controller.multifire = !game->ship_controller.multifire;
   } else if (game->menu_open) {
     if (game->HandleMenuKey(codepoint, mods)) {
+      game->chat.display_full = false;
       return;
     }
   }

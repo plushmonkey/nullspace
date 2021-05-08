@@ -1,5 +1,6 @@
 #include "ShipController.h"
 
+#include <cassert>
 #include <cstring>
 
 #include "ArenaSettings.h"
@@ -8,6 +9,7 @@
 #include "Tick.h"
 #include "WeaponManager.h"
 #include "net/Connection.h"
+#include "render/Animation.h"
 #include "render/Camera.h"
 #include "render/Graphics.h"
 #include "render/SpriteRenderer.h"
@@ -33,11 +35,15 @@ void ShipController::Update(const InputState& input, float dt) {
 
   // TODO: Real calculations with ship status
   u8 direction = (u8)(self->orientation * 40.0f);
-  if (input.IsDown(InputAction::Forward)) {
-    self->velocity += OrientationToHeading(direction) * (ship_settings.InitialThrust * (10.0f / 16.0f)) * dt;
-  }
+  bool thrust_backward = false;
+  bool thrust_forward = false;
+
   if (input.IsDown(InputAction::Backward)) {
     self->velocity -= OrientationToHeading(direction) * (ship_settings.InitialThrust * (10.0f / 16.0f)) * dt;
+    thrust_backward = true;
+  } else if (input.IsDown(InputAction::Forward)) {
+    self->velocity += OrientationToHeading(direction) * (ship_settings.InitialThrust * (10.0f / 16.0f)) * dt;
+    thrust_forward = true;
   }
 
   if (input.IsDown(InputAction::Left)) {
@@ -59,6 +65,55 @@ void ShipController::Update(const InputState& input, float dt) {
   self->velocity.Truncate(ship_settings.InitialSpeed / 10.0f / 16.0f);
 
   FireWeapons(*self, input, dt);
+
+  for (size_t i = 0; i < exhaust_count; ++i) {
+    Exhaust* exhaust = exhausts + i;
+
+    bool moving = exhaust->animation.t <= 0.3f * exhaust->animation.sprite->duration;
+    // Speed up the animation at the beginning
+    exhaust->animation.t += moving ? dt * 2.0f : dt;
+
+    if (!exhaust->animation.IsAnimating()) {
+      exhausts[i--] = exhausts[--exhaust_count];
+      continue;
+    }
+
+    if (moving) {
+      exhaust->animation.position += exhaust->velocity * dt;
+    }
+  }
+
+  static u32 last_tick = 0;
+  u32 tick = GetCurrentTick();
+
+  if ((thrust_forward || thrust_backward) && TICK_DIFF(tick, last_tick) >= 6) {
+    Connection& connection = player_manager.connection;
+    ShipSettings& ship_settings = connection.settings.ShipSettings[self->ship];
+
+    Vector2f exhaust_pos = self->position - Graphics::anim_ship_exhaust.frames[0].dimensions * (0.5f / 16.0f);
+    Vector2f heading = OrientationToHeading((u8)(self->orientation * 40.0f));
+
+    float velocity_strength = 12.0f;
+    Vector2f velocity = (thrust_forward ? -heading : heading) * velocity_strength;
+
+    Exhaust* exhaust_r = exhausts + exhaust_count++;
+    assert(exhaust_count + 1 < NULLSPACE_ARRAY_SIZE(exhausts));
+
+    exhaust_r->animation.t = 0.0f;
+    exhaust_r->animation.position = (exhaust_pos + Perpendicular(heading) * 0.2f) - heading * ship_settings.GetRadius();
+    exhaust_r->animation.sprite = &Graphics::anim_ship_exhaust;
+    exhaust_r->velocity = velocity;
+    exhaust_r->velocity += Perpendicular(heading) * (velocity_strength * 0.2f);
+
+    Exhaust* exhaust_l = exhausts + exhaust_count++;
+    exhaust_l->animation.t = 0.0f;
+    exhaust_l->animation.position = (exhaust_pos - Perpendicular(heading) * 0.2f) - heading * ship_settings.GetRadius();
+    exhaust_l->animation.sprite = &Graphics::anim_ship_exhaust;
+    exhaust_l->velocity = velocity;
+    exhaust_l->velocity -= Perpendicular(heading) * (velocity_strength * 0.2f);
+
+    last_tick = tick;
+  }
 }
 
 void ShipController::FireWeapons(Player& self, const InputState& input, float dt) {
@@ -118,13 +173,14 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
   if (used_weapon) {
     if (connection.map.GetTileId((u16)self.position.x, (u16)self.position.y) == kTileSafe) {
       self.velocity = Vector2f(0, 0);
-      memset(&self.weapon, 0, sizeof(self.weapon));
     } else if (self.energy > energy_cost) {
       weapon_manager.FireWeapons(self, self.weapon, self.position, self.velocity, GetCurrentTick());
       self.energy -= energy_cost;
       player_manager.SendPositionPacket();
     }
   }
+
+  memset(&self.weapon, 0, sizeof(self.weapon));
 }
 
 void ShipController::Render(Camera& ui_camera, Camera& camera, SpriteRenderer& renderer) {
@@ -146,7 +202,13 @@ void ShipController::Render(Camera& ui_camera, Camera& camera, SpriteRenderer& r
 
   renderer.Render(ui_camera);
 
-  // TODO: Render exhaust
+  for (size_t i = 0; i < exhaust_count; ++i) {
+    Exhaust* exhaust = exhausts + i;
+
+    renderer.Draw(camera, exhaust->animation.GetFrame(), exhaust->animation.position, Layer::AfterWeapons);
+  }
+
+  renderer.Render(camera);
 }
 
 }  // namespace null
