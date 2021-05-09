@@ -24,10 +24,17 @@ static void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
   controller->OnPlayerFreqAndShipChange(pkt, size);
 }
 
+static void OnCollectedPrizePkt(void* user, u8* pkt, size_t size) {
+  ShipController* controller = (ShipController*)user;
+
+  controller->OnCollectedPrize(pkt, size);
+}
+
 ShipController::ShipController(PlayerManager& player_manager, WeaponManager& weapon_manager,
                                PacketDispatcher& dispatcher)
     : player_manager(player_manager), weapon_manager(weapon_manager) {
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
+  dispatcher.Register(ProtocolS2C::CollectedPrize, OnCollectedPrizePkt, this);
 }
 
 void ShipController::Update(const InputState& input, float dt) {
@@ -40,11 +47,6 @@ void ShipController::Update(const InputState& input, float dt) {
 
   Connection& connection = player_manager.connection;
   ShipSettings& ship_settings = connection.settings.ShipSettings[self->ship];
-
-  // Energy can only be zero right after respawning since enter_delay is checked above.
-  if (self->energy <= 0) {
-    ResetShip();
-  }
 
   self->energy += (ship.recharge / 10.0f) * dt;
   if (self->energy > ship.energy) {
@@ -265,7 +267,19 @@ void ShipController::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
 
   if (player) {
     player_manager.Spawn();
-    ResetShip();
+  }
+}
+
+void ShipController::OnCollectedPrize(u8* pkt, size_t size) {
+  u16 count = *(u16*)(pkt + 1);
+  s16 prize_id = *(s16*)(pkt + 3);
+
+  Player* self = player_manager.GetSelf();
+
+  if (!self) return;
+
+  for (u16 i = 0; i < count; ++i) {
+    ApplyPrize(self, prize_id);
   }
 }
 
@@ -275,11 +289,14 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
 
   if (negative) {
     prize = (Prize)(-prize_id);
+    if (self->bounty > 0) {
+      --self->bounty;
+    }
+  } else {
+    ++self->bounty;
   }
 
   ShipSettings& ship_settings = player_manager.connection.settings.ShipSettings[self->ship];
-
-  ++self->bounty;
 
   switch (prize) {
     case Prize::Recharge: {
@@ -385,6 +402,9 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
       if (negative) {
         ship.capability &= ~ShipCapability_BouncingBullets;
       } else {
+        if (ship.capability & ShipCapability_BouncingBullets) {
+          --self->bounty;
+        }
         ship.capability |= ShipCapability_BouncingBullets;
       }
     } break;
@@ -435,6 +455,9 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
       if (negative) {
         ship.capability &= ~ShipCapability_Proximity;
       } else {
+        if (ship.capability & ShipCapability_Proximity) {
+          --self->bounty;
+        }
         ship.capability |= ShipCapability_Proximity;
       }
     } break;
@@ -632,6 +655,9 @@ void ShipController::ResetShip() {
       ApplyPrize(self, prize_id);
     }
   }
+
+  self->energy = (float)ship.energy;
+  self->bounty = ship_settings.InitialBounty;
 }
 
 void ShipController::OnWeaponHit(Weapon& weapon) {

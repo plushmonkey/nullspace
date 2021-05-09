@@ -6,6 +6,7 @@
 
 #include "Buffer.h"
 #include "InputState.h"
+#include "ShipController.h"
 #include "Tick.h"
 #include "WeaponManager.h"
 #include "net/Checksum.h"
@@ -201,8 +202,7 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
 
       Vector2f position = player->position.PixelRounded() + offset;
 
-      // TODO: real max energy
-      float max_energy = (float)connection.settings.ShipSettings[player->ship].MaximumEnergy;
+      float max_energy = (float)ship_controller->ship.energy;
       if (player->id == player_id && player->energy < max_energy * 0.5f) {
         TextColor energy_color = player->energy < max_energy * 0.25f ? TextColor::DarkRed : TextColor::Yellow;
         char energy_output[16];
@@ -223,6 +223,8 @@ void PlayerManager::SendPositionPacket() {
   Player* player = GetPlayerById(player_id);
 
   assert(player);
+
+  if (player->ship != 8 && player->energy <= 0) return;
 
   u16 x = (u16)(player->position.x * 16.0f);
   u16 y = (u16)(player->position.y * 16.0f);
@@ -363,18 +365,16 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
 }
 
 void PlayerManager::Spawn() {
-  Player* player = GetSelf();
-  if (!player) return;
+  Player* self = GetSelf();
 
-  u8 ship = player->ship;
+  if (!self) return;
+
+  u8 ship = self->ship;
 
   // TODO: read correct frequency
   float x_center = abs((float)connection.settings.SpawnSettings[0].X);
   float y_center = abs((float)connection.settings.SpawnSettings[0].Y);
   int radius = connection.settings.SpawnSettings[0].Radius;
-
-  // TODO: Switch to initial once status is implemented
-  player->energy = connection.settings.ShipSettings[player->ship].MaximumEnergy;
 
   if (x_center == 0) {
     x_center = 512;
@@ -384,7 +384,7 @@ void PlayerManager::Spawn() {
   }
 
   if (radius == 0) {
-    player->position = Vector2f(x_center, y_center);
+    self->position = Vector2f(x_center, y_center);
   } else {
     // Try 100 times to spawn in a random spot. TODO: Improve this to find open space better
     for (int i = 0; i < 100; ++i) {
@@ -394,12 +394,13 @@ void PlayerManager::Spawn() {
       Vector2f spawn(x_center + x_offset, y_center + y_offset);
 
       if (!connection.map.IsSolid((u16)spawn.x, (u16)spawn.y) || i == 99) {
-        player->position = spawn;
+        self->position = spawn;
         break;
       }
     }
   }
 
+  ship_controller->ResetShip();
   SendPositionPacket();
 }
 

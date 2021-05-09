@@ -10,10 +10,12 @@ struct Camera;
 struct Connection;
 struct InputState;
 struct PacketDispatcher;
+struct ShipController;
 struct SpriteRenderer;
 
 struct PlayerManager {
   Connection& connection;
+  ShipController* ship_controller = nullptr;
   size_t player_count = 0;
   Player players[1024];
 
@@ -21,6 +23,8 @@ struct PlayerManager {
   u32 last_position_tick = 0;
 
   PlayerManager(Connection& connection, PacketDispatcher& dispatcher);
+
+  void Initialize(ShipController* ship_controller) { this->ship_controller = ship_controller; }
 
   void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer, u32 self_freq);

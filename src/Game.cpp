@@ -74,6 +74,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
   dispatcher.Register(ProtocolS2C::FlagPosition, OnFlagPositionPkt, this);
   dispatcher.Register(ProtocolS2C::FlagClaim, OnFlagClaimPkt, this);
 
+  player_manager.Initialize(&ship_controller);
   weapon_manager.Initialize(&ship_controller);
 }
 

@@ -106,6 +106,8 @@ struct ShipController {
   void Render(Camera& ui_camera, Camera& camera, SpriteRenderer& renderer);
 
   void OnPlayerFreqAndShipChange(u8* pkt, size_t size);
+  void OnCollectedPrize(u8* pkt, size_t size);
+
   void ResetShip();
 
   void ApplyPrize(Player* self, s32 prize_id);
