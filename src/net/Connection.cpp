@@ -375,6 +375,12 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           map.last_seed_tick = GetCurrentTick() - settings->DoorDelay;
           map.UpdateDoors(*settings);
         }
+
+        u8* weights = (u8*)&settings->PrizeWeights;
+        this->prize_weight_total = 0;
+        for (size_t i = 0; i < sizeof(settings->PrizeWeights); ++i) {
+          this->prize_weight_total += weights[i];
+        }
       } break;
       case ProtocolS2C::Security: {
         security.prize_seed = buffer.ReadU32();
@@ -617,7 +623,7 @@ void Connection::SendFrequencyChange(u16 freq) {
   struct {
     u8 type;
     u16 freq;
-  } request = { 0x0F, freq };
+  } request = {0x0F, freq};
 #pragma pack(pop)
 
   packet_sequencer.SendReliableMessage(*this, (u8*)&request, sizeof(request));

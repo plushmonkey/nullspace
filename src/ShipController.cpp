@@ -6,9 +6,11 @@
 #include "ArenaSettings.h"
 #include "InputState.h"
 #include "PlayerManager.h"
+#include "Random.h"
 #include "Tick.h"
 #include "WeaponManager.h"
 #include "net/Connection.h"
+#include "net/PacketDispatcher.h"
 #include "render/Animation.h"
 #include "render/Camera.h"
 #include "render/Graphics.h"
@@ -16,8 +18,17 @@
 
 namespace null {
 
-ShipController::ShipController(PlayerManager& player_manager, WeaponManager& weapon_manager)
-    : player_manager(player_manager), weapon_manager(weapon_manager) {}
+static void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
+  ShipController* controller = (ShipController*)user;
+
+  controller->OnPlayerFreqAndShipChange(pkt, size);
+}
+
+ShipController::ShipController(PlayerManager& player_manager, WeaponManager& weapon_manager,
+                               PacketDispatcher& dispatcher)
+    : player_manager(player_manager), weapon_manager(weapon_manager) {
+  dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
+}
 
 void ShipController::Update(const InputState& input, float dt) {
   Player* self = player_manager.GetSelf();
@@ -30,9 +41,14 @@ void ShipController::Update(const InputState& input, float dt) {
   Connection& connection = player_manager.connection;
   ShipSettings& ship_settings = connection.settings.ShipSettings[self->ship];
 
-  self->energy += (ship_settings.MaximumRecharge / 10.0f) * dt;
-  if (self->energy > ship_settings.MaximumEnergy) {
-    self->energy = ship_settings.MaximumEnergy;
+  // Energy can only be zero right after respawning since enter_delay is checked above.
+  if (self->energy <= 0) {
+    ResetShip();
+  }
+
+  self->energy += (ship.recharge / 10.0f) * dt;
+  if (self->energy > ship.energy) {
+    self->energy = (float)ship.energy;
   }
 
   // TODO: Real calculations with ship status
@@ -41,15 +57,15 @@ void ShipController::Update(const InputState& input, float dt) {
   bool thrust_forward = false;
 
   if (input.IsDown(InputAction::Backward)) {
-    self->velocity -= OrientationToHeading(direction) * (ship_settings.MaximumThrust * (10.0f / 16.0f)) * dt;
+    self->velocity -= OrientationToHeading(direction) * (ship.thrust * (10.0f / 16.0f)) * dt;
     thrust_backward = true;
   } else if (input.IsDown(InputAction::Forward)) {
-    self->velocity += OrientationToHeading(direction) * (ship_settings.MaximumThrust * (10.0f / 16.0f)) * dt;
+    self->velocity += OrientationToHeading(direction) * (ship.thrust * (10.0f / 16.0f)) * dt;
     thrust_forward = true;
   }
 
   if (input.IsDown(InputAction::Left)) {
-    float rotation = ship_settings.MaximumRotation / 400.0f;
+    float rotation = ship.rotation / 400.0f;
     self->orientation -= rotation * dt;
     if (self->orientation < 0) {
       self->orientation += 1.0f;
@@ -57,14 +73,20 @@ void ShipController::Update(const InputState& input, float dt) {
   }
 
   if (input.IsDown(InputAction::Right)) {
-    float rotation = ship_settings.MaximumRotation / 400.0f;
+    float rotation = ship.rotation / 400.0f;
     self->orientation += rotation * dt;
     if (self->orientation >= 1.0f) {
       self->orientation -= 1.0f;
     }
   }
 
-  self->velocity.Truncate(ship_settings.MaximumSpeed / 10.0f / 16.0f);
+  self->velocity.Truncate(ship.speed / 10.0f / 16.0f);
+
+  if (player_manager.connection.map.GetTileId((u16)self->position.x, (u16)self->position.y) == kTileSafe) {
+    self->togglables |= Status_Safety;
+  } else {
+    self->togglables &= ~Status_Safety;
+  }
 
   FireWeapons(*self, input, dt);
 
@@ -130,18 +152,19 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
   if (input.IsDown(InputAction::Bullet) && TICK_GT(tick, next_bullet_tick)) {
     // TODO: Real weapon data stored
-    if (ship_settings.InitialGuns > 0) {
-      self.weapon.level = ship_settings.MaxGuns - 1;
-      if (connection.settings.PrizeWeights.BouncingBullets > 0) {
+    if (ship.guns > 0) {
+      self.weapon.level = ship.guns - 1;
+
+      if (ship.capability & ShipCapability_BouncingBullets) {
         self.weapon.type = (u16)WeaponType::BouncingBullet;
       } else {
         self.weapon.type = (u16)WeaponType::Bullet;
       }
 
-      self.weapon.alternate = multifire;
+      self.weapon.alternate = ship.multifire && (ship.capability & ShipCapability_Multifire);
 
       used_weapon = true;
-      if (multifire) {
+      if (self.weapon.alternate) {
         next_bullet_tick = tick + ship_settings.MultiFireDelay;
         energy_cost = ship_settings.MultiFireEnergy * (self.weapon.level + 1);
       } else {
@@ -150,11 +173,18 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       }
     }
   } else if (input.IsDown(InputAction::Mine) && TICK_GT(tick, next_bomb_tick)) {
-    if (ship_settings.InitialBombs > 0) {
-      self.weapon.level = ship_settings.MaxBombs - 1;
-      self.weapon.type = (u16)WeaponType::Bomb;
+    if (ship.bombs > 0) {
+      self.weapon.level = ship.bombs - 1;
+      self.weapon.type =
+          (u16)((ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb);
       // TODO: Count mines
       self.weapon.alternate = 1;
+
+      if (ship.guns > 0) {
+        self.weapon.shrap = ship.shrapnel;
+        self.weapon.shraplevel = ship.guns - 1;
+        self.weapon.shrapbouncing = (ship.capability & ShipCapability_BouncingBullets) > 0;
+      }
 
       used_weapon = true;
       next_bomb_tick = tick + ship_settings.BombFireDelay;
@@ -162,9 +192,16 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
           ship_settings.LandmineFireEnergy + ship_settings.LandmineFireEnergyUpgrade * (self.weapon.level + 1);
     }
   } else if (input.IsDown(InputAction::Bomb) && TICK_GT(tick, next_bomb_tick)) {
-    if (ship_settings.InitialBombs > 0) {
-      self.weapon.level = ship_settings.MaxBombs - 1;
-      self.weapon.type = (u16)WeaponType::Bomb;
+    if (ship.bombs > 0) {
+      self.weapon.level = ship.bombs - 1;
+      self.weapon.type =
+          (u16)((ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb);
+
+      if (ship.guns > 0) {
+        self.weapon.shrap = ship.shrapnel;
+        self.weapon.shraplevel = ship.guns - 1;
+        self.weapon.shrapbouncing = (ship.capability & ShipCapability_BouncingBullets) > 0;
+      }
 
       used_weapon = true;
       next_bomb_tick = tick + ship_settings.BombFireDelay;
@@ -211,6 +248,435 @@ void ShipController::Render(Camera& ui_camera, Camera& camera, SpriteRenderer& r
   }
 
   renderer.Render(camera);
+}
+
+void ShipController::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
+  NetworkBuffer buffer(pkt, size, size);
+
+  buffer.ReadU8();
+
+  u8 new_ship = buffer.ReadU8();
+  u16 pid = buffer.ReadU16();
+  u16 freq = buffer.ReadU16();
+
+  if (pid != player_manager.player_id) return;
+
+  Player* player = player_manager.GetPlayerById(pid);
+
+  if (player) {
+    player_manager.Spawn();
+    ResetShip();
+  }
+}
+
+void ShipController::ApplyPrize(Player* self, s32 prize_id) {
+  bool negative = (prize_id < 0);
+  Prize prize = (Prize)prize_id;
+
+  if (negative) {
+    prize = (Prize)(-prize_id);
+  }
+
+  ShipSettings& ship_settings = player_manager.connection.settings.ShipSettings[self->ship];
+
+  ++self->bounty;
+
+  switch (prize) {
+    case Prize::Recharge: {
+      if (negative) {
+        ship.recharge -= ship_settings.UpgradeRecharge;
+
+        if (ship.recharge < ship_settings.InitialRecharge) {
+          ship.recharge = ship_settings.InitialRecharge;
+        }
+      } else {
+        ship.recharge += ship_settings.UpgradeRecharge;
+
+        if (ship.recharge > ship_settings.MaximumRecharge) {
+          ship.recharge = ship_settings.MaximumRecharge;
+        }
+      }
+    } break;
+    case Prize::Energy: {
+      if (negative) {
+        ship.energy -= ship_settings.UpgradeEnergy;
+
+        if (ship.energy < ship_settings.InitialEnergy) {
+          ship.energy = ship_settings.InitialEnergy;
+        }
+      } else {
+        ship.energy += ship_settings.UpgradeEnergy;
+
+        if (ship.energy > ship_settings.MaximumEnergy) {
+          ship.energy = ship_settings.MaximumEnergy;
+        }
+      }
+    } break;
+    case Prize::Rotation: {
+      if (negative) {
+        ship.rotation -= ship_settings.UpgradeRotation;
+
+        if (ship.rotation < ship_settings.InitialRotation) {
+          ship.rotation = ship_settings.InitialRotation;
+        }
+      } else {
+        ship.rotation += ship_settings.UpgradeRotation;
+
+        if (ship.rotation > ship_settings.MaximumRotation) {
+          ship.rotation = ship_settings.MaximumRotation;
+        }
+      }
+    } break;
+    case Prize::Stealth: {
+      if (negative) {
+        ship.capability &= ~ShipCapability_Stealth;
+      } else {
+        ship.capability |= ShipCapability_Stealth;
+      }
+    } break;
+    case Prize::Cloak: {
+      if (negative) {
+        ship.capability &= ~ShipCapability_Cloak;
+      } else {
+        ship.capability |= ShipCapability_Cloak;
+      }
+    } break;
+    case Prize::XRadar: {
+      if (negative) {
+        ship.capability &= ~ShipCapability_XRadar;
+      } else {
+        ship.capability |= ShipCapability_XRadar;
+      }
+    } break;
+    case Prize::Warp: {
+      player_manager.Spawn();
+    } break;
+    case Prize::Guns: {
+      if (negative) {
+        --ship.guns;
+
+        if (ship.guns < ship_settings.InitialGuns) {
+          ship.guns = ship_settings.InitialGuns;
+        }
+      } else {
+        ++ship.guns;
+
+        if (ship.guns > ship_settings.MaxGuns) {
+          ship.guns = ship_settings.MaxGuns;
+        }
+      }
+    } break;
+    case Prize::Bombs: {
+      if (negative) {
+        --ship.bombs;
+
+        if (ship.bombs < ship_settings.InitialBombs) {
+          ship.bombs = ship_settings.InitialBombs;
+        }
+      } else {
+        ++ship.bombs;
+
+        if (ship.bombs > ship_settings.MaxBombs) {
+          ship.bombs = ship_settings.MaxBombs;
+        }
+      }
+    } break;
+    case Prize::BouncingBullets: {
+      if (negative) {
+        ship.capability &= ~ShipCapability_BouncingBullets;
+      } else {
+        ship.capability |= ShipCapability_BouncingBullets;
+      }
+    } break;
+    case Prize::Thruster: {
+      if (negative) {
+        ship.thrust -= ship_settings.UpgradeThrust;
+
+        if (ship.thrust < ship_settings.InitialThrust) {
+          ship.thrust = ship_settings.InitialThrust;
+        }
+      } else {
+        ship.thrust += ship_settings.UpgradeThrust;
+
+        if (ship.thrust > ship_settings.MaximumThrust) {
+          ship.thrust = ship_settings.MaximumThrust;
+        }
+      }
+    } break;
+    case Prize::TopSpeed: {
+      if (negative) {
+        ship.speed -= ship_settings.UpgradeSpeed;
+
+        if (ship.speed < ship_settings.InitialSpeed) {
+          ship.speed = ship_settings.InitialSpeed;
+        }
+      } else {
+        ship.speed += ship_settings.UpgradeSpeed;
+
+        if (ship.speed > ship_settings.MaximumSpeed) {
+          ship.speed = ship_settings.MaximumSpeed;
+        }
+      }
+    } break;
+    case Prize::FullCharge: {
+      self->energy = (float)ship.energy;
+    } break;
+    case Prize::EngineShutdown: {
+      // TODO: Implement
+    } break;
+    case Prize::Multifire: {
+      if (negative) {
+        ship.capability &= ~ShipCapability_Multifire;
+      } else {
+        ship.capability |= ShipCapability_Multifire;
+      }
+    } break;
+    case Prize::Proximity: {
+      if (negative) {
+        ship.capability &= ~ShipCapability_Proximity;
+      } else {
+        ship.capability |= ShipCapability_Proximity;
+      }
+    } break;
+    case Prize::Super: {
+      // TODO: Implement
+    } break;
+    case Prize::Shields: {
+      // TODO: Implement
+    } break;
+    case Prize::Shrapnel: {
+      if (negative) {
+        if (ship.shrapnel >= ship_settings.ShrapnelRate) {
+          ship.shrapnel -= ship_settings.ShrapnelRate;
+        }
+      } else {
+        ship.shrapnel += ship_settings.ShrapnelRate;
+
+        if (ship.shrapnel > ship_settings.ShrapnelMax) {
+          ship.shrapnel = ship_settings.ShrapnelMax;
+        }
+      }
+    } break;
+    case Prize::Antiwarp: {
+      if (negative) {
+        ship.capability &= ~ShipCapability_Antiwarp;
+      } else {
+        ship.capability |= ShipCapability_Antiwarp;
+      }
+    } break;
+    case Prize::Repel: {
+      if (negative) {
+        if (ship.repels > 0) {
+          --ship.repels;
+        } else {
+          ++ship.repels;
+          if (ship.repels > ship_settings.RepelMax) {
+            ship.repels = ship_settings.RepelMax;
+          }
+        }
+      }
+    } break;
+    case Prize::Burst: {
+      if (negative) {
+        if (ship.bursts > 0) {
+          --ship.bursts;
+        } else {
+          ++ship.bursts;
+          if (ship.bursts > ship_settings.BurstMax) {
+            ship.bursts = ship_settings.BurstMax;
+          }
+        }
+      }
+    } break;
+    case Prize::Decoy: {
+      if (negative) {
+        if (ship.decoys > 0) {
+          --ship.decoys;
+        } else {
+          ++ship.decoys;
+          if (ship.decoys > ship_settings.DecoyMax) {
+            ship.decoys = ship_settings.DecoyMax;
+          }
+        }
+      }
+    } break;
+    case Prize::Thor: {
+      if (negative) {
+        if (ship.thors > 0) {
+          --ship.thors;
+        } else {
+          ++ship.thors;
+          if (ship.thors > ship_settings.ThorMax) {
+            ship.thors = ship_settings.ThorMax;
+          }
+        }
+      }
+    } break;
+    case Prize::Multiprize: {
+      // TODO: Implement
+    } break;
+    case Prize::Brick: {
+      if (negative) {
+        if (ship.bricks > 0) {
+          --ship.bricks;
+        } else {
+          ++ship.bricks;
+          if (ship.bricks > ship_settings.BrickMax) {
+            ship.bricks = ship_settings.BrickMax;
+          }
+        }
+      }
+    } break;
+    case Prize::Rocket: {
+      if (negative) {
+        if (ship.rockets > 0) {
+          --ship.rockets;
+        } else {
+          ++ship.rockets;
+          if (ship.rockets > ship_settings.RocketMax) {
+            ship.rockets = ship_settings.RocketMax;
+          }
+        }
+      }
+    } break;
+    case Prize::Portal: {
+      if (negative) {
+        if (ship.portals > 0) {
+          --ship.bursts;
+        } else {
+          ++ship.portals;
+          if (ship.portals > ship_settings.PortalMax) {
+            ship.portals = ship_settings.PortalMax;
+          }
+        }
+      }
+    } break;
+    default: {
+    } break;
+  }
+}
+
+s32 ShipController::GeneratePrize(bool negative_allowed) {
+  u32 weight_total = player_manager.connection.prize_weight_total;
+
+  if (weight_total <= 0) return 0;
+
+  u8* weights = (u8*)&player_manager.connection.settings.PrizeWeights;
+  VieRNG rng = {(s32)player_manager.connection.security.prize_seed};
+
+  u32 random = rng.GetNext();
+  s32 result = 0;
+  u32 weight = 0;
+
+  for (int prize_id = 0; prize_id < sizeof(player_manager.connection.settings.PrizeWeights); ++prize_id) {
+    weight += weights[prize_id];
+
+    if (random % weight_total < weight) {
+      random = rng.GetNext();
+
+      if (!negative_allowed || random % player_manager.connection.settings.PrizeNegativeFactor != 0) {
+        result = prize_id + 1;
+        break;
+      }
+
+      result = -(prize_id + 1);
+      break;
+    }
+  }
+
+  player_manager.connection.security.prize_seed = random;
+  return result;
+}
+
+void ShipController::ResetShip() {
+  Player* self = player_manager.GetSelf();
+
+  if (!self) return;
+
+  ShipSettings& ship_settings = player_manager.connection.settings.ShipSettings[self->ship];
+
+  ship.energy = ship_settings.InitialEnergy;
+  ship.recharge = ship_settings.InitialRecharge;
+  ship.rotation = ship_settings.InitialRotation;
+  ship.guns = ship_settings.InitialGuns;
+  ship.bombs = ship_settings.InitialBombs;
+  ship.thrust = ship_settings.InitialThrust;
+  ship.speed = ship_settings.InitialSpeed;
+  ship.shrapnel = 0;
+  ship.repels = ship_settings.InitialRepel;
+  ship.bursts = ship_settings.InitialBurst;
+  ship.decoys = ship_settings.InitialDecoy;
+  ship.thors = ship_settings.InitialThor;
+  ship.bricks = ship_settings.InitialBrick;
+  ship.rockets = ship_settings.InitialRocket;
+  ship.portals = ship_settings.InitialPortal;
+  ship.capability = 0;
+  ship.emped_time = 0.0f;
+  ship.multifire = false;
+
+  self->bounty = 0;
+
+  // Generate random weighted prizes
+  if (player_manager.connection.prize_weight_total > 0) {
+    int attempts = 0;
+    for (int i = 0; i < ship_settings.InitialBounty && attempts < 9999; ++i, ++attempts) {
+      s32 prize_id = GeneratePrize(false);
+      Prize prize = (Prize)prize_id;
+
+      if (prize == Prize::EngineShutdown || prize == Prize::Shields || prize == Prize::Super ||
+          prize == Prize::Proximity || prize == Prize::Multiprize || prize == Prize::Warp) {
+        --i;
+        continue;
+      }
+
+      ApplyPrize(self, prize_id);
+    }
+  }
+}
+
+void ShipController::OnWeaponHit(Weapon& weapon) {
+  WeaponType type = (WeaponType)weapon.data.type;
+  Connection& connection = player_manager.connection;
+
+  Player* self = player_manager.GetSelf();
+
+  if (!self || self->enter_delay > 0) return;
+
+  int damage = 0;
+  switch (type) {
+    case WeaponType::Bullet:
+    case WeaponType::BouncingBullet: {
+      // if (connection.settings.ExactDamage) {
+      if (1) {
+        damage = (connection.settings.BulletDamageLevel / 1000) +
+                 (connection.settings.BulletDamageUpgrade / 1000) * weapon.data.level;
+      } else {
+        // TODO: random
+      }
+    } break;
+    case WeaponType::Thor:
+    case WeaponType::Bomb:
+    case WeaponType::ProximityBomb: {
+      // TODO: Real calculation
+      damage = connection.settings.BombDamageLevel / 1000;
+      if (weapon.flags & WEAPON_FLAG_EMP) {
+        damage = (int)(damage * (connection.settings.EBombDamagePercent / 1000.0f));
+        // TODO: Emp time calculation
+      }
+    } break;
+    default: {
+    } break;
+  }
+
+  if (self->energy < damage) {
+    connection.SendDeath(weapon.player_id, self->bounty);
+
+    self->enter_delay = (connection.settings.EnterDelay / 100.0f) + self->explode_animation.sprite->duration;
+    self->explode_animation.t = 0.0f;
+    self->energy = 0;
+  } else {
+    self->energy -= damage;
+  }
 }
 
 }  // namespace null

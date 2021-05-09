@@ -216,48 +216,6 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
   }
 }
 
-void PlayerManager::OnWeaponHit(Weapon& weapon) {
-  WeaponType type = (WeaponType)weapon.data.type;
-  Player* self = GetSelf();
-
-  if (!self || self->enter_delay > 0) return;
-
-  int damage = 0;
-  switch (type) {
-    case WeaponType::Bullet:
-    case WeaponType::BouncingBullet: {
-      // if (connection.settings.ExactDamage) {
-      if (1) {
-        damage = (connection.settings.BulletDamageLevel / 1000) +
-                 (connection.settings.BulletDamageUpgrade / 1000) * weapon.data.level;
-      } else {
-        // TODO: random
-      }
-    } break;
-    case WeaponType::Thor:
-    case WeaponType::Bomb:
-    case WeaponType::ProximityBomb: {
-      // TODO: Real calculation
-      damage = connection.settings.BombDamageLevel / 1000;
-      if (weapon.flags & WEAPON_FLAG_EMP) {
-        damage = (int)(damage * (connection.settings.EBombDamagePercent / 1000.0f));
-      }
-    } break;
-    default: {
-    } break;
-  }
-
-  if (self->energy < damage) {
-    connection.SendDeath(weapon.player_id, self->bounty);
-
-    self->enter_delay = (connection.settings.EnterDelay / 100.0f) + self->explode_animation.sprite->duration;
-    self->explode_animation.t = 0.0f;
-    self->energy = 0;
-  } else {
-    self->energy -= damage;
-  }
-}
-
 void PlayerManager::SendPositionPacket() {
   u8 data[kMaxPacketSize];
   NetworkBuffer buffer(data, kMaxPacketSize);
@@ -427,7 +385,6 @@ void PlayerManager::Spawn() {
 
   if (radius == 0) {
     player->position = Vector2f(x_center, y_center);
-    player->bounty = connection.settings.ShipSettings[ship].InitialBounty;
   } else {
     // Try 100 times to spawn in a random spot. TODO: Improve this to find open space better
     for (int i = 0; i < 100; ++i) {
@@ -438,7 +395,6 @@ void PlayerManager::Spawn() {
 
       if (!connection.map.IsSolid((u16)spawn.x, (u16)spawn.y) || i == 99) {
         player->position = spawn;
-        player->bounty = connection.settings.ShipSettings[ship].InitialBounty;
         break;
       }
     }
@@ -469,10 +425,6 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
     player->lerp_time = 0.0f;
     player->warp_animation.t = 0.0f;
     player->flags = 0;
-
-    if (pid == player_id) {
-      Spawn();
-    }
   }
 }
 

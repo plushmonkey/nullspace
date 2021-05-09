@@ -71,6 +71,8 @@ struct Connection {
   u32 last_position_tick = 0;
   LoginState login_state = LoginState::EncryptionRequested;
 
+  u32 prize_weight_total = 0;
+
   Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, PacketDispatcher& dispatcher);
 
   ConnectResult Connect(const char* ip, u16 port);

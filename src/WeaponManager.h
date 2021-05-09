@@ -37,6 +37,7 @@ struct Camera;
 struct Connection;
 struct PacketDispatcher;
 struct PlayerManager;
+struct ShipController;
 struct SpriteRenderer;
 
 enum class WeaponSimulateResult { Continue, WallExplosion, PlayerExplosion, TimedOut };
@@ -51,6 +52,7 @@ struct WeaponManager {
   Connection& connection;
   PlayerManager& player_manager;
   AnimationSystem& animation;
+  ShipController* ship_controller = nullptr;
   u32 next_link_id = 0;
 
   size_t weapon_count = 0;
@@ -61,6 +63,8 @@ struct WeaponManager {
 
   WeaponManager(Connection& connection, PlayerManager& player_manager, PacketDispatcher& dispatcher,
                 AnimationSystem& animation);
+
+  void Initialize(ShipController* ship_controller) { this->ship_controller = ship_controller; }
 
   void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer);

@@ -5,6 +5,7 @@
 
 #include "Buffer.h"
 #include "PlayerManager.h"
+#include "ShipController.h"
 #include "Tick.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
@@ -159,14 +160,18 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
       // TODO: Is this box-box or box-circle intersection?
       if (BoxBoxIntersect(pos - r, pos + r, weapon.position - p, weapon.position + p)) {
         if (player->id == player_manager.player_id && !HasLinkRemoved(weapon.link_id)) {
-          player_manager.OnWeaponHit(weapon);
+          if (ship_controller) {
+            ship_controller->OnWeaponHit(weapon);
+          }
         }
 
         return WeaponSimulateResult::PlayerExplosion;
       }
     } else if (BoxContainsPoint(pos - r, pos + r, weapon.position)) {
       if (player->id == player_manager.player_id && !HasLinkRemoved(weapon.link_id)) {
-        player_manager.OnWeaponHit(weapon);
+        if (ship_controller) {
+          ship_controller->OnWeaponHit(weapon);
+        }
       }
 
       return WeaponSimulateResult::PlayerExplosion;

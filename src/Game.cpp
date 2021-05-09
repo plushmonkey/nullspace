@@ -28,7 +28,7 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
       self->togglables ^= Status_XRadar;
     }
   } else if (codepoint == NULLSPACE_KEY_DELETE) {
-    game->ship_controller.multifire = !game->ship_controller.multifire;
+    game->ship_controller.ship.multifire = !game->ship_controller.ship.multifire;
   } else if (game->menu_open) {
     if (game->HandleMenuKey(codepoint, mods)) {
       game->chat.display_full = false;
@@ -67,12 +67,14 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       statbox(player_manager, dispatcher),
       chat(dispatcher, connection, player_manager, statbox),
       specview(connection, statbox),
-      ship_controller(player_manager, weapon_manager),
+      ship_controller(player_manager, weapon_manager, dispatcher),
       lvz(perm_arena, temp_arena, connection.requester, sprite_renderer, dispatcher) {
   float zmax = (float)Layer::Count;
   ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -zmax, zmax);
   dispatcher.Register(ProtocolS2C::FlagPosition, OnFlagPositionPkt, this);
   dispatcher.Register(ProtocolS2C::FlagClaim, OnFlagClaimPkt, this);
+
+  weapon_manager.Initialize(&ship_controller);
 }
 
 bool Game::Initialize(InputState& input) {
