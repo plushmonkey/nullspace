@@ -4,6 +4,7 @@
 #include "ChatController.h"
 #include "InputState.h"
 #include "LvzController.h"
+#include "Memory.h"
 #include "PlayerManager.h"
 #include "ShipController.h"
 #include "SpectateView.h"
@@ -19,8 +20,6 @@
 #include "render/TileRenderer.h"
 
 namespace null {
-
-struct MemoryArena;
 
 struct GameFlag {
   u16 id = 0xFFFF;
@@ -52,6 +51,7 @@ struct Game {
   bool render_radar = false;
   bool menu_open = false;
   bool menu_quit = false;
+  int mapzoom = 0;
 
   size_t flag_count = 0;
   GameFlag flags[256];
@@ -64,12 +64,19 @@ struct Game {
   bool Update(const InputState& input, float dt);
 
   void Render(float dt);
+
+  void RenderGame(float dt);
+  void RenderJoin(float dt);
+
   void RenderRadar(Player* player);
   void RenderMenu();
   bool HandleMenuKey(int codepoint, int mods);
 
+  void RecreateRadar();
+
   void OnFlagClaim(u8* pkt, size_t size);
   void OnFlagPosition(u8* pkt, size_t size);
+  void OnPlayerId(u8* pkt, size_t size);
 };
 
 }  // namespace null

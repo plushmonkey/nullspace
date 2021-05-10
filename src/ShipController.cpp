@@ -30,11 +30,23 @@ static void OnCollectedPrizePkt(void* user, u8* pkt, size_t size) {
   controller->OnCollectedPrize(pkt, size);
 }
 
+static void OnPlayerEnterPkt(void* user, u8* pkt, size_t size) {
+  ShipController* controller = (ShipController*)user;
+
+  u8 ship = *(pkt + 1);
+  u16 player_id = *(u16*)(pkt + 51);
+
+  if (ship != 8 && player_id == controller->player_manager.player_id) {
+    controller->player_manager.Spawn();
+  }
+}
+
 ShipController::ShipController(PlayerManager& player_manager, WeaponManager& weapon_manager,
                                PacketDispatcher& dispatcher)
     : player_manager(player_manager), weapon_manager(weapon_manager) {
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
   dispatcher.Register(ProtocolS2C::CollectedPrize, OnCollectedPrizePkt, this);
+  dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
 }
 
 void ShipController::Update(const InputState& input, float dt) {

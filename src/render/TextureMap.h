@@ -32,6 +32,8 @@ struct TextureMap {
   void Insert(const char* name, u32 id, u32 width, u32 height);
   TextureData* Find(const char* name);
 
+  void Clear();
+
  private:
   Element* Allocate();
 };

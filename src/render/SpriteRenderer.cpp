@@ -59,9 +59,11 @@ void main() {
 )";
 
 bool SpriteRenderer::Initialize(MemoryArena& perm_arena) {
-  this->texture_map = memory_arena_construct_type(&perm_arena, TextureMap, perm_arena);
-  this->push_buffer = perm_arena.CreateArena(kPushBufferSize);
-  this->texture_push_buffer = perm_arena.CreateArena(kTextureBufferSize);
+  if (push_buffer.base == 0) {
+    this->texture_map = memory_arena_construct_type(&perm_arena, TextureMap, perm_arena);
+    this->push_buffer = perm_arena.CreateArena(kPushBufferSize);
+    this->texture_push_buffer = perm_arena.CreateArena(kTextureBufferSize);
+  }
 
   if (!shader.Initialize(kSpriteVertexShaderCode, kSpriteFragmentShaderCode)) {
     fprintf(stderr, "Failed to create sprite shader.\n");
@@ -324,6 +326,8 @@ void SpriteRenderer::Cleanup() {
 
   renderable_count = 0;
   texture_count = 0;
+
+  texture_map->Clear();
 }
 
 }  // namespace null

@@ -62,7 +62,7 @@ struct ServerInfo {
 
 ServerInfo kServers[] = {
     {"local", "127.0.0.1", 5000},
-    {"subgame", "192.168.0.169", 5001},
+    {"subgame", "192.168.0.169", 5002},
     {"SSCE Hyperspace", "162.248.95.143", 5005},
     {"SSCJ Devastation", "69.164.220.203", 7022},
     {"SSCJ MetalGear CTF", "69.164.220.203", 14000},
@@ -85,6 +85,8 @@ struct WindowState {
   InputState input;
   GameScreen screen = GameScreen::MainMenu;
 };
+
+MemoryArena* perm_global = nullptr;
 
 struct nullspace {
   MemoryArena perm_arena;
@@ -121,6 +123,8 @@ struct nullspace {
 
     perm_arena = MemoryArena(perm_memory, kPermanentSize);
     trans_arena = MemoryArena(trans_memory, kTransientSize);
+
+    perm_global = &perm_arena;
 
     window = CreateGameWindow(surface_width, surface_height);
 

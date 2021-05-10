@@ -42,6 +42,7 @@ struct MemoryArena {
 // Allocate virtual pages that mirror the first half
 u8* AllocateMirroredBuffer(size_t size);
 
+extern MemoryArena* perm_global;
 }  // namespace null
 
 #endif

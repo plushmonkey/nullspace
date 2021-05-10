@@ -713,4 +713,13 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
   }
 }
 
+void LvzController::Reset() {
+  overwrite = 0;
+  pending_animation_count = 0;
+  active_map_object_count = 0;
+  active_screen_object_count = 0;
+  object_count = 0;
+  animation_count = 0;
+}
+
 }  // namespace null

@@ -193,6 +193,50 @@ bool ChatController::HandleInputCommands() {
       connection.SendFrequencyChange(freq);
     }
     return true;
+  } else if (input[0] == '?') {
+    if (strstr(input, "?go") == input) {
+      char* ptr = input + 3;
+      if (*ptr == ' ') {
+        ++ptr;
+      } else if (*ptr != 0) {
+        return false;
+      }
+
+      Player* self = player_manager.GetSelf();
+      int ship = 8;
+
+      if (self) {
+        ship = self->ship;
+      }
+
+      if (*ptr != 0) {
+        bool is_number = true;
+        for (size_t i = 0; i < 16; ++i) {
+          if (ptr[i] == 0) break;
+
+          if (ptr[i] < '0' || ptr[i] > '9') {
+            is_number = false;
+            break;
+          }
+        }
+
+        if (is_number) {
+          int number = atoi(ptr);
+
+          if (number > 0xFFFF) {
+            number = 0xFFFF;
+          }
+
+          connection.SendArenaLogin(ship, 0, 1920, 1080, number, "");
+        } else {
+          connection.SendArenaLogin(ship, 0, 1920, 1080, 0xFFFD, ptr);
+        }
+      } else {
+        connection.SendArenaLogin(ship, 0, 1920, 1080, 0xFFFF, "");
+      }
+
+      return true;
+    }
   }
 
   return false;

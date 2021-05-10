@@ -86,6 +86,8 @@ struct LvzController {
   void Update(float dt);
   void Render(Camera& ui_camera, Camera& game_camera);
 
+  void Reset();
+
  private:
   void ProcessGraphicFile(const char* filename, u8* data, size_t size);
   void ProcessObjects(struct ObjectImageList* object_images, u8* data, size_t size);

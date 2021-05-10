@@ -254,6 +254,16 @@ bool TileRenderer::CreateRadar(MemoryArena& temp_arena, const char* filename, co
 
   u32 full_dim = (surface_width * 8) / mapzoom;
 
+  if (full_radar_texture != -1) {
+    glDeleteTextures(1, &full_radar_texture);
+    full_radar_texture = -1;
+  }
+
+  if (radar_texture != -1) {
+    glDeleteTextures(1, &radar_texture);
+    radar_texture = -1;
+  }
+
   RenderRadar(map, temp_arena, full_dim, full_radar_renderable, &full_radar_texture, GL_LINEAR);
   RenderRadar(map, temp_arena, radar_dim, radar_renderable, &radar_texture, GL_NEAREST);
 
@@ -363,6 +373,12 @@ void TileRenderer::Cleanup() {
 
   glDeleteVertexArrays(1, &vao);
   glDeleteBuffers(1, &vbo);
+
+  door_texture = -1;
+  tilemap_texture = -1;
+  tiledata_texture = -1;
+  radar_texture = -1;
+  full_radar_texture = -1;
 }
 
 }  // namespace null

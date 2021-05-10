@@ -279,6 +279,8 @@ Player* PlayerManager::GetPlayerById(u16 id, size_t* index) {
 void PlayerManager::OnPlayerIdChange(u8* pkt, size_t size) {
   player_id = *(u16*)(pkt + 1);
   printf("Player id: %d\n", player_id);
+
+  this->player_count = 0;
 }
 
 void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {

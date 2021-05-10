@@ -85,4 +85,21 @@ TextureMap::Element* TextureMap::Allocate() {
   return result;
 }
 
+void TextureMap::Clear() {
+  for (size_t i = 0; i < kTextureMapBuckets; ++i) {
+    Element* element = elements[i];
+
+    while (element) {
+      Element* next = element->next;
+
+      element->next = free;
+      free = element;
+
+      element = next;
+    }
+
+    elements[i] = nullptr;
+  }
+}
+
 }  // namespace null

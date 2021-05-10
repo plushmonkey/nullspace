@@ -73,6 +73,17 @@ static void OnFlagPositionPkt(void* user, u8* pkt, size_t size) {
   game->OnFlagPosition(pkt, size);
 }
 
+static void OnPlayerIdPkt(void* user, u8* pkt, size_t size) {
+  Game* game = (Game*)user;
+
+  game->OnPlayerId(pkt, size);
+}
+
+static void OnArenaSettings(void* user, u8* pkt, size_t size) {
+  Game* game = (Game*)user;
+  game->RecreateRadar();
+}
+
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height)
     : perm_arena(perm_arena),
       temp_arena(temp_arena),
@@ -93,17 +104,14 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
   ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -zmax, zmax);
   dispatcher.Register(ProtocolS2C::FlagPosition, OnFlagPositionPkt, this);
   dispatcher.Register(ProtocolS2C::FlagClaim, OnFlagClaimPkt, this);
+  dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
+  dispatcher.Register(ProtocolS2C::ArenaSettings, OnArenaSettings, this);
 
   player_manager.Initialize(&ship_controller);
   weapon_manager.Initialize(&ship_controller);
 }
 
 bool Game::Initialize(InputState& input) {
-  if (!tile_renderer.Initialize()) {
-    fprintf(stderr, "Failed to initialize tile renderer.\n");
-    return false;
-  }
-
   if (!sprite_renderer.Initialize(perm_arena)) {
     fprintf(stderr, "Failed to initialize sprite renderer.\n");
     return false;
@@ -113,8 +121,6 @@ bool Game::Initialize(InputState& input) {
     fprintf(stderr, "Failed to initialize graphics.\n");
     return false;
   }
-
-  animated_tile_renderer.Initialize();
 
   if (!background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
     fprintf(stderr, "Failed to initialize background renderer.\n");
@@ -140,7 +146,8 @@ bool Game::Update(const InputState& input, float dt) {
       fprintf(stderr, "Failed to create renderable map.\n");
     }
 
-    // TODO: Create new radar when mapzoom changes.
+    mapzoom = connection.settings.MapZoomFactor;
+
     if (!tile_renderer.CreateRadar(temp_arena, connection.map.filename, ui_camera.surface_dim,
                                    connection.settings.MapZoomFactor)) {
       fprintf(stderr, "Failed to create radar.\n");
@@ -181,10 +188,23 @@ void Game::Render(float dt) {
   lvz.Render(ui_camera, camera);
 
   animation.Update(dt);
-  // TODO: Moving stars during load
+
   if (connection.login_state == Connection::LoginState::Complete) {
-    background_renderer.Render(camera, sprite_renderer, ui_camera.surface_dim);
+    RenderGame(dt);
+  } else {
+    RenderJoin(dt);
   }
+
+  char fps_text[32];
+  sprintf(fps_text, "FPS: %d", (int)(fps + 0.5f));
+  sprite_renderer.DrawText(ui_camera, fps_text, TextColor::Pink, Vector2f(ui_camera.surface_dim.x, 24), Layer::TopMost,
+                           TextAlignment::Right);
+
+  sprite_renderer.Render(ui_camera);
+}
+
+void Game::RenderGame(float dt) {
+  background_renderer.Render(camera, sprite_renderer, ui_camera.surface_dim);
   tile_renderer.Render(camera);
 
   Player* me = player_manager.GetSelf();
@@ -199,12 +219,13 @@ void Game::Render(float dt) {
   if (me) {
     animation.Render(camera, sprite_renderer);
     weapon_manager.Render(camera, sprite_renderer);
-
     player_manager.Render(camera, sprite_renderer, self_freq);
 
     sprite_renderer.Render(camera);
 
     ship_controller.Render(ui_camera, camera, sprite_renderer);
+
+    sprite_renderer.Render(camera);
 
     RenderRadar(me);
 
@@ -215,21 +236,18 @@ void Game::Render(float dt) {
     }
   }
 
-  // TODO: Move all of this out
+  statbox.Render(ui_camera, sprite_renderer);
+  specview.Render(ui_camera, sprite_renderer);
+  sprite_renderer.Render(ui_camera);
+}
 
-  if (connection.login_state == Connection::LoginState::MapDownload) {
-    char downloading[64];
+void Game::RenderJoin(float dt) {
+  // TODO: Moving stars during load
 
-    sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
-                         ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f, Layer::TopMost);
+  sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
+                       ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f, Layer::TopMost);
 
-    int percent = (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map.compressed_size);
-
-    sprintf(downloading, "Downloading level: %d%%", percent);
-    Vector2f download_pos(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
-    sprite_renderer.DrawText(ui_camera, downloading, TextColor::Blue, download_pos, Layer::TopMost,
-                             TextAlignment::Center);
-  } else if (connection.login_state < Connection::LoginState::MapDownload) {
+  if (connection.login_state < Connection::LoginState::MapDownload) {
     sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
                          ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f, Layer::TopMost);
 
@@ -237,20 +255,19 @@ void Game::Render(float dt) {
 
     sprite_renderer.DrawText(ui_camera, "Entering arena", TextColor::Blue, position, Layer::TopMost,
                              TextAlignment::Center);
-  }
+  } else {
+    int percent = (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map.compressed_size);
+    char downloading[64];
 
-  if (me && connection.login_state == Connection::LoginState::Complete) {
+    sprintf(downloading, "Downloading level: %d%%", percent);
+
+    Vector2f download_pos(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
+
+    sprite_renderer.DrawText(ui_camera, downloading, TextColor::Blue, download_pos, Layer::TopMost,
+                             TextAlignment::Center);
     statbox.Render(ui_camera, sprite_renderer);
+    sprite_renderer.Render(ui_camera);
   }
-
-  char fps_text[32];
-  sprintf(fps_text, "FPS: %d", (int)(fps + 0.5f));
-  sprite_renderer.DrawText(ui_camera, fps_text, TextColor::Pink, Vector2f(ui_camera.surface_dim.x, 24), Layer::TopMost,
-                           TextAlignment::Right);
-
-  specview.Render(ui_camera, sprite_renderer);
-
-  sprite_renderer.Render(ui_camera);
 }
 
 void Game::RenderRadar(Player* me) {
@@ -486,6 +503,18 @@ void Game::RenderMenu() {
   sprite_renderer.Render(ui_camera);
 }
 
+void Game::RecreateRadar() {
+  if (connection.login_state != Connection::LoginState::Complete || connection.settings.MapZoomFactor == mapzoom) {
+    return;
+  }
+
+  mapzoom = connection.settings.MapZoomFactor;
+
+  if (!tile_renderer.CreateRadar(temp_arena, connection.map.filename, ui_camera.surface_dim, mapzoom)) {
+    fprintf(stderr, "Failed to create radar.\n");
+  }
+}
+
 void Game::OnFlagClaim(u8* pkt, size_t size) {
   u16 id = *(u16*)(pkt + 1);
 
@@ -510,6 +539,36 @@ void Game::OnFlagPosition(u8* pkt, size_t size) {
   flags[id].owner = owner;
   flags[id].position = Vector2f((float)x, (float)y);
   flags[id].dropped = true;
+}
+
+void Game::OnPlayerId(u8* pkt, size_t size) {
+  Cleanup();
+
+  // TODO: Handle and display errors
+
+  lvz.Reset();
+
+  if (!sprite_renderer.Initialize(perm_arena)) {
+    fprintf(stderr, "Failed to initialize sprite renderer.\n");
+    exit(1);
+  }
+
+  if (!tile_renderer.Initialize()) {
+    fprintf(stderr, "Failed to initialize tile renderer.\n");
+    exit(1);
+  }
+
+  if (!Graphics::Initialize(sprite_renderer)) {
+    fprintf(stderr, "Failed to initialize graphics.\n");
+    exit(1);
+  }
+
+  animated_tile_renderer.Initialize();
+
+  if (!background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
+    fprintf(stderr, "Failed to initialize background renderer.\n");
+    exit(1);
+  }
 }
 
 void Game::Cleanup() {

@@ -9,6 +9,8 @@
 #include <Windows.h>
 #endif
 
+#define MONITOR_PERM_ALLOCATIONS 0
+
 namespace null {
 
 MemoryArena::MemoryArena(u8* memory, size_t max_size) : base(memory), current(memory), max_size(max_size) {}
@@ -19,6 +21,14 @@ u8* MemoryArena::Allocate(size_t size, size_t alignment) {
   size_t adj = alignment - 1;
   u8* result = (u8*)(((size_t)this->current + adj) & ~adj);
   this->current = result + size;
+
+#if MONITOR_PERM_ALLOCATIONS
+  if (this == perm_global) {
+    size_t allocated = (size_t)(this->current - this->base);
+    
+    printf("Allocating %zd with align %zd in perm arena. (allocated: %zd)\n", size, alignment, allocated);
+  }
+#endif
 
   assert(this->current <= this->base + this->max_size);
 

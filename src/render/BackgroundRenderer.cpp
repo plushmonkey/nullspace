@@ -23,7 +23,9 @@ bool BackgroundRenderer::Initialize(MemoryArena& perm_arena, MemoryArena& temp_a
   size_t count_y = (size_t)ceil(viewable_dim.y / kTextureDim);
   size_t count_total = count_x * count_y;
 
-  renderables = memory_arena_push_type_count(&perm_arena, SpriteRenderable, count_total * 2);
+  if (!renderables) {
+    renderables = memory_arena_push_type_count(&perm_arena, SpriteRenderable, count_total * 2);
+  }
 
   // Generate random uvs so the small texture patches can be flipped around randomly
   const Vector2f uvs[4][4] = {
@@ -126,8 +128,6 @@ void BackgroundRenderer::RenderParallaxLayer(Camera& camera, SpriteRenderer& ren
   }
 }
 
-void BackgroundRenderer::Cleanup() {
-  glDeleteTextures(NULLSPACE_ARRAY_SIZE(textures), textures);
-}
+void BackgroundRenderer::Cleanup() { glDeleteTextures(NULLSPACE_ARRAY_SIZE(textures), textures); }
 
 }  // namespace null

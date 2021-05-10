@@ -5,6 +5,7 @@
 #include "../Buffer.h"
 #include "../FileRequester.h"
 #include "../Map.h"
+#include "../Memory.h"
 #include "../Types.h"
 #include "Crypt.h"
 #include "PacketDispatcher.h"
@@ -46,6 +47,7 @@ struct Connection {
 
   MemoryArena& perm_arena;
   MemoryArena& temp_arena;
+  MemoryArena map_arena;
   PacketDispatcher& dispatcher;
 
   SocketType fd = -1;
@@ -96,6 +98,7 @@ struct Connection {
   void SendShipRequest(u8 ship);
   void SendDeath(u16 killer, u16 bounty);
   void SendFrequencyChange(u16 freq);
+  void SendArenaLogin(u8 ship, u16 audio, u16 xres, u16 yres, u16 arena_number, const char* arena_name);
 };
 
 }  // namespace null

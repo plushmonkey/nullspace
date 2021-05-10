@@ -81,7 +81,9 @@ Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, PacketD
       packet_sequencer(perm_arena, temp_arena),
       buffer(perm_arena, kMaxPacketSize),
       last_sync_tick(GetCurrentTick()),
-      last_position_tick(GetCurrentTick()) {}
+      last_position_tick(GetCurrentTick()) {
+  map_arena = perm_arena.CreateArena(Megabytes(6));
+}
 
 Connection::TickResult Connection::Tick() {
   constexpr s32 kSyncDelay = 500;
@@ -315,6 +317,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
     switch (type) {
       case ProtocolS2C::PlayerId: {
+        this->login_state = LoginState::ArenaLogin;
       } break;
       case ProtocolS2C::JoinGame: {
         printf("Successfully joined game.\n");
@@ -343,22 +346,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         printf("Login response: %s\n", kLoginResponses[response]);
 
         if (response == 0x00) {
-          u8 data[kMaxPacketSize];
-          NetworkBuffer write(data, kMaxPacketSize);
-
-          char arena[16] = {};
-
-          // Join arena request
-          write.WriteU8(0x01);     // type
-          write.WriteU8(0x08);     // ship number
-          write.WriteU16(0x00);    // allow audio
-          write.WriteU16(1920);    // x res
-          write.WriteU16(1080);    // y res
-          write.WriteU16(0xFFFF);  // Arena number
-          write.WriteString(arena, 16);
-          write.WriteU8(kDownloadLvz);
-
-          packet_sequencer.SendReliableMessage(*this, write.read, write.GetSize());
+          SendArenaLogin(8, 0, 1920, 1080, 0, "");
           login_state = LoginState::ArenaLogin;
         }
       } break;
@@ -451,8 +439,28 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
   dispatcher.Dispatch(pkt, size);
 }
 
+void Connection::SendArenaLogin(u8 ship, u16 audio, u16 xres, u16 yres, u16 arena_number, const char* arena_name) {
+  u8 data[kMaxPacketSize];
+  NetworkBuffer write(data, kMaxPacketSize);
+
+  // Join arena request
+  write.WriteU8(0x01);           // type
+  write.WriteU8(ship);           // ship number
+  write.WriteU16(audio);         // allow audio
+  write.WriteU16(xres);          // x res
+  write.WriteU16(yres);          // y res
+  write.WriteU16(arena_number);  // Arena number
+  write.WriteString(arena_name, 16);
+  write.WriteU8(kDownloadLvz);
+
+  packet_sequencer.SendReliableMessage(*this, write.read, write.GetSize());
+  login_state = LoginState::ArenaLogin;
+}
+
 void Connection::OnDownloadComplete(struct FileRequest* request, u8* data) {
-  if (!map.Load(perm_arena, request->filename)) {
+  map_arena.Reset();
+
+  if (!map.Load(map_arena, request->filename)) {
     fprintf(stderr, "Failed to load map %s.\n", request->filename);
     return;
   }
