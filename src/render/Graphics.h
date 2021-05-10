@@ -32,6 +32,7 @@ struct Graphics {
   static SpriteRenderable* bomb_sprites;
   static SpriteRenderable* bomb_trail_sprites;
   static SpriteRenderable* mine_sprites;
+  static SpriteRenderable* shrapnel_sprites;
 
   static SpriteRenderable* bullet_sprites;
   static SpriteRenderable* bullet_trail_sprites;
@@ -63,6 +64,9 @@ struct Graphics {
 
   static AnimatedSprite anim_mines[4];
   static AnimatedSprite anim_emp_mines[4];
+
+  static AnimatedSprite anim_shrapnel[3];
+  static AnimatedSprite anim_bounce_shrapnel[3];
 
   static AnimatedSprite anim_bullets[4];
   static AnimatedSprite anim_bullet_explode;

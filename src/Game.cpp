@@ -23,7 +23,6 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
     }
 
     game->menu_open = !game->menu_open;
-    game->chat.display_full = game->menu_open;
   } else if (codepoint == NULLSPACE_KEY_END) {
     Player* self = game->player_manager.GetSelf();
     if (self) {
@@ -133,6 +132,8 @@ bool Game::Initialize(InputState& input) {
 }
 
 bool Game::Update(const InputState& input, float dt) {
+  chat.display_full = menu_open;
+
   connection.map.UpdateDoors(connection.settings);
 
   player_manager.Update(dt);

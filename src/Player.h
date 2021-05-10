@@ -49,6 +49,26 @@ struct Player {
   u16 losses;
 
   u16 bounty;
+  u16 s2c_latency;
+
+  u16 timers;
+  union {
+    struct {
+      u32 items;
+    };
+    struct {
+      u32 shields : 1;
+      u32 super : 1;
+      u32 bursts : 4;
+      u32 repels : 4;
+      u32 thors : 4;
+      u32 bricks : 4;
+      u32 decoys : 4;
+      u32 rockets : 4;
+      u32 portals : 4;
+      u32 padding : 2;
+    };
+  };
 
   float energy;
   float orientation;

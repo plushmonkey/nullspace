@@ -213,6 +213,38 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
         Vector2f offset = Graphics::anim_bomb_explode.frames[0].dimensions * (0.5f / 16.0f);
         animation.AddAnimation(Graphics::anim_bomb_explode, weapon.position - offset)->layer = Layer::Explosions;
       }
+
+      for (size_t i = 0; i < weapon.data.shrap && type != WeaponType::Thor; ++i) {
+        float angle = (i / (float)weapon.data.shrap) * 2.0f * 3.14159f;
+
+        Vector2f direction(sin(angle), cos(angle));
+        float speed = connection.settings.ShrapnelSpeed / 10.0f / 16.0f;
+
+        Weapon* shrap = weapons + weapon_count++;
+
+        shrap->animation.t = 0.0f;
+        shrap->animation.repeat = true;
+        shrap->bounces_remaining = 0;
+        shrap->data = weapon.data;
+        if (weapon.data.shrapbouncing) {
+          shrap->data.type = (u16)WeaponType::BouncingBullet;
+          shrap->animation.sprite = Graphics::anim_bounce_shrapnel + weapon.data.shraplevel;
+        } else {
+          shrap->data.type = (u16)WeaponType::Bullet;
+          shrap->animation.sprite = Graphics::anim_shrapnel + weapon.data.shraplevel;
+        }
+        shrap->end_tick = GetCurrentTick() + connection.settings.BulletAliveTime;
+        shrap->flags = 0;
+        shrap->frequency = weapon.frequency;
+        shrap->link_id = 0xFFFFFFFF;
+        shrap->player_id = weapon.player_id;
+        shrap->velocity = direction * speed;
+        shrap->position = weapon.position + shrap->velocity * (1.0f / 100.0f);
+
+        if (connection.map.IsSolid((u16)shrap->position.x, (u16)shrap->position.y)) {
+          --weapon_count;
+        }
+      }
     } break;
     case WeaponType::BouncingBullet:
     case WeaponType::Bullet: {

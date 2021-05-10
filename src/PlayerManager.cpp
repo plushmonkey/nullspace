@@ -209,6 +209,12 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
         sprintf(energy_output, "%d", (u32)player->energy);
         renderer.DrawText(camera, energy_output, energy_color, position, Layer::AfterShips);
         position.y += (12.0f / 16.0f);
+      } else if (player->id != player_id && player->energy > 0.0f) {
+        char energy_output[16];
+        sprintf(energy_output, "%d", (u32)player->energy);
+        Vector2f energy_p = player->position.PixelRounded() + Vector2f(-0.5f, offset.y);
+
+        renderer.DrawText(camera, energy_output, TextColor::Blue, energy_p, Layer::AfterShips, TextAlignment::Right);
       }
 
       renderer.DrawText(camera, display, color, position, Layer::AfterShips);
@@ -481,6 +487,30 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
       ++connection.weapons_received;
     }
 
+    if (size >= 23) {
+      player->energy = (float)buffer.ReadU16();
+    } else {
+      player->energy = 0;
+    }
+
+    if (size >= 25) {
+      player->s2c_latency = buffer.ReadU16();
+    } else {
+      player->s2c_latency = 0;
+    }
+
+    if (size >= 27) {
+      player->timers = buffer.ReadU16();
+    } else {
+      player->timers = 0;
+    }
+
+    if (size >= 31) {
+      player->items = buffer.ReadU32();
+    } else {
+      player->items = 0;
+    }
+
     OnPositionPacket(*player, pkt_position);
   }
 }
@@ -510,6 +540,30 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
 
     if (player->togglables & Status_Flash) {
       player->warp_animation.t = 0.0f;
+    }
+
+    if (size >= 18) {
+      player->energy = (float)buffer.ReadU16();
+    } else {
+      player->energy = 0.0f;
+    }
+
+    if (size >= 20) {
+      player->s2c_latency = buffer.ReadU16();
+    } else {
+      player->s2c_latency = 0;
+    }
+
+    if (size >= 22) {
+      player->timers = buffer.ReadU16();
+    } else {
+      player->timers = 0;
+    }
+
+    if (size >= 26) {
+      player->items = buffer.ReadU32();
+    } else {
+      player->items = 0;
     }
 
     Vector2f pkt_position(x / 16.0f, y / 16.0f);

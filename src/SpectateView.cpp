@@ -16,10 +16,11 @@ namespace null {
 SpectateView::SpectateView(Connection& connection, StatBox& statbox) : connection(connection), statbox(statbox) {}
 
 void SpectateView::Update(const InputState& input, float dt) {
-  Player* me = statbox.player_manager.GetSelf();
+  Player* self = statbox.player_manager.GetSelf();
 
-  if (!me) return;
-  if (me->ship != 8) {
+  if (!self) return;
+
+  if (self->ship != 8) {
     spectate_id = kInvalidSpectateId;
     return;
   }
@@ -33,22 +34,22 @@ void SpectateView::Update(const InputState& input, float dt) {
   bool moved = false;
 
   if (input.IsDown(InputAction::Left)) {
-    me->position.x -= spectate_speed;
+    self->position.x -= spectate_speed;
     moved = true;
   }
 
   if (input.IsDown(InputAction::Right)) {
-    me->position.x += spectate_speed;
+    self->position.x += spectate_speed;
     moved = true;
   }
 
   if (input.IsDown(InputAction::Forward)) {
-    me->position.y -= spectate_speed;
+    self->position.y -= spectate_speed;
     moved = true;
   }
 
   if (input.IsDown(InputAction::Backward)) {
-    me->position.y += spectate_speed;
+    self->position.y += spectate_speed;
     moved = true;
   }
 
@@ -61,9 +62,10 @@ void SpectateView::Update(const InputState& input, float dt) {
   if (spectate_id != kInvalidSpectateId) {
     Player* follow_player = statbox.player_manager.GetPlayerById(spectate_id);
 
-    if (follow_player) {
-      me->position = follow_player->position;
+    if (follow_player && follow_player->ship != 8) {
+      self->position = follow_player->position;
     } else {
+      // TODO: Get next spectator
       spectate_id = kInvalidSpectateId;
     }
   }
@@ -81,6 +83,24 @@ void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
   size_t icon_index = (self->togglables & Status_XRadar) ? 36 : 37;
 
   renderer.Draw(ui_camera, Graphics::icon_sprites[icon_index], Vector2f(x, y), Layer::Gauges);
+
+  Player* follow_player = statbox.player_manager.GetPlayerById(spectate_id);
+
+  if (follow_player && follow_player->energy > 0.0f) {
+    char rows[4][64];
+
+    sprintf(rows[0], "Engy:%-5d S2CLatency:%dms", (u32)follow_player->energy, follow_player->s2c_latency * 10);
+    sprintf(rows[1], "Brst:%-2d Repl:%-2d Prtl:%-2d", follow_player->bursts, follow_player->repels,
+            follow_player->portals);
+    sprintf(rows[2], "Decy:%-2d Thor:%-2d", follow_player->decoys, follow_player->thors);
+    sprintf(rows[3], "Wall:%-2d Rckt:%-2d", follow_player->bricks, follow_player->rockets);
+
+    float x = ui_camera.surface_dim.x / 2.0f;
+
+    for (size_t i = 0; i < 4; ++i) {
+      renderer.DrawText(ui_camera, rows[i], TextColor::White, Vector2f(x, (float)i * 12), Layer::TopMost);
+    }
+  }
 }
 
 void SpectateView::SpectateSelected() {

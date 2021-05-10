@@ -8,6 +8,7 @@ namespace null {
 
 constexpr float kBombAnimDuration = 1.0f;
 constexpr float kMineAnimDuration = 1.0f;
+constexpr float kShrapnelAnimDuration = 0.6f;
 
 SpriteRenderable* Graphics::text_sprites = nullptr;
 SpriteRenderable* Graphics::textf_sprites = nullptr;
@@ -26,6 +27,7 @@ SpriteRenderable* Graphics::emp_burst_sprites = nullptr;
 SpriteRenderable* Graphics::bomb_sprites = nullptr;
 SpriteRenderable* Graphics::bomb_trail_sprites = nullptr;
 SpriteRenderable* Graphics::mine_sprites = nullptr;
+SpriteRenderable* Graphics::shrapnel_sprites = nullptr;
 
 SpriteRenderable* Graphics::bullet_sprites = nullptr;
 SpriteRenderable* Graphics::bullet_trail_sprites = nullptr;
@@ -57,6 +59,9 @@ AnimatedSprite Graphics::anim_bomb_trails[4];
 
 AnimatedSprite Graphics::anim_mines[4];
 AnimatedSprite Graphics::anim_emp_mines[4];
+
+AnimatedSprite Graphics::anim_shrapnel[3];
+AnimatedSprite Graphics::anim_bounce_shrapnel[3];
 
 AnimatedSprite Graphics::anim_bullets[4];
 AnimatedSprite Graphics::anim_bullet_explode;
@@ -265,6 +270,21 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
     anim_emp_mines[i].frames = mine_sprites + i * 10 + 40;
     anim_emp_mines[i].frame_count = 10;
     anim_emp_mines[i].duration = kMineAnimDuration;
+  }
+
+  shrapnel_sprites = LoadTileSheet(renderer, "shrapnel", Vector2f(8, 8), &count);
+  if (!shrapnel_sprites) return false;
+
+  for (size_t i = 0; i < 3; ++i) {
+    anim_shrapnel[i].frames = shrapnel_sprites + i * 10;
+    anim_shrapnel[i].frame_count = 10;
+    anim_shrapnel[i].duration = kShrapnelAnimDuration;
+  }
+
+  for (size_t i = 0; i < 3; ++i) {
+    anim_bounce_shrapnel[i].frames = shrapnel_sprites + i * 10 + 30;
+    anim_bounce_shrapnel[i].frame_count = 10;
+    anim_bounce_shrapnel[i].duration = kShrapnelAnimDuration;
   }
 
   bullet_sprites = LoadTileSheet(renderer, "bullets", Vector2f(5, 5), &count);
