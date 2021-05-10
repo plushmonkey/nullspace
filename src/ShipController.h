@@ -104,6 +104,10 @@ struct ShipController {
   void FireWeapons(Player& self, const InputState& input, float dt);
 
   void Render(Camera& ui_camera, Camera& camera, SpriteRenderer& renderer);
+  void RenderIndicators(Camera& ui_camera, SpriteRenderer& renderer);
+  void RenderItemIndicator(Camera& ui_camera, SpriteRenderer& renderer, int value, size_t index, float* y);
+  size_t GetGunIconIndex();
+  size_t GetBombIconIndex();
 
   void OnPlayerFreqAndShipChange(u8* pkt, size_t size);
   void OnCollectedPrize(u8* pkt, size_t size);

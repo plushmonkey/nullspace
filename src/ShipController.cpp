@@ -241,6 +241,8 @@ void ShipController::Render(Camera& ui_camera, Camera& camera, SpriteRenderer& r
     energy /= 10;
   }
 
+  RenderIndicators(ui_camera, renderer);
+
   renderer.Render(ui_camera);
 
   for (size_t i = 0; i < exhaust_count; ++i) {
@@ -250,6 +252,143 @@ void ShipController::Render(Camera& ui_camera, Camera& camera, SpriteRenderer& r
   }
 
   renderer.Render(camera);
+}
+
+void ShipController::RenderIndicators(Camera& ui_camera, SpriteRenderer& renderer) {
+  Player* self = player_manager.GetSelf();
+
+  if (!self) return;
+
+  // TODO: Find real position
+  float y_top = ((ui_camera.surface_dim.y * 0.57f) + 1.0f) - 25.0f * 4;
+  float y = y_top;
+
+  RenderItemIndicator(ui_camera, renderer, ship.bursts, 30, &y);
+  RenderItemIndicator(ui_camera, renderer, ship.repels, 31, &y);
+  RenderItemIndicator(ui_camera, renderer, ship.decoys, 40, &y);
+  RenderItemIndicator(ui_camera, renderer, ship.thors, 41, &y);
+  RenderItemIndicator(ui_camera, renderer, ship.bricks, 42, &y);
+  RenderItemIndicator(ui_camera, renderer, ship.rockets, 43, &y);
+  RenderItemIndicator(ui_camera, renderer, ship.portals, 46, &y);
+
+  float x = ui_camera.surface_dim.x - 26;
+  y = y_top;
+  size_t gun_index = GetGunIconIndex();
+  if (gun_index != 0xFFFFFFFF) {
+    renderer.Draw(ui_camera, Graphics::icon_sprites[gun_index], Vector2f(x, y), Layer::Gauges);
+  } else {
+    renderer.Draw(ui_camera, Graphics::empty_icon_sprites[1], Vector2f(x + 22, y), Layer::Gauges);
+  }
+  y += 25.0f;
+
+  size_t bomb_index = GetBombIconIndex();
+  if (bomb_index != 0xFFFFFFFF) {
+    renderer.Draw(ui_camera, Graphics::icon_sprites[bomb_index], Vector2f(x, y), Layer::Gauges);
+  } else {
+    renderer.Draw(ui_camera, Graphics::empty_icon_sprites[1], Vector2f(x + 22, y), Layer::Gauges);
+  }
+  y += 25.0f;
+
+  if (ship.capability & ShipCapability_Stealth) {
+    if (self->togglables & Status_Stealth) {
+      renderer.Draw(ui_camera, Graphics::icon_sprites[32], Vector2f(x, y), Layer::Gauges);
+    } else {
+      renderer.Draw(ui_camera, Graphics::icon_sprites[33], Vector2f(x, y), Layer::Gauges);
+    }
+  } else {
+    renderer.Draw(ui_camera, Graphics::empty_icon_sprites[1], Vector2f(x + 22, y), Layer::Gauges);
+  }
+  y += 25.0f;
+
+  if (ship.capability & ShipCapability_Cloak) {
+    if (self->togglables & Status_Cloak) {
+      renderer.Draw(ui_camera, Graphics::icon_sprites[34], Vector2f(x, y), Layer::Gauges);
+    } else {
+      renderer.Draw(ui_camera, Graphics::icon_sprites[35], Vector2f(x, y), Layer::Gauges);
+    }
+  } else {
+    renderer.Draw(ui_camera, Graphics::empty_icon_sprites[1], Vector2f(x + 22, y), Layer::Gauges);
+  }
+  y += 25.0f;
+
+  if (ship.capability & ShipCapability_XRadar) {
+    if (self->togglables & Status_XRadar) {
+      renderer.Draw(ui_camera, Graphics::icon_sprites[36], Vector2f(x, y), Layer::Gauges);
+    } else {
+      renderer.Draw(ui_camera, Graphics::icon_sprites[37], Vector2f(x, y), Layer::Gauges);
+    }
+  } else {
+    renderer.Draw(ui_camera, Graphics::empty_icon_sprites[1], Vector2f(x + 22, y), Layer::Gauges);
+  }
+  y += 25.0f;
+
+  if (ship.capability & ShipCapability_Antiwarp) {
+    if (self->togglables & Status_Antiwarp) {
+      renderer.Draw(ui_camera, Graphics::icon_sprites[38], Vector2f(x, y), Layer::Gauges);
+    } else {
+      renderer.Draw(ui_camera, Graphics::icon_sprites[39], Vector2f(x, y), Layer::Gauges);
+    }
+  } else {
+    renderer.Draw(ui_camera, Graphics::empty_icon_sprites[1], Vector2f(x + 22, y), Layer::Gauges);
+  }
+  y += 25.0f;
+}
+
+void ShipController::RenderItemIndicator(Camera& ui_camera, SpriteRenderer& renderer, int value, size_t index,
+                                         float* y) {
+  if (value > 0) {
+    renderer.Draw(ui_camera, Graphics::icon_sprites[index], Vector2f(0, *y), Layer::Gauges);
+
+    if (value > 9) {
+      renderer.Draw(ui_camera, Graphics::icon_count_sprites[10], Vector2f(23, *y + 5), Layer::Gauges);
+    } else if (value > 1) {
+      renderer.Draw(ui_camera, Graphics::icon_count_sprites[value], Vector2f(23, *y + 5), Layer::Gauges);
+    }
+  } else {
+    renderer.Draw(ui_camera, Graphics::empty_icon_sprites[0], Vector2f(0, *y), Layer::Gauges);
+  }
+
+  *y += 25.0f;
+}
+
+size_t ShipController::GetGunIconIndex() {
+  size_t start = 0;
+
+  if (!ship.guns) {
+    return 0xFFFFFFFF;
+  }
+
+  if (ship.capability & ShipCapability_Multifire) {
+    if (ship.multifire) {
+      start = 3;
+    } else {
+      start = 6;
+    }
+  }
+
+  if (ship.capability & ShipCapability_BouncingBullets) {
+    start += 9;
+  }
+
+  return start + ship.guns - 1;
+}
+
+size_t ShipController::GetBombIconIndex() {
+  size_t start = 18;
+
+  if (!ship.bombs) {
+    return 0xFFFFFFFF;
+  }
+
+  if ((ship.capability & ShipCapability_Proximity) && !ship.shrapnel) {
+    start += 3;
+  } else if ((ship.capability & ShipCapability_Proximity) && ship.shrapnel) {
+    start += 9;
+  } else if (!(ship.capability & ShipCapability_Proximity) && ship.shrapnel) {
+    start += 6;
+  }
+
+  return start + ship.bombs - 1;
 }
 
 void ShipController::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
@@ -348,21 +487,27 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
       if (negative) {
         ship.capability &= ~ShipCapability_Stealth;
       } else {
-        ship.capability |= ShipCapability_Stealth;
+        if (ship_settings.StealthStatus > 0) {
+          ship.capability |= ShipCapability_Stealth;
+        }
       }
     } break;
     case Prize::Cloak: {
       if (negative) {
         ship.capability &= ~ShipCapability_Cloak;
       } else {
-        ship.capability |= ShipCapability_Cloak;
+        if (ship_settings.CloakStatus > 0) {
+          ship.capability |= ShipCapability_Cloak;
+        }
       }
     } break;
     case Prize::XRadar: {
       if (negative) {
         ship.capability &= ~ShipCapability_XRadar;
       } else {
-        ship.capability |= ShipCapability_XRadar;
+        if (ship_settings.XRadarStatus > 0) {
+          ship.capability |= ShipCapability_XRadar;
+        }
       }
     } break;
     case Prize::Warp: {
@@ -484,18 +629,20 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
       if (negative) {
         ship.capability &= ~ShipCapability_Antiwarp;
       } else {
-        ship.capability |= ShipCapability_Antiwarp;
+        if (ship_settings.AntiWarpStatus > 0) {
+          ship.capability |= ShipCapability_Antiwarp;
+        }
       }
     } break;
     case Prize::Repel: {
       if (negative) {
         if (ship.repels > 0) {
           --ship.repels;
-        } else {
-          ++ship.repels;
-          if (ship.repels > ship_settings.RepelMax) {
-            ship.repels = ship_settings.RepelMax;
-          }
+        }
+      } else {
+        ++ship.repels;
+        if (ship.repels > ship_settings.RepelMax) {
+          ship.repels = ship_settings.RepelMax;
         }
       }
     } break;
@@ -503,11 +650,11 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
       if (negative) {
         if (ship.bursts > 0) {
           --ship.bursts;
-        } else {
-          ++ship.bursts;
-          if (ship.bursts > ship_settings.BurstMax) {
-            ship.bursts = ship_settings.BurstMax;
-          }
+        }
+      } else {
+        ++ship.bursts;
+        if (ship.bursts > ship_settings.BurstMax) {
+          ship.bursts = ship_settings.BurstMax;
         }
       }
     } break;
@@ -515,11 +662,11 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
       if (negative) {
         if (ship.decoys > 0) {
           --ship.decoys;
-        } else {
-          ++ship.decoys;
-          if (ship.decoys > ship_settings.DecoyMax) {
-            ship.decoys = ship_settings.DecoyMax;
-          }
+        }
+      } else {
+        ++ship.decoys;
+        if (ship.decoys > ship_settings.DecoyMax) {
+          ship.decoys = ship_settings.DecoyMax;
         }
       }
     } break;
@@ -527,11 +674,11 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
       if (negative) {
         if (ship.thors > 0) {
           --ship.thors;
-        } else {
-          ++ship.thors;
-          if (ship.thors > ship_settings.ThorMax) {
-            ship.thors = ship_settings.ThorMax;
-          }
+        }
+      } else {
+        ++ship.thors;
+        if (ship.thors > ship_settings.ThorMax) {
+          ship.thors = ship_settings.ThorMax;
         }
       }
     } break;
@@ -542,11 +689,11 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
       if (negative) {
         if (ship.bricks > 0) {
           --ship.bricks;
-        } else {
-          ++ship.bricks;
-          if (ship.bricks > ship_settings.BrickMax) {
-            ship.bricks = ship_settings.BrickMax;
-          }
+        }
+      } else {
+        ++ship.bricks;
+        if (ship.bricks > ship_settings.BrickMax) {
+          ship.bricks = ship_settings.BrickMax;
         }
       }
     } break;
@@ -554,11 +701,11 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
       if (negative) {
         if (ship.rockets > 0) {
           --ship.rockets;
-        } else {
-          ++ship.rockets;
-          if (ship.rockets > ship_settings.RocketMax) {
-            ship.rockets = ship_settings.RocketMax;
-          }
+        }
+      } else {
+        ++ship.rockets;
+        if (ship.rockets > ship_settings.RocketMax) {
+          ship.rockets = ship_settings.RocketMax;
         }
       }
     } break;
@@ -566,11 +713,11 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
       if (negative) {
         if (ship.portals > 0) {
           --ship.bursts;
-        } else {
-          ++ship.portals;
-          if (ship.portals > ship_settings.PortalMax) {
-            ship.portals = ship_settings.PortalMax;
-          }
+        }
+      } else {
+        ++ship.portals;
+        if (ship.portals > ship_settings.PortalMax) {
+          ship.portals = ship_settings.PortalMax;
         }
       }
     } break;
@@ -637,6 +784,24 @@ void ShipController::ResetShip() {
   ship.emped_time = 0.0f;
   ship.multifire = false;
 
+  self->togglables = 0;
+
+  if (ship_settings.StealthStatus == 2) {
+    ship.capability |= ShipCapability_Stealth;
+  }
+
+  if (ship_settings.CloakStatus == 2) {
+    ship.capability |= ShipCapability_Cloak;
+  }
+
+  if (ship_settings.XRadarStatus == 2) {
+    ship.capability |= ShipCapability_XRadar;
+  }
+
+  if (ship_settings.AntiWarpStatus == 2) {
+    ship.capability |= ShipCapability_Antiwarp;
+  }
+
   self->bounty = 0;
 
   // Generate random weighted prizes
@@ -646,8 +811,8 @@ void ShipController::ResetShip() {
       s32 prize_id = GeneratePrize(false);
       Prize prize = (Prize)prize_id;
 
-      if (prize == Prize::EngineShutdown || prize == Prize::Shields || prize == Prize::Super ||
-          prize == Prize::Proximity || prize == Prize::Multiprize || prize == Prize::Warp) {
+      if (prize == Prize::FullCharge || prize == Prize::EngineShutdown || prize == Prize::Shields ||
+          prize == Prize::Super || prize == Prize::Warp || prize == Prize::Brick) {
         --i;
         continue;
       }

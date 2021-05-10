@@ -10,6 +10,7 @@ namespace null {
 // Reserved key presses that exist in ascii space outside of normal characters
 #define NULLSPACE_KEY_END 1
 #define NULLSPACE_KEY_DELETE 2
+#define NULLSPACE_KEY_HOME 3
 #define NULLSPACE_KEY_BACKSPACE 8
 #define NULLSPACE_KEY_ENTER 10
 #define NULLSPACE_KEY_PASTE 26

@@ -34,6 +34,8 @@ SpriteRenderable* Graphics::repel_sprites = nullptr;
 
 SpriteRenderable* Graphics::color_sprites = nullptr;
 SpriteRenderable* Graphics::icon_sprites = nullptr;
+SpriteRenderable Graphics::empty_icon_sprites[2];
+SpriteRenderable* Graphics::icon_count_sprites = nullptr;
 
 SpriteRenderable* Graphics::exhaust_sprites = nullptr;
 
@@ -123,6 +125,30 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
 
   icon_sprites = LoadTileSheet(renderer, "Icons", Vector2f(26, 24), &count);
   if (!icon_sprites) return false;
+
+  empty_icon_sprites[0] = empty_icon_sprites[1] = icon_sprites[0];
+  empty_icon_sprites[0].dimensions = Vector2f(4, 24);
+
+  float empty_uv_top = 120.0f / 144.0f;
+  float empty_left_xstart = 152.0f / 234.0f;
+  float empty_left_xend = 156.0f / 234.0f;
+
+  empty_icon_sprites[0].uvs[0] = Vector2f(empty_left_xstart, empty_uv_top);
+  empty_icon_sprites[0].uvs[1] = Vector2f(empty_left_xend, empty_uv_top);
+  empty_icon_sprites[0].uvs[2] = Vector2f(empty_left_xstart, 1.0f);
+  empty_icon_sprites[0].uvs[3] = Vector2f(empty_left_xend, 1.0f);
+
+  float empty_right_xstart = 78.0f / 234.0f;
+  float empty_right_xend = 82.0f / 234.0f;
+
+  empty_icon_sprites[1].dimensions = Vector2f(4, 24);
+  empty_icon_sprites[1].uvs[0] = Vector2f(empty_right_xstart, empty_uv_top);
+  empty_icon_sprites[1].uvs[1] = Vector2f(empty_right_xend, empty_uv_top);
+  empty_icon_sprites[1].uvs[2] = Vector2f(empty_right_xstart, 1.0f);
+  empty_icon_sprites[1].uvs[3] = Vector2f(empty_right_xend, 1.0f);
+
+  icon_count_sprites = LoadTileSheet(renderer, "icondoor", Vector2f(11, 13), &count);
+  if (!icon_count_sprites) return false;
 
   ship_sprites = LoadTileSheet(renderer, "ships", Vector2f(36, 36), &count);
   if (!ship_sprites) return false;

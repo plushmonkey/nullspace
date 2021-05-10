@@ -213,8 +213,8 @@ struct nullspace {
     float zones_width = 300;
     float zones_height = 230;
 
-    ImGui::SetNextWindowPos(
-      ImVec2(surface_width / 2.0f + zones_width / 2, surface_height / 2.0f - zones_height / 2), ImGuiCond_Always);
+    ImGui::SetNextWindowPos(ImVec2(surface_width / 2.0f + zones_width / 2, surface_height / 2.0f - zones_height / 2),
+                            ImGuiCond_Always);
 
     ImGui::SetNextWindowSize(ImVec2(zones_width, zones_height), ImGuiCond_Always);
 
@@ -501,6 +501,8 @@ static void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_
     window_state->input.OnCharacter(NULLSPACE_KEY_END, mods);
   } else if (key == GLFW_KEY_DELETE && key_action != GLFW_RELEASE) {
     window_state->input.OnCharacter(NULLSPACE_KEY_DELETE, mods);
+  } else if (key == GLFW_KEY_HOME && key_action != GLFW_RELEASE) {
+    window_state->input.OnCharacter(NULLSPACE_KEY_HOME, mods);
   }
 
   bool shift = key == GLFW_KEY_RIGHT_SHIFT || key == GLFW_KEY_LEFT_SHIFT;

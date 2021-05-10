@@ -40,6 +40,8 @@ struct Graphics {
 
   static SpriteRenderable* color_sprites;
   static SpriteRenderable* icon_sprites;
+  static SpriteRenderable empty_icon_sprites[2];
+  static SpriteRenderable* icon_count_sprites;
 
   static SpriteRenderable* exhaust_sprites;
 

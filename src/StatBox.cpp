@@ -203,7 +203,7 @@ void StatBox::RecordTeamSortView(const Player& me) {
       AddTextOutput(Vector2f(kBorder + 1 + 18 * 8, freq_output_y), TextColor::DarkRed, TextAlignment::Left);
   sprintf(freqcount_output->text, "%d", freq_count);
 
-  view_dimensions = Vector2f(width, y - 4.0f);
+  view_dimensions = Vector2f(width, y - 3.0f);
 }
 
 void StatBox::RecordFullView(const Player& me) {

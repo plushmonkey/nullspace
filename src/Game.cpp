@@ -15,6 +15,8 @@ namespace null {
 static void OnCharacterPress(void* user, int codepoint, int mods) {
   Game* game = (Game*)user;
 
+  // TODO: Clean up all of this with key-action indirection.
+
   if (codepoint == NULLSPACE_KEY_ESCAPE) {
     if (game->connection.login_state <= Connection::LoginState::MapDownload) {
       game->menu_quit = true;
@@ -25,10 +27,24 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
   } else if (codepoint == NULLSPACE_KEY_END) {
     Player* self = game->player_manager.GetSelf();
     if (self) {
-      self->togglables ^= Status_XRadar;
+      if (mods & NULLSPACE_KEY_MOD_SHIFT) {
+        self->togglables ^= Status_Antiwarp;
+      } else {
+        self->togglables ^= Status_XRadar;
+      }
     }
   } else if (codepoint == NULLSPACE_KEY_DELETE) {
     game->ship_controller.ship.multifire = !game->ship_controller.ship.multifire;
+  } else if (codepoint == NULLSPACE_KEY_HOME) {
+    Player* self = game->player_manager.GetSelf();
+
+    if (self) {
+      if (mods & NULLSPACE_KEY_MOD_SHIFT) {
+        self->togglables ^= Status_Cloak;
+      } else {
+        self->togglables ^= Status_Stealth;
+      }
+    }
   } else if (game->menu_open) {
     if (game->HandleMenuKey(codepoint, mods)) {
       game->chat.display_full = false;
