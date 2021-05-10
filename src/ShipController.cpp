@@ -212,6 +212,11 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
   }
 
   if (used_weapon) {
+    if (self.togglables & Status_Cloak) {
+      self.togglables &= ~Status_Cloak;
+      self.togglables |= Status_Flash;
+    }
+
     if (connection.map.GetTileId((u16)self.position.x, (u16)self.position.y) == kTileSafe) {
       self.velocity = Vector2f(0, 0);
     } else if (self.energy > energy_cost) {

@@ -41,6 +41,10 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
     if (self) {
       if (mods & NULLSPACE_KEY_MOD_SHIFT) {
         self->togglables ^= Status_Cloak;
+
+        if (!(self->togglables & Status_Cloak)) {
+          self->togglables |= Status_Flash;
+        }
       } else {
         self->togglables ^= Status_Stealth;
       }

@@ -256,6 +256,7 @@ void PlayerManager::SendPositionPacket() {
 
   connection.Send(buffer);
   last_position_tick = GetCurrentTick();
+  player->togglables &= ~Status_Flash;
 }
 
 Player* PlayerManager::GetSelf() { return GetPlayerById(player_id); }
@@ -401,6 +402,7 @@ void PlayerManager::Spawn() {
   }
 
   ship_controller->ResetShip();
+  self->togglables |= Status_Flash;
   SendPositionPacket();
 }
 
