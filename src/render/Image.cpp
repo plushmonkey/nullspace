@@ -76,7 +76,7 @@ unsigned char* LoadBitmap(const u8* data, size_t file_size, int* width, int* hei
     const u8* image_data = ptr;
 
     // Expand out the data to rgba
-    result = new u32[image_size];
+    result = (u32*)malloc(image_size * sizeof(u32));
 
     size_t i = 0;
     int x = 0;
@@ -96,7 +96,15 @@ unsigned char* LoadBitmap(const u8* data, size_t file_size, int* width, int* hei
           break;
         } else if (color_index == 2) {
           // Delta
-          assert(!"Not implemented");
+          int next_x = image_data[i++];
+          int next_y = image_data[i++];
+
+          color_index = image_data[i++];
+
+          u32 color = GetColor(color_table, color_index) | 0xFF000000;
+          color = ((color & 0xFF) << 16) | ((color & 0x00FF0000) >> 16) | (color & 0xFF000000) | (color & 0x0000FF00);
+
+          result[next_y * dib_header->width + next_x] = color;
         } else {
           // Run of absolute values
           for (int j = 0; j < color_index; ++j) {

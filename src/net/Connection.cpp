@@ -346,7 +346,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         printf("Login response: %s\n", kLoginResponses[response]);
 
         if (response == 0x00) {
-          SendArenaLogin(8, 0, 1920, 1080, 0, "");
+          SendArenaLogin(8, 0, 1920, 1080, 0xFFFF, "");
           login_state = LoginState::ArenaLogin;
         }
       } break;
