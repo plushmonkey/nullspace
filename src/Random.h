@@ -17,6 +17,20 @@ struct VieRNG {
     }
     return (u32)seed;
   }
+
+  inline u16 GetNextEncrypt() {
+    u32 old_seed = seed;
+
+    u32 new_seed = (s32)(((s64)old_seed * 0x834E0B5F) >> 48);
+    new_seed = new_seed + (new_seed >> 31);
+
+    new_seed = ((old_seed % 0x1F31D) * 0x41A7) - (new_seed * 0xB14) + 0x7B;
+    if ((s32)new_seed < 1) {
+      new_seed += 0x7FFFFFFF;
+    }
+    seed = (s32)new_seed;
+    return (u16)seed;
+  }
 };
 
 }  // namespace null

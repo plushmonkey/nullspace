@@ -13,6 +13,7 @@
 
 namespace null {
 enum class ConnectResult { Success, ErrorSocket, ErrorAddrInfo, ErrorConnect };
+enum class EncryptMethod { Subspace, Continuum };
 
 struct RemoteAddress {
   long addr;
@@ -53,7 +54,9 @@ struct Connection {
   SocketType fd = -1;
   RemoteAddress remote_addr;
   bool connected = false;
+  EncryptMethod encrypt_method = EncryptMethod::Continuum;
   ContinuumEncrypt encrypt;
+  VieEncrypt vie_encrypt;
   FileRequester requester;
   PacketSequencer packet_sequencer;
   NetworkBuffer buffer;
@@ -94,7 +97,7 @@ struct Connection {
   void SendSyncTimeRequestPacket(bool reliable);
 
   void SendDisconnect();
-  void SendEncryptionRequest();
+  void SendEncryptionRequest(EncryptMethod method);
   void SendSpectateRequest(u16 pid);
   void SendShipRequest(u8 ship);
   void SendDeath(u16 killer, u16 bounty);

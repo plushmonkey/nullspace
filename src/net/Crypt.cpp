@@ -1,5 +1,6 @@
 #include "Crypt.h"
 
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -10,6 +11,7 @@
 #include <stdio.h>
 #endif
 
+#include "../Tick.h"
 #include "Checksum.h"
 #include "MD5.h"
 
@@ -23,6 +25,123 @@ static u32 rol(u32 var, u32 amount) {
 static u32 ror(u32 var, u32 amount) {
   amount &= 31;
   return ((var >> amount) | (var << (32 - amount)));
+}
+
+size_t VieEncrypt::Encrypt(const u8* pkt, u8* dest, size_t size) {
+  if (!session_key) {
+    memcpy(dest, pkt, size);
+    return size;
+  }
+
+  u32 ksi = 0, i = 1, IV = session_key;
+
+  dest[0] = pkt[0];
+
+  if (*pkt == 0) {
+    if (size <= 2) {
+      memcpy(dest, pkt, size);
+      return size;
+    }
+
+    dest[1] = pkt[1];
+    ++i;
+  }
+
+  while (i + 4 <= size) {
+    *(u32*)&dest[i] = IV = (*(u32*)(pkt + i) ^ *(u32*)(keystream + ksi) ^ IV);
+
+    i += 4;
+    ksi += 4;
+  }
+
+  size_t diff = size - i;
+
+  if (diff) {
+    u32 remaining = 0;
+
+    memcpy(&remaining, pkt + i, diff);
+
+    remaining ^= *(u32*)(keystream + ksi) ^ IV;
+    memcpy(dest + i, &remaining, diff);
+  }
+
+  return size;
+}
+
+size_t VieEncrypt::Decrypt(u8* pkt, size_t size) {
+  if (!session_key) {
+    return size;
+  }
+
+  u32 ksi = 0, i = 1, IV = session_key, EDX;
+
+  if (*pkt == 0) {
+    if (size <= 2) {
+      return size;
+    }
+
+    ++i;
+  }
+
+  while (i + 4 <= size) {
+    EDX = *(u32*)(pkt + i);
+
+    *(u32*)&pkt[i] = *(u32*)(keystream + ksi) ^ IV ^ EDX;
+
+    IV = EDX;
+    i += 4;
+    ksi += 4;
+  }
+
+  size_t diff = size - i;
+
+  if (diff) {
+    u32 remaining = 0;
+
+    memcpy(&remaining, pkt + i, diff);
+
+    remaining ^= *(u32*)(keystream + ksi) ^ IV;
+    memcpy(pkt + i, &remaining, diff);
+  }
+
+  return size;
+}
+
+bool VieEncrypt::IsValidKey(u32 server_key) {
+  return (server_key == session_key) || (server_key == client_key) || (server_key == ((~client_key) + 1));
+}
+
+bool VieEncrypt::Initialize(u32 server_key) {
+  if (!IsValidKey(server_key)) return false;
+
+  if (client_key == server_key) {
+    session_key = 0;
+    memset(keystream, 0, 520);
+  } else {
+    session_key = server_key;
+    u16* stream = (u16*)keystream;
+
+    rng.Seed(session_key);
+    for (u32 i = 0; i < 520 / 2; ++i) {
+      stream[i] = (u16)rng.GetNextEncrypt();
+    }
+  }
+
+  return true;
+}
+
+u32 VieEncrypt::GenerateKey() {
+  u32 edx = GetCurrentTick() * 0xCCCCCCCD;
+
+  srand(GetCurrentTick());
+
+  u32 res = ((rand() % 65535) << 16) + (edx >> 3) + (rand() % 65535);
+
+  res = (res ^ edx) - edx;
+
+  if (res <= 0x7fffffff) res = ~res + 1;
+
+  return res;
 }
 
 void encrypt(void* target, const void* source, u32 packetlen, const u32* key) {

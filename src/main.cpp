@@ -50,6 +50,7 @@ enum class WindowType { Windowed, Fullscreen, BorderlessFullscreen };
 
 constexpr bool kVerticalSync = false;
 constexpr WindowType kWindowType = WindowType::Windowed;
+constexpr EncryptMethod kEncryptMethod = EncryptMethod::Continuum;
 
 const char* kPlayerName = "null space";
 const char* kPlayerPassword = "none";
@@ -149,7 +150,8 @@ struct nullspace {
     kPlayerName = name;
     kPlayerPassword = password;
 
-    if (!MemoryChecksumGenerator::Initialize(perm_arena, "cont_mem_text", "cont_mem_data")) {
+    if (kEncryptMethod == EncryptMethod::Continuum &&
+        !MemoryChecksumGenerator::Initialize(perm_arena, "cont_mem_text", "cont_mem_data")) {
       // TODO: Error pop up
       return false;
     }
@@ -172,7 +174,7 @@ struct nullspace {
 
     window_state.screen = GameScreen::Playing;
 
-    game->connection.SendEncryptionRequest();
+    game->connection.SendEncryptionRequest(kEncryptMethod);
     return true;
   }
 

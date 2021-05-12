@@ -130,8 +130,10 @@ Connection::TickResult Connection::Tick() {
       u8* pkt = (u8*)buffer.data;
       size_t size = bytes_recv;
 
-      if (encrypt.key1 != 0 || encrypt.key2 != 0) {
+      if (encrypt_method == EncryptMethod::Continuum && (encrypt.key1 != 0 || encrypt.key2 != 0)) {
         size = encrypt.Decrypt(pkt, size);
+      } else if (encrypt_method == EncryptMethod::Subspace) {
+        size = vie_encrypt.Decrypt(pkt, size);
       }
 
 #ifdef PACKET_SHEDDING  // packet shedding for testing sequencer
@@ -170,18 +172,30 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         char name[32] = {};
         char password[32] = {};
 
+        u32 version = 40;
+        u8 packet_type = 0x24;
+
+        if (encrypt_method == EncryptMethod::Subspace) {
+          if (!vie_encrypt.Initialize(*(u32*)(pkt + 2))) {
+            fprintf(stderr, "Failed to initialize vie encryption.\n");
+          }
+
+          version = 0x86;
+          packet_type = 0x09;
+        }
+
         strcpy(name, kPlayerName);
         strcpy(password, kPlayerPassword);
 
-        buffer.WriteU8(0x24);  // Continuum password packet
-        buffer.WriteU8(0x00);  // New user
+        buffer.WriteU8(packet_type);  // Continuum password packet
+        buffer.WriteU8(0x00);         // New user
         buffer.WriteString(name, 32);
         buffer.WriteString(password, 32);
         buffer.WriteU32(1178436307);  // Machine ID
         buffer.WriteU8(0x00);         // connect type
         buffer.WriteU16(240);         // Time zone bias
         buffer.WriteU16(0);           // Unknown
-        buffer.WriteU16(40);          // Version
+        buffer.WriteU16(version);     // Version
         buffer.WriteU32(0xA5);
         buffer.WriteU32(0x00);
         buffer.WriteU32(0);  // permission id
@@ -190,8 +204,10 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         buffer.WriteU32(0);
         buffer.WriteU32(0);
 
-        for (int i = 0; i < 16; ++i) {
-          buffer.WriteU32(0);
+        if (encrypt_method == EncryptMethod::Continuum) {
+          for (int i = 0; i < 16; ++i) {
+            buffer.WriteU32(0);
+          }
         }
 
         packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
@@ -500,8 +516,14 @@ void Connection::SendSyncTimeRequestPacket(bool reliable) {
 
 void Connection::SendSecurityPacket() {
   u32 settings_checksum = SettingsChecksum(security.checksum_key, settings);
-  u32 exe_checksum = MemoryChecksumGenerator::Generate(security.checksum_key);
   u32 map_checksum = map.GetChecksum(security.checksum_key);
+
+  u32 exe_checksum = 0;
+  if (encrypt_method == EncryptMethod::Continuum) {
+    exe_checksum = MemoryChecksumGenerator::Generate(security.checksum_key);
+  } else {
+    exe_checksum = VieChecksum(security.checksum_key);
+  }
 
   printf("Sending security packet with checksum seed %08X\n", security.checksum_key);
 
@@ -557,10 +579,14 @@ size_t Connection::Send(u8* data, size_t size) {
   addr.sin_port = remote_addr.port;
   addr.sin_addr.s_addr = remote_addr.addr;
 
-  if (encrypt.key1 || encrypt.key2) {
+  if (encrypt_method == EncryptMethod::Continuum && (encrypt.key1 || encrypt.key2)) {
     // Allocate enough space for both the crc and possibly the crc escape
     u8* dest = temp_arena.Allocate(size + 2);
     size = encrypt.Encrypt(data, dest, size);
+    data = dest;
+  } else if (encrypt_method == EncryptMethod::Subspace) {
+    u8* dest = temp_arena.Allocate(size);
+    size = vie_encrypt.Encrypt(data, dest, size);
     data = dest;
   }
 
@@ -584,14 +610,25 @@ void Connection::SendDisconnect() {
   Send((u8*)&disconnect, sizeof(u16));
 }
 
-void Connection::SendEncryptionRequest() {
+void Connection::SendEncryptionRequest(EncryptMethod method) {
+  this->encrypt_method = method;
+
+  u32 key = 0;
+  u16 version = 0x11;
+
+  if (method == EncryptMethod::Subspace) {
+    key = VieEncrypt::GenerateKey();
+    vie_encrypt.client_key = key;
+    version = 0x01;
+  }
+
 #pragma pack(push, 1)
   struct {
     u8 core;
     u8 request;
     u32 key;
     u16 version;
-  } request = {0x00, 0x01, 0x00, 0x11};
+  } request = {0x00, 0x01, key, version};
 #pragma pack(pop)
 
   Send((u8*)&request, sizeof(request));
