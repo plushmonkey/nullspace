@@ -23,6 +23,7 @@
 #include <thread>
 
 #include "../ArenaSettings.h"
+#include "../Platform.h"
 #include "../Tick.h"
 #include "Checksum.h"
 #include "Protocol.h"
@@ -34,7 +35,11 @@ namespace null {
 extern const char* kPlayerName;
 extern const char* kPlayerPassword;
 
+#ifdef __ANDROID__
+constexpr bool kDownloadLvz = false;
+#else
 constexpr bool kDownloadLvz = true;
+#endif
 
 const char* kLoginResponses[] = {"Ok",
                                  "Unregistered player",
@@ -422,8 +427,12 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         login_state = LoginState::MapDownload;
 
         char* raw_filename = buffer.ReadString(16);
+
         map.checksum = buffer.ReadU32();
-        map.compressed_size = buffer.ReadU32();
+
+        if (encrypt_method == EncryptMethod::Continuum) {
+          map.compressed_size = buffer.ReadU32();
+        }
 
         char filename[17];
         memcpy(filename, raw_filename, 16);

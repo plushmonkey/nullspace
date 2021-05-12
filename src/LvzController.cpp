@@ -266,7 +266,12 @@ void LvzController::OnMapInformation(u8* pkt, size_t size) {
   buffer.ReadU8();  // 0x29
 
   // Skip map file
-  buffer.ReadString(24);
+  buffer.ReadString(20);
+
+  // Skip over file size if using Continuum encryption only
+  if (buffer.write - buffer.read > 0) {
+    buffer.ReadString(4);
+  }
 
   u16 index = 1;
   while (buffer.read < buffer.write) {

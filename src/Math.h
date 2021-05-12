@@ -1,8 +1,6 @@
 #ifndef NULLSPACE_MATH_H_
 #define NULLSPACE_MATH_H_
 
-#include <xmmintrin.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -175,9 +173,9 @@ inline bool BoxContainsPoint(const Vector2f& min, const Vector2f& max, const Vec
 }
 
 inline bool BoxBoxIntersect(const Vector2f& first_min, const Vector2f& first_max, const Vector2f& second_min,
-                            const Vector2f& second_max) {
-  return (first_max.x >= second_min.x && first_min.x < second_max.x && first_max.y >= second_min.y &&
-          first_min.y < second_max.y);
+  const Vector2f& second_max) {
+  return (first_max.x >= second_min.x && first_min.x < second_max.x&& first_max.y >= second_min.y &&
+    first_min.y < second_max.y);
 }
 
 inline float BoxPointDistance(Vector2f box_pos, Vector2f box_extent, Vector2f p) {
@@ -191,7 +189,7 @@ inline float BoxPointDistance(Vector2f box_pos, Vector2f box_extent, Vector2f p)
 }
 
 inline bool RayBoxIntersect(const Vector2f& origin, const Vector2f& direction, const Vector2f& box_pos,
-                            const Vector2f& box_extent, float* dist, Vector2f* norm) {
+  const Vector2f& box_extent, float* dist, Vector2f* norm) {
   Vector2f recip(1.0f / direction.x, 1.0f / direction.y);
   const Vector2f& lb = box_pos;
   Vector2f rt = box_pos + box_extent;
@@ -241,7 +239,7 @@ inline bool RayBoxIntersect(const Vector2f& origin, const Vector2f& direction, c
 }
 
 inline bool LineBoxIntersect(Vector2f point, Vector2f direction, Vector2f box_pos, Vector2f box_extent, float* dist,
-                             Vector2f* norm) {
+  Vector2f* norm) {
   if (RayBoxIntersect(point, direction, box_pos, box_extent, dist, norm)) {
     return true;
   }
@@ -526,8 +524,8 @@ inline mat4 LookAt(const Vector3f& eye, const Vector3f& to, Vector3f world_up = 
   Vector3f up = Normalize(side.Cross(forward));
 
   // Insert camera axes in column major order and transform eye into the camera space for translation
-  float values[] = {side.x, up.x, -forward.x, 0, side.y,          up.y,          -forward.y,        0,
-                    side.z, up.z, -forward.z, 0, -Dot(side, eye), -Dot(up, eye), Dot(forward, eye), 1};
+  float values[] = { side.x, up.x, -forward.x, 0, side.y,          up.y,          -forward.y,        0,
+                    side.z, up.z, -forward.z, 0, -Dot(side, eye), -Dot(up, eye), Dot(forward, eye), 1 };
 
   return mat4(values);
 }
@@ -631,8 +629,8 @@ inline mat4 Rotate(const mat4& M, float angle, const Vector3f& rotate_axis) {
   Vector4f R1 = M0 * rotator[1][0] + M1 * rotator[1][1] + M2 * rotator[1][2];
   Vector4f R2 = M0 * rotator[2][0] + M1 * rotator[2][1] + M2 * rotator[2][2];
 
-  float values[] = {R0[0], R0[1], R0[2], R0[3], R1[0],   R1[1],   R1[2],   R2[3],
-                    R2[0], R2[1], R2[2], R1[3], M[3][0], M[3][1], M[3][2], M[3][3]};
+  float values[] = { R0[0], R0[1], R0[2], R0[3], R1[0],   R1[1],   R1[2],   R2[3],
+                    R2[0], R2[1], R2[2], R1[3], M[3][0], M[3][1], M[3][2], M[3][3] };
 
   return mat4((float*)values);
 }
@@ -659,128 +657,6 @@ struct Plane {
   }
 
   inline float PointDistance(const Vector3f& v) { return (normal.Dot(v) - distance) / normal.Dot(normal); }
-};
-
-struct Frustum {
-  Vector3f position;
-  Vector3f forward;
-
-  float near_plane;
-  float near_width;
-  float near_height;
-
-  float far_plane;
-  float far_width;
-  float far_height;
-
-  Plane planes[6];
-
-  Frustum(const Vector3f& position, const Vector3f& forward, float near_plane, float far_plane, float fov, float ratio,
-          const Vector3f& up, const Vector3f& right)
-      : position(position), forward(forward), near_plane(near_plane), far_plane(far_plane) {
-    near_height = 2 * std::tan(fov / 2.0f) * near_plane;
-    near_width = near_height * ratio;
-
-    far_height = 2 * std::tan(fov / 2.0f) * far_plane;
-    far_width = far_height * ratio;
-
-    Vector3f nc = position + forward * near_plane;
-    Vector3f fc = position + forward * far_plane;
-
-    float hnh = near_height / 2.0f;
-    float hnw = near_width / 2.0f;
-    float hfh = far_height / 2.0f;
-    float hfw = far_width / 2.0f;
-
-    Vector3f ntl = nc + up * hnh - right * hnw;
-    Vector3f ntr = nc + up * hnh + right * hnw;
-    Vector3f nbl = nc - up * hnh - right * hnw;
-    Vector3f nbr = nc - up * hnh + right * hnw;
-
-    Vector3f ftl = fc + up * hfh - right * hfw;
-    Vector3f ftr = fc + up * hfh + right * hfw;
-    Vector3f fbl = fc - up * hfh - right * hfw;
-    Vector3f fbr = fc - up * hfh + right * hfw;
-
-    planes[0] = Plane(ntr, ntl, ftl);
-    planes[1] = Plane(nbl, nbr, fbr);
-    planes[2] = Plane(ntl, nbl, fbl);
-    planes[3] = Plane(nbr, ntr, fbr);
-    planes[4] = Plane(ntl, ntr, nbr);
-    planes[5] = Plane(ftr, ftl, fbl);
-  }
-
-  inline bool Intersects(const Vector3f& min, const Vector3f& max) {
-    Vector3f diff = max - min;
-    Vector3f vertices[8] = {min,
-                            min + Vector3f(diff.x, 0, 0),
-                            min + Vector3f(diff.x, diff.y, 0),
-                            min + Vector3f(0, diff.y, 0),
-                            min + Vector3f(0, diff.y, diff.z),
-                            min + Vector3f(0, 0, diff.z),
-                            min + Vector3f(diff.x, 0, diff.z),
-                            max};
-#if 0
-    for (size_t i = 0; i < 6; ++i) {
-      bool in = false;
-
-      for (size_t k = 0; k < 8; ++k) {
-        if (planes[i].normal.Dot(vertices[k]) - planes[i].distance >= 0) {
-          in = true;
-          break;
-        }
-      }
-
-      if (!in) {
-        return false;
-      }
-    }
-
-    return true;
-#else
-    __m128 zero4x = _mm_set_ps1(0.0f);
-
-    __m128 vxs0 = _mm_setr_ps(vertices[0].x, vertices[1].x, vertices[2].x, vertices[3].x);
-    __m128 vxs1 = _mm_setr_ps(vertices[4].x, vertices[5].x, vertices[6].x, vertices[7].x);
-
-    __m128 vys0 = _mm_setr_ps(vertices[0].y, vertices[1].y, vertices[2].y, vertices[3].y);
-    __m128 vys1 = _mm_setr_ps(vertices[4].y, vertices[5].y, vertices[6].y, vertices[7].y);
-
-    __m128 vzs0 = _mm_setr_ps(vertices[0].z, vertices[1].z, vertices[2].z, vertices[3].z);
-    __m128 vzs1 = _mm_setr_ps(vertices[4].z, vertices[5].z, vertices[6].z, vertices[7].z);
-
-    for (size_t i = 0; i < 6; ++i) {
-      __m128 nxs = _mm_set_ps1(planes[i].normal.x);
-      __m128 nys = _mm_set_ps1(planes[i].normal.y);
-      __m128 nzs = _mm_set_ps1(planes[i].normal.z);
-
-      __m128 dist = _mm_set_ps1(planes[i].distance);
-
-      __m128 xmul0 = _mm_mul_ps(nxs, vxs0);
-      __m128 xmul1 = _mm_mul_ps(nxs, vxs1);
-
-      __m128 ymul0 = _mm_mul_ps(nys, vys0);
-      __m128 ymul1 = _mm_mul_ps(nys, vys1);
-
-      __m128 zmul0 = _mm_mul_ps(nzs, vzs0);
-      __m128 zmul1 = _mm_mul_ps(nzs, vzs1);
-
-      __m128 dot0 = _mm_add_ps(_mm_add_ps(xmul0, ymul0), zmul0);
-      __m128 dot1 = _mm_add_ps(_mm_add_ps(xmul1, ymul1), zmul1);
-      __m128 final0 = _mm_sub_ps(dot0, dist);
-      __m128 final1 = _mm_sub_ps(dot1, dist);
-
-      __m128 cmp0 = _mm_cmplt_ps(final0, zero4x);
-      __m128 cmp1 = _mm_cmplt_ps(final1, zero4x);
-
-      if (_mm_movemask_ps(cmp0) == 0x0F && _mm_movemask_ps(cmp1) == 0x0F) {
-        return false;
-      }
-    }
-
-    return true;
-#endif
-  }
 };
 
 inline Vector2f OrientationToHeading(u8 discrete_rotation) {

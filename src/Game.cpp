@@ -9,6 +9,7 @@
 #include "Tick.h"
 #include "render/Animation.h"
 #include "render/Graphics.h"
+#include "Platform.h"
 
 namespace null {
 
@@ -112,17 +113,17 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
 
 bool Game::Initialize(InputState& input) {
   if (!sprite_renderer.Initialize(perm_arena)) {
-    fprintf(stderr, "Failed to initialize sprite renderer.\n");
+    log_error("Failed to initialize sprite renderer.\n");
     return false;
   }
 
   if (!Graphics::Initialize(sprite_renderer)) {
-    fprintf(stderr, "Failed to initialize graphics.\n");
+    log_error("Failed to initialize graphics.\n");
     return false;
   }
 
   if (!background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
-    fprintf(stderr, "Failed to initialize background renderer.\n");
+    log_error("Failed to initialize background renderer.\n");
     return false;
   }
 
@@ -143,15 +144,17 @@ bool Game::Update(const InputState& input, float dt) {
   Player* me = player_manager.GetSelf();
 
   if (tile_renderer.tilemap_texture == -1 && connection.login_state == Connection::LoginState::Complete) {
+    log_error("Creating map buffer\n");
+
     if (!tile_renderer.CreateMapBuffer(temp_arena, connection.map.filename, ui_camera.surface_dim)) {
-      fprintf(stderr, "Failed to create renderable map.\n");
+      log_error("Failed to create renderable map.\n");
     }
 
     mapzoom = connection.settings.MapZoomFactor;
 
     if (!tile_renderer.CreateRadar(temp_arena, connection.map.filename, ui_camera.surface_dim,
                                    connection.settings.MapZoomFactor)) {
-      fprintf(stderr, "Failed to create radar.\n");
+      log_error("Failed to create radar.\n");
     }
 
     animated_tile_renderer.InitializeDoors(tile_renderer);

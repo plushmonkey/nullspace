@@ -4,6 +4,7 @@
 #include <cstdio>
 
 #include "../Math.h"
+#include "../Platform.h"
 #include "Camera.h"
 #include "Graphics.h"
 #include "Image.h"
@@ -24,11 +25,10 @@ struct SpritePushElement {
 constexpr size_t kPushBufferSize = Megabytes(16);
 constexpr size_t kTextureBufferSize = kPushBufferSize / sizeof(SpriteVertex);
 
-const char* kSpriteVertexShaderCode = R"(
-#version 330
+const char* kSpriteVertexShaderCode = R"(#version 300 es
 
-layout (location = 0) in vec3 position;
-layout (location = 1) in vec2 uv;
+in vec3 position;
+in vec2 uv;
 
 uniform mat4 mvp;
 
@@ -40,8 +40,8 @@ void main() {
 }
 )";
 
-const char* kSpriteFragmentShaderCode = R"(
-#version 330
+const char* kSpriteFragmentShaderCode = R"(#version 300 es
+precision mediump float;
 
 in vec2 varying_uv;
 
@@ -66,7 +66,7 @@ bool SpriteRenderer::Initialize(MemoryArena& perm_arena) {
   }
 
   if (!shader.Initialize(kSpriteVertexShaderCode, kSpriteFragmentShaderCode)) {
-    fprintf(stderr, "Failed to create sprite shader.\n");
+    log_error("Failed to create sprite shader.\n");
     return false;
   }
 
@@ -321,8 +321,11 @@ void SpriteRenderer::Render(Camera& camera) {
 void SpriteRenderer::Cleanup() {
   shader.Cleanup();
   glDeleteTextures((GLsizei)texture_count, textures);
-  glDeleteVertexArrays(1, &vao);
-  glDeleteBuffers(1, &vbo);
+  if (vao != -1) {
+    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &vbo);
+    vao = -1;
+  }
 
   renderable_count = 0;
   texture_count = 0;

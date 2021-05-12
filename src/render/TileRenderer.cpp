@@ -15,10 +15,9 @@ const Vector2f kGridVertices[] = {
     Vector2f(0, 0), Vector2f(0, 1024), Vector2f(1024, 0), Vector2f(1024, 0), Vector2f(0, 1024), Vector2f(1024, 1024),
 };
 
-const char* kGridVertexShaderCode = R"(
-#version 330
+const char* kGridVertexShaderCode = R"(#version 300 es
 
-layout (location = 0) in vec2 position;
+in vec2 position;
 
 uniform mat4 mvp;
 
@@ -30,8 +29,11 @@ void main() {
 }
 )";
 
-const char* kGridFragmentShaderCode = R"(
-#version 330
+const char* kGridFragmentShaderCode = R"(#version 300 es
+precision mediump float;
+precision mediump int;
+precision mediump sampler2DArray;
+precision mediump usampler2D;
 
 in vec2 varying_position;
 
@@ -54,7 +56,7 @@ void main() {
   vec2 uv = (varying_position - floor(varying_position));
 
   color = texture(tilemap, vec3(uv, tile_id - 1u));
-  if (tile_id > 172u && color.r == 0 && color.g == 0 && color.b == 0) {
+  if (tile_id > 172u && color.r == 0.0 && color.g == 0.0 && color.b == 0.0) {
     discard;
   }
 }
@@ -137,7 +139,7 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
 
   int width, height;
 
-  u32* tilemap = (u32*)ImageLoad(filename, &width, &height);
+  u32* tilemap = (u32*)ImageLoad(filename, &width, &height, false);
 
   if (!tilemap) {
     tilemap = (u32*)ImageLoad("graphics/tiles.bm2", &width, &height);
@@ -371,8 +373,11 @@ void TileRenderer::Cleanup() {
   glDeleteTextures(1, &radar_texture);
   glDeleteTextures(1, &full_radar_texture);
 
-  glDeleteVertexArrays(1, &vao);
-  glDeleteBuffers(1, &vbo);
+  if (vao != -1) {
+    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &vbo);
+    vao = -1;
+  }
 
   door_texture = -1;
   tilemap_texture = -1;

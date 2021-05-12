@@ -15,21 +15,26 @@ namespace null {
 extern const char* kServerName;
 static const char* zone_folder = "zones";
 
-static void GetFilePath(char* buffer, const char* filename) {
+static void GetFilePath(MemoryArena& temp_arena, char* buffer, const char* filename) {
   sprintf(buffer, "%s/%s/%s", zone_folder, kServerName, filename);
+
+  const char* result = GetStoragePath(temp_arena, buffer);
+
+  strcpy(buffer, result);
 }
 
-static void CreateZoneFolder() {
+static void CreateZoneFolder(MemoryArena& temp_arena) {
   char path[260];
 
-  CreateFolder(zone_folder);
-  sprintf(path, "%s/%s", zone_folder, kServerName);
+  const char* zone_path = GetStoragePath(temp_arena, zone_folder);
+  CreateFolder(zone_path);
+  sprintf(path, "%s/%s", zone_path, kServerName);
   CreateFolder(path);
 }
 
 inline bool FileExists(MemoryArena& temp_arena, const char* filename, u32 checksum) {
   char path[260];
-  GetFilePath(path, filename);
+  GetFilePath(temp_arena, path, filename);
 
   FILE* file = fopen(path, "rb");
   if (!file) return false;
@@ -91,7 +96,7 @@ void FileRequester::OnCompressedFile(u8* pkt, size_t size) {
     }
   }
 
-  CreateZoneFolder();
+  CreateZoneFolder(temp_arena);
 
   FILE* f = fopen(current->filename, "wb");
   if (f) {
@@ -137,7 +142,7 @@ void FileRequester::Request(const char* filename, u16 index, u32 size, u32 check
     request = memory_arena_push_type(&perm_arena, FileRequest);
   }
 
-  GetFilePath(request->filename, filename);
+  GetFilePath(temp_arena, request->filename, filename);
   request->index = index;
   request->size = size;
   request->checksum = checksum;

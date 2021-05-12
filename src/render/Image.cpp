@@ -1,6 +1,8 @@
 #include "Image.h"
 
+#include "../Memory.h"
 #include "../Types.h"
+#include "../Platform.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <memory.h>
@@ -10,6 +12,26 @@
 #include <cstdio>
 
 namespace null {
+
+u8* StandardImageLoader(const char* filename, size_t* size) {
+  FILE* f = fopen(filename, "rb");
+
+  if (!f) return nullptr;
+
+  fseek(f, 0, SEEK_END);
+  *size = (size_t)ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  u8* buffer = (u8*)malloc(*size);
+
+  fread(buffer, 1, *size, f);
+
+  fclose(f);
+
+  return buffer;
+}
+
+ImageLoader image_loader = StandardImageLoader;
 
 #pragma pack(push, 1)
 struct BitmapFileHeader {
@@ -135,38 +157,41 @@ unsigned char* LoadBitmap(const u8* data, size_t file_size, int* width, int* hei
   return (u8*)result;
 }
 
-unsigned char* LoadBitmap(FILE* file, int* width, int* height) {
-  fseek(file, 0, SEEK_END);
-  long size = ftell(file);
-  fseek(file, 0, SEEK_SET);
+unsigned char* ImageLoad(const char* filename, int* width, int* height, bool asset) {
+  size_t size;
+  u8* data = nullptr;
 
-  u8* data = new u8[size];
+  if (asset) {
+    data = image_loader(filename, &size);
+  } else {
+    FILE* f = fopen(filename, "rb");
 
-  fread(data, 1, size, file);
+    if (f) {
+      fseek(f, 0, SEEK_END);
+      size = (size_t)ftell(f);
+      fseek(f, 0, SEEK_SET);
 
-  unsigned char* result = LoadBitmap(data, size, width, height);
+      data = (u8*)malloc(size);
 
-  delete[] data;
+      fread(data, 1, size, f);
 
-  return result;
-}
+      fclose(f);
+    }
+  }
 
-unsigned char* ImageLoad(const char* filename, int* width, int* height) {
-  FILE* file = fopen(filename, "rb");
-
-  if (!file) {
+  if (!data) {
     return nullptr;
   }
 
   int comp;
-  unsigned char* result = stbi_load_from_file(file, width, height, &comp, STBI_rgb_alpha);
+  unsigned char* result = stbi_load_from_memory(data, (int)size, width, height, &comp, STBI_rgb_alpha);
 
   if (result == nullptr) {
     // Try to load RLE bitmap
-    result = LoadBitmap(file, width, height);
+    result = LoadBitmap(data, size, width, height);
   }
 
-  fclose(file);
+  free(data);
 
   return result;
 }

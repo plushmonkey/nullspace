@@ -16,7 +16,7 @@ struct ReliableMessage {
   u8 message[kMaxPacketSize];
 
   // Flipped comparison operator for heap
-  bool operator<(const ReliableMessage& other) { return id > other.id; }
+  bool operator<(const ReliableMessage& other) const { return id > other.id; }
 };
 
 struct ChunkData {

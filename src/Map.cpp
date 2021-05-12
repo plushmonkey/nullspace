@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <cmath>
 
 #include "ArenaSettings.h"
 #include "Tick.h"

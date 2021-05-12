@@ -16,13 +16,34 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include <stdio.h>
+
+#ifndef __ANDROID__
 #include <GLFW/glfw3.h>
 
 GLFWwindow* clipboard_window = nullptr;
+#endif
 
 #endif
 
 namespace null {
+
+void StandardLog(const char* fmt, ...) {
+  va_list args;
+
+  va_start(args, fmt);
+
+  vfprintf(stderr, fmt, args);
+
+  va_end(args);
+}
+
+ErrorLogger log_error = StandardLog;
+
+const char* StandardGetStoragePath(MemoryArena& temp_arena, const char* path) {
+  return path;
+}
+
+StoragePathGetter GetStoragePath = StandardGetStoragePath;
 
 #ifdef _WIN32
 
@@ -102,6 +123,7 @@ bool CreateFolder(const char* path) {
   return mkdir(path, 0700) == 0;
 }
 void PasteClipboard(char* dest, size_t available_size) {
+#ifndef __ANDROID__
   const char* clipboard = glfwGetClipboardString(clipboard_window);
   if (clipboard) {
     for (size_t i = 0; i < available_size && *clipboard && *clipboard != 10; ++i) {
@@ -109,7 +131,8 @@ void PasteClipboard(char* dest, size_t available_size) {
     }
     *dest = 0;
   }
-};
+#endif
+}
 int null_stricmp(const char* s1, const char* s2) { return strcasecmp(s1, s2); }
 
 #endif

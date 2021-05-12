@@ -2,6 +2,8 @@
 
 #include <cstdio>
 
+#include "../Platform.h"
+
 namespace null {
 
 bool CreateShader(GLenum type, const char* source, GLuint* shaderOut) {
@@ -17,7 +19,7 @@ bool CreateShader(GLenum type, const char* source, GLuint* shaderOut) {
 
   if (!success) {
     glGetShaderInfoLog(shader, sizeof(info_log), nullptr, info_log);
-    fprintf(stderr, "Shader error: %s\n", info_log);
+    log_error("Shader error: %s\n", info_log);
     return false;
   }
 
@@ -42,7 +44,7 @@ bool CreateProgram(GLuint vertexShader, GLuint fragmentShader, GLuint* programOu
 
   if (!success) {
     glGetProgramInfoLog(program, sizeof(info_log), nullptr, info_log);
-    fprintf(stderr, "Program link error: %s\n", info_log);
+    log_error("Program link error: %s\n", info_log);
     return false;
   }
 
