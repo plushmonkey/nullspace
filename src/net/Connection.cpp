@@ -390,6 +390,9 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       case ProtocolS2C::DropFlag: {
       } break;
       case ProtocolS2C::Spectate: {
+        if (size == 2) {
+          extra_position_info = buffer.ReadU8() != 0;
+        }
       } break;
       case ProtocolS2C::TeamAndShipChange: {
       } break;

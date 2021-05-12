@@ -260,6 +260,35 @@ void PlayerManager::SendPositionPacket() {
   u8 checksum = WeaponChecksum(buffer.data, buffer.GetSize());
   buffer.data[10] = checksum;
 
+  if (connection.extra_position_info) {
+    buffer.WriteU16(energy);
+    buffer.WriteU16(connection.ping);
+    buffer.WriteU16(0);
+
+    struct {
+      u32 shields : 1;
+      u32 super : 1;
+      u32 bursts : 4;
+      u32 repels : 4;
+      u32 thors : 4;
+      u32 bricks : 4;
+      u32 decoys : 4;
+      u32 rockets : 4;
+      u32 portals : 4;
+      u32 padding : 2;
+    } item_info = {};
+
+    item_info.bursts = ship_controller->ship.bursts;
+    item_info.repels = ship_controller->ship.repels;
+    item_info.thors = ship_controller->ship.thors;
+    item_info.bricks = ship_controller->ship.bricks;
+    item_info.decoys = ship_controller->ship.decoys;
+    item_info.rockets = ship_controller->ship.rockets;
+    item_info.portals = ship_controller->ship.portals;
+
+    buffer.WriteU32(*(u32*)&item_info);
+  }
+
   connection.Send(buffer);
   last_position_tick = GetCurrentTick();
   player->togglables &= ~Status_Flash;

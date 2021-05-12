@@ -68,6 +68,7 @@ struct Connection {
   // GetCurrentTick() + time_diff = Server tick
   s32 time_diff = 0;
   u32 ping = 0;
+  bool extra_position_info = false;
 
   u32 last_sync_tick = 0;
   u32 last_position_tick = 0;
