@@ -464,6 +464,7 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
 
     player->lerp_time = 0.0f;
     player->warp_animation.t = 0.0f;
+    player->enter_delay = 0.0f;
     player->flags = 0;
   }
 }

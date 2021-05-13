@@ -48,7 +48,7 @@ namespace null {
 
 enum class WindowType { Windowed, Fullscreen, BorderlessFullscreen };
 
-constexpr bool kVerticalSync = false;
+constexpr bool kVerticalSync = true;
 constexpr WindowType kWindowType = WindowType::Windowed;
 constexpr EncryptMethod kEncryptMethod = EncryptMethod::Continuum;
 

@@ -21,6 +21,20 @@ static struct android_app*  g_App = NULL;
 static bool                 g_Initialized = false;
 static char                 g_LogTag[] = "nullspace";
 
+static struct {
+    float world_x;
+    float world_y;
+    float nx;
+    float ny;
+    bool anchored;
+
+    int64_t last_tap_time;
+    float last_tap_x;
+    float last_tap_y;
+} android_input;
+const int32_t DOUBLE_TAP_TIMEOUT = 300 * 1000000;
+const int32_t DOUBLE_TAP_SLOP = 100;
+
 // Forward declarations of helper functions
 static int ShowSoftKeyboardInput();
 static int PollUnicodeChars();
@@ -43,8 +57,9 @@ struct ServerInfo {
 };
 
 ServerInfo kServers[] = {
-        {"local", "10.0.2.2", 5000},
-        {"subgame", "10.0.2.2", 5002},
+        {"emulator", "10.0.2.2", 5000},
+        {"local", "192.168.0.169", 5000},
+        {"subgame", "192.168.0.169", 5002},
         {"SSCE Hyperspace", "162.248.95.143", 5005},
         {"SSCJ Devastation", "69.164.220.203", 7022},
         {"SSCJ MetalGear CTF", "69.164.220.203", 14000},
@@ -74,6 +89,7 @@ struct nullspace {
     char password[20];
     GameScreen screen = GameScreen::MainMenu;
     float frame_time = 0.0f;
+    float scale = 1.0f;
 
     size_t selected_zone_index = 0;
 
@@ -142,12 +158,26 @@ struct nullspace {
         ImGui_ImplAndroid_NewFrame();
         ImGui::NewFrame();
 
+        PollUnicodeChars();
+
+        ImGuiIO& io = ImGui::GetIO();
+
+        static bool WantTextInputLast = false;
+        if (io.WantTextInput && !WantTextInputLast) {
+            ShowSoftKeyboardInput();
+        }
+
+        WantTextInputLast = io.WantTextInput;
+
+        io.DisplayFramebufferScale.x = surface_width / io.DisplaySize.x;
+        io.DisplayFramebufferScale.y = surface_height / io.DisplaySize.y;
+
         if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter))) {
             JoinZone(selected_zone_index);
         }
 
-        ImGui::SetNextWindowPos(ImVec2(surface_width - 212.0f, 2), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(210, 50), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 212.0f * scale, 2), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(210 * scale, 50 * scale), ImGuiCond_Always);
 
         ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
         if (ImGui::Begin("Debug", 0, window_flags)) {
@@ -155,11 +185,11 @@ struct nullspace {
             ImGui::End();
         }
 
-        float profile_width = 250;
-        float profile_height = 140;
+        float profile_width = 250 * scale;
+        float profile_height = 140 * scale;
 
         ImGui::SetNextWindowPos(
-                ImVec2(surface_width / 4.0f - profile_width / 2, surface_height / 2.0f - profile_height / 2), ImGuiCond_Always);
+                ImVec2(io.DisplaySize.x / 4.0f - profile_width / 2, io.DisplaySize.y / 2.0f - profile_height / 2), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(profile_width, profile_height), ImGuiCond_Always);
 
         if (ImGui::Begin("Profile", 0, window_flags)) {
@@ -175,10 +205,10 @@ struct nullspace {
             ImGui::End();
         }
 
-        float zones_width = 300;
-        float zones_height = 230;
+        float zones_width = 300 * scale;
+        float zones_height = 230 * scale;
 
-        ImGui::SetNextWindowPos(ImVec2(surface_width / 2.0f + zones_width / 2, surface_height / 2.0f - zones_height / 2),
+        ImGui::SetNextWindowPos(ImVec2(3.0f * io.DisplaySize.x / 4.0f - zones_width / 2.0f, io.DisplaySize.y / 2.0f - zones_height / 2),
                                 ImGuiCond_Always);
 
         ImGui::SetNextWindowSize(ImVec2(zones_width, zones_height), ImGuiCond_Always);
@@ -210,7 +240,7 @@ struct nullspace {
             }
 
             float width = ImGui::GetWindowWidth();
-            float button_width = 60.0f;
+            float button_width = 60.0f * scale;
 
             float center = width / 2.0f;
 
@@ -243,11 +273,6 @@ struct nullspace {
     }
 
     bool Update() {
-        ImGuiIO& io = ImGui::GetIO();
-        surface_width = (null::u32)io.DisplaySize.x;
-        surface_height = (null::u32)io.DisplaySize.y;
-        glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-
         using ms_float = std::chrono::duration<float, std::milli>;
         auto start = std::chrono::high_resolution_clock::now();
 
@@ -300,6 +325,9 @@ void init(struct android_app* app)
     g_App = app;
     ANativeWindow_acquire(g_App->window);
 
+    int width = (int)(ANativeWindow_getWidth(g_App->window) * 0.6f);
+    int height = (int)(ANativeWindow_getHeight(g_App->window) * 0.6f);
+
     // Initialize EGL
     // This is mostly boilerplate code for EGL...
     {
@@ -322,7 +350,7 @@ void init(struct android_app* app)
         eglChooseConfig(g_EglDisplay, egl_attributes, &egl_config, 1, &num_configs);
         EGLint egl_format;
         eglGetConfigAttrib(g_EglDisplay, egl_config, EGL_NATIVE_VISUAL_ID, &egl_format);
-        ANativeWindow_setBuffersGeometry(g_App->window, 0, 0, egl_format);
+        ANativeWindow_setBuffersGeometry(g_App->window, width, height, egl_format);
 
         const EGLint egl_context_attributes[] = { EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE };
         g_EglContext = eglCreateContext(g_EglDisplay, egl_config, EGL_NO_CONTEXT, egl_context_attributes);
@@ -331,12 +359,17 @@ void init(struct android_app* app)
             __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s", "eglCreateContext() returned EGL_NO_CONTEXT");
 
         g_EglSurface = eglCreateWindowSurface(g_EglDisplay, egl_config, g_App->window, NULL);
+
         eglMakeCurrent(g_EglDisplay, g_EglSurface, g_EglSurface, g_EglContext);
 
         if (!gladLoadGLES2Loader((GLADloadproc)eglGetProcAddress)) {
             __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s", "Failed to initialize glad loader.");
         }
     }
+
+    int surface_width, surface_height;
+    eglQuerySurface(g_EglDisplay, g_EglSurface, EGL_WIDTH, &surface_width);
+    eglQuerySurface(g_EglDisplay, g_EglSurface, EGL_HEIGHT, &surface_height);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -362,11 +395,16 @@ void init(struct android_app* app)
 
     // Arbitrary scale-up
     // FIXME: Put some effort into DPI awareness
-    ImGui::GetStyle().ScaleAllSizes(3.0f);
+    null::g_nullspace.scale = 3.0f;
+    ImGui::GetStyle().ScaleAllSizes(null::g_nullspace.scale);
 
     g_Initialized = true;
 
     null::g_nullspace.Initialize();
+    null::g_nullspace.surface_width = surface_width;
+    null::g_nullspace.surface_height = surface_height;
+
+    glViewport(0, 0, surface_width, surface_height);
 }
 
 void tick()
@@ -409,11 +447,10 @@ void shutdown()
     ANativeWindow_release(g_App->window);
 
     g_Initialized = false;
-#if 0
+
     if (null::g_nullspace.game) {
         null::g_nullspace.game->connection.SendDisconnect();
     }
-#endif
 }
 
 static void handleAppCmd(struct android_app* app, int32_t appCmd)
@@ -436,6 +473,85 @@ static void handleAppCmd(struct android_app* app, int32_t appCmd)
 }
 
 static int32_t handleInputEvent(struct android_app* app, AInputEvent* inputEvent) {
+    if (AInputEvent_getType(inputEvent) == AINPUT_EVENT_TYPE_MOTION) {
+        int screen_width = ANativeWindow_getWidth(app->window);
+        int screen_height = ANativeWindow_getHeight(app->window);
+
+        float x = AMotionEvent_getX(inputEvent, 0);
+        float y = AMotionEvent_getY(inputEvent, 0);
+        int action = AMotionEvent_getAction(inputEvent);
+        unsigned int flags = action & AMOTION_EVENT_ACTION_MASK;
+
+        float nx = (x / screen_width) - 0.5f;
+        float ny = (y / screen_height) - 0.5f;
+
+        null::Game* game = null::g_nullspace.game;
+
+        if (game) {
+            null::Player* self = game->player_manager.GetSelf();
+
+            if (self) {
+                if (flags == AMOTION_EVENT_ACTION_UP) {
+                    android_input.anchored = false;
+                    android_input.last_tap_time = AMotionEvent_getEventTime(inputEvent);
+                    android_input.last_tap_x = x;
+                    android_input.last_tap_y = y;
+                } else {
+                    if (!android_input.anchored) {
+                        android_input.world_x = self->position.x;
+                        android_input.world_y = self->position.y;
+                        android_input.nx = nx;
+                        android_input.ny = ny;
+                        android_input.anchored = true;
+                    }
+
+                    float offset_x = (android_input.nx - nx) *
+                                     (game->ui_camera.surface_dim.x * (1.0f / 16.0f));
+                    float offset_y = (android_input.ny - ny) *
+                                     (game->ui_camera.surface_dim.y * (1.0f / 16.0f));
+
+                    self->position.x = android_input.world_x + offset_x;
+                    self->position.y = android_input.world_y + offset_y;
+
+                    if (abs(offset_x) > 1.0f || abs(offset_y) > 1.0f) {
+                        game->specview.spectate_id = null::kInvalidSpectateId;
+                    }
+
+                    int64_t eventTime = AMotionEvent_getEventTime(inputEvent);
+                    if (eventTime - android_input.last_tap_time <= DOUBLE_TAP_TIMEOUT) {
+                        float dx = x - android_input.last_tap_x;
+                        float dy = y - android_input.last_tap_y;
+
+                        if(dx * dx + dy * dy < DOUBLE_TAP_SLOP * DOUBLE_TAP_SLOP) {
+                            null::Vector2f world_pos(self->position.x + nx * (game->ui_camera.surface_dim.x * (1.0f / 16.0f)),
+                                                     self->position.y + ny * (game->ui_camera.surface_dim.y * (1.0f / 16.0f)));
+
+                            // Find nearby player to spectate
+                            null::Player* closest = nullptr;
+                            float closest_dist = 10000.0f;
+
+                            for (size_t i = 0; i < game->player_manager.player_count; ++i) {
+                                null::Player* player = game->player_manager.players + i;
+
+                                if (player->ship == 8) continue;
+
+                                float dist_sq = player->position.DistanceSq(world_pos);
+                                if (dist_sq < closest_dist) {
+                                    closest_dist = dist_sq;
+                                    closest = player;
+                                }
+                            }
+
+                            if (closest && closest_dist <= 4.0f * 4.0f) {
+                                game->specview.spectate_id = closest->id;
+                                game->specview.spectate_frequency = closest->frequency;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     return ImGui_ImplAndroid_HandleInputEvent(inputEvent);
 }
 

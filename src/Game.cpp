@@ -144,8 +144,6 @@ bool Game::Update(const InputState& input, float dt) {
   Player* me = player_manager.GetSelf();
 
   if (tile_renderer.tilemap_texture == -1 && connection.login_state == Connection::LoginState::Complete) {
-    log_error("Creating map buffer\n");
-
     if (!tile_renderer.CreateMapBuffer(temp_arena, connection.map.filename, ui_camera.surface_dim)) {
       log_error("Failed to create renderable map.\n");
     }
