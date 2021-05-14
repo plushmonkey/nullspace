@@ -28,6 +28,7 @@ struct Radar {
     Vector2f radar_dim;
     Vector2f world_min;
     Vector2f world_max;
+    Vector2f world_dim;
   };
 
   void RenderPlayers(Camera& ui_camera, SpriteRenderer& renderer, IndicatorContext& ctx, Player* self, u16 team_freq,

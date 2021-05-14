@@ -29,49 +29,46 @@ void Radar::Render(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer& ti
 
   // calculate uvs for displayable map
   SpriteRenderable visible;
-  visible.texture = tile_renderer.full_radar_renderable.texture;
-  s16 dim = ((((u16)ui_camera.surface_dim.x / 6) / 4) * 8) / 2;
 
+  visible.texture = tile_renderer.full_radar_renderable.texture;
+
+  s16 dim = ((((u16)ui_camera.surface_dim.x / 6) / 4) * 8) / 2;
   u32 full_dim = ((u32)ui_camera.surface_dim.x * 8) / map_zoom;
 
+  // Use the same method as Continuum to generate visible texture
   u32 ivar8 = ((u32)ui_camera.surface_dim.x / 6) + ((u32)ui_camera.surface_dim.x >> 0x1F);
   s32 ivar5 = full_dim;
-  u32 ivar6 = (u32)round(self->position.y * 16) * ivar5;
+  u32 ivar6 = (u32)(self->position.y * 16) * ivar5;
   u32 ivar4 = ((ivar8 >> 2) - (ivar8 >> 0x1F)) * 8 * 4;
-  ivar8 = (ivar4 + (ivar4 >> 0x1F & 7U)) >> 3;
-  ivar4 = (u32)round(self->position.x * 16) * ivar5;
 
-  s32 _4d78 = ((s32)(ivar4 + (ivar4 >> 0x1F & 0x3FFFU)) >> 0xE) - ivar8 / 2;
-  s32 _4d7c = ((s32)(ivar6 + (ivar6 >> 0x1F & 0x3FFFU)) >> 0xE) - ivar8 / 2;
-  
+  ivar8 = (ivar4 + (ivar4 >> 0x1F & 7U)) >> 3;
+  ivar4 = (u32)(self->position.x * 16) * ivar5;
+
+  s32 texture_min_x = ((s32)(ivar4 + (ivar4 >> 0x1F & 0x3FFFU)) >> 0xE) - ivar8 / 2;
+  s32 texture_min_y = ((s32)(ivar6 + (ivar6 >> 0x1F & 0x3FFFU)) >> 0xE) - ivar8 / 2;
+
   ivar5 = ivar5 - ivar8;
 
-  if (_4d78 < 0) {
-    _4d78 = 0;
-  } else if (ivar5 < _4d78) {
-    _4d78 = ivar5;
+  if (texture_min_x < 0) {
+    texture_min_x = 0;
+  } else if (ivar5 < texture_min_x) {
+    texture_min_x = ivar5;
   }
 
-  if (_4d7c < 0) {
-    _4d7c = 0;
-  } else if (ivar5 < _4d7c) {
-    _4d7c = ivar5;
+  if (texture_min_y < 0) {
+    texture_min_y = 0;
+  } else if (ivar5 < texture_min_y) {
+    texture_min_y = ivar5;
   }
 
-  s32 _4d80 = _4d78 + ivar8;
-  s32 _4d84 = _4d7c + ivar8;
+  s32 texture_max_x = texture_min_x + ivar8;
+  s32 texture_max_y = texture_min_y + ivar8;
 
-  float uv_x_1 = _4d78 / (float)full_dim;
-  float uv_y_1 = _4d7c / (float)full_dim;
+  float uv_x_1 = texture_min_x / (float)full_dim;
+  float uv_y_1 = texture_min_y / (float)full_dim;
 
-  s32 min_tile_x = (s32)(uv_x_1 * 1024);
-  s32 min_tile_y = (s32)(uv_y_1 * 1024);
-
-  float uv_x_2 = _4d80 / (float)full_dim;
-  float uv_y_2 = _4d84 / (float)full_dim;
-
-  s32 max_tile_x = (s32)(uv_x_2 * 1024);
-  s32 max_tile_y = (s32)(uv_y_2 * 1024);
+  float uv_x_2 = texture_max_x / (float)full_dim;
+  float uv_y_2 = texture_max_y / (float)full_dim;
 
   Vector2f min_uv(uv_x_1, uv_y_1);
   Vector2f max_uv(uv_x_2, uv_y_2);
@@ -91,16 +88,17 @@ void Radar::Render(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer& ti
   ctx.radar_dim = Vector2f(dim, dim);
   ctx.radar_position = position;
 
-  ctx.world_min = Vector2f((float)min_tile_x, (float)min_tile_y);
-  ctx.world_max = Vector2f((float)max_tile_x, (float)max_tile_y);
-
-  RenderPlayers(ui_camera, renderer, ctx, self, team_freq, spec_id);
+  ctx.world_min = Vector2f(uv_x_1 * 1024.0f, uv_y_1 * 1024.0f);
+  ctx.world_max = Vector2f(uv_x_2 * 1024.0f, uv_y_2 * 1024.0f);
+  ctx.world_dim = ctx.world_max - ctx.world_min;
 
   for (size_t i = 0; i < green_count; ++i) {
     PrizeGreen* green = greens + i;
 
     RenderIndicator(ui_camera, renderer, ctx, green->position, Vector2f(2, 2), 23);
   }
+
+  RenderPlayers(ui_camera, renderer, ctx, self, team_freq, spec_id);
 
   Graphics::DrawBorder(renderer, ui_camera, position + ctx.radar_dim * 0.5f, ctx.radar_dim * 0.5f);
 
@@ -140,7 +138,6 @@ void Radar::RenderPlayers(Camera& ui_camera, SpriteRenderer& renderer, Indicator
       sprite_index = 29;
 
       render = sin(GetCurrentTick() / 5) < 0;
-      render = false;
     }
 
     if (render) {
@@ -154,10 +151,7 @@ void Radar::RenderIndicator(Camera& ui_camera, SpriteRenderer& renderer, Indicat
                             const Vector2f& position, const Vector2f& dim, size_t sprite_index) {
   Vector2f& min = ctx.world_min;
   Vector2f& max = ctx.world_max;
-  Vector2f world_dim = max - min;
-
-  world_dim.x = (float)(((u32)world_dim.x));
-  world_dim.y = (float)(((u32)world_dim.y));
+  Vector2f& world_dim = ctx.world_dim;
 
   if (position.x >= min.x && position.x < max.x && position.y >= min.y && position.y < max.y) {
     float u = (position.x - max.x) / world_dim.x + 1.0f;
