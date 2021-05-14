@@ -266,7 +266,7 @@ bool TileRenderer::CreateRadar(MemoryArena& temp_arena, const char* filename, co
     radar_texture = -1;
   }
 
-  RenderRadar(map, temp_arena, full_dim, full_radar_renderable, &full_radar_texture, GL_LINEAR);
+  RenderRadar(map, temp_arena, full_dim, full_radar_renderable, &full_radar_texture, GL_NEAREST);
   RenderRadar(map, temp_arena, radar_dim, radar_renderable, &radar_texture, GL_NEAREST);
 
   return true;

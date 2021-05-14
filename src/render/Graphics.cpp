@@ -41,6 +41,7 @@ SpriteRenderable* Graphics::icon_count_sprites = nullptr;
 
 SpriteRenderable* Graphics::exhaust_sprites = nullptr;
 
+SpriteRenderable* Graphics::prize_sprites = nullptr;
 SpriteRenderable* Graphics::flag_sprites = nullptr;
 SpriteRenderable* Graphics::goal_sprites = nullptr;
 SpriteRenderable* Graphics::asteroid_small1_sprites = nullptr;
@@ -74,6 +75,7 @@ AnimatedSprite Graphics::anim_ship_explode;
 AnimatedSprite Graphics::anim_ship_warp;
 AnimatedSprite Graphics::anim_ship_exhaust;
 
+AnimatedSprite Graphics::anim_prize;
 AnimatedSprite Graphics::anim_flag;
 AnimatedSprite Graphics::anim_flag_team;
 AnimatedSprite Graphics::anim_goal;
@@ -378,6 +380,12 @@ void Graphics::CreateRepelAnimations(SpriteRenderable* renderables, int count) {
   anim_repel.frame_count = count;
 }
 
+void Graphics::CreatePrizeAnimations(SpriteRenderable* renderables, int count) {
+  anim_prize.duration = 1.0f;
+  anim_prize.frames = renderables;
+  anim_prize.frame_count = count;
+}
+
 void Graphics::CreateFlagAnimations(SpriteRenderable* renderables, int count) {
   anim_flag.duration = 1.0f;
   anim_flag.frames = renderables;
@@ -433,6 +441,11 @@ bool Graphics::InitializeTiles(SpriteRenderer& renderer) {
   anim_wormhole.duration = 2.5f;
   anim_wormhole.frames = wormhole_sprites;
   anim_wormhole.frame_count = count;
+
+  prize_sprites = LoadTileSheet(renderer, "prizes", Vector2f(16, 16), &count);
+  if (!prize_sprites) return false;
+
+  CreatePrizeAnimations(prize_sprites, count);
 
   flag_sprites = LoadTileSheet(renderer, "flag", Vector2f(16, 16), &count);
   if (!flag_sprites) return false;

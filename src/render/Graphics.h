@@ -46,6 +46,7 @@ struct Graphics {
 
   static SpriteRenderable* exhaust_sprites;
 
+  static SpriteRenderable* prize_sprites;
   static SpriteRenderable* flag_sprites;
   static SpriteRenderable* goal_sprites;
   static SpriteRenderable* asteroid_small1_sprites;
@@ -79,6 +80,7 @@ struct Graphics {
   static AnimatedSprite anim_ship_warp;
   static AnimatedSprite anim_ship_exhaust;
 
+  static AnimatedSprite anim_prize;
   static AnimatedSprite anim_flag;
   static AnimatedSprite anim_flag_team;
   static AnimatedSprite anim_goal;
@@ -101,6 +103,7 @@ struct Graphics {
   static void CreateBulletAnimations(SpriteRenderable* renderables, int count);
   static void CreateBulletTrailAnimations(SpriteRenderable* renderables, int count);
   static void CreateRepelAnimations(SpriteRenderable* renderables, int count);
+  static void CreatePrizeAnimations(SpriteRenderable* renderables, int count);
   static void CreateFlagAnimations(SpriteRenderable* renderables, int count);
   static void CreateExhaustAnimations(SpriteRenderable* renderables, int count);
 

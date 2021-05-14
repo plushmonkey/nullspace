@@ -1,12 +1,11 @@
 #include "Game.h"
 
-#include <time.h>
-
 #include <cassert>
 #include <cstdio>
 
 #include "Memory.h"
 #include "Platform.h"
+#include "Random.h"
 #include "Tick.h"
 #include "render/Animation.h"
 #include "render/Graphics.h"
@@ -99,7 +98,8 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       chat(dispatcher, connection, player_manager, statbox),
       specview(connection, statbox),
       ship_controller(player_manager, weapon_manager, dispatcher),
-      lvz(perm_arena, temp_arena, connection.requester, sprite_renderer, dispatcher) {
+      lvz(perm_arena, temp_arena, connection.requester, sprite_renderer, dispatcher),
+      radar(player_manager) {
   float zmax = (float)Layer::Count;
   ui_camera.projection = Orthographic(0, ui_camera.surface_dim.x, ui_camera.surface_dim.y, 0, -zmax, zmax);
   dispatcher.Register(ProtocolS2C::FlagPosition, OnFlagPositionPkt, this);
@@ -179,7 +179,77 @@ bool Game::Update(const InputState& input, float dt) {
   animated_tile_renderer.Update(dt);
   lvz.Update(dt);
 
+  UpdateGreens(dt);
+
   return !menu_quit;
+}
+
+void Game::UpdateGreens(float dt) {
+  u32 tick = GetCurrentTick();
+
+  for (size_t i = 0; i < green_count; ++i) {
+    PrizeGreen* green = greens + i;
+
+    if (tick >= green->end_tick) {
+      greens[i--] = greens[--green_count];
+    }
+  }
+
+  if (connection.security.prize_seed == 0) return;
+
+  s32 tick_count = TICK_DIFF(tick, last_green_tick);
+
+  if (tick_count < connection.settings.PrizeDelay) return;
+
+  s32 update_count = 1;
+
+  if (connection.settings.PrizeDelay > 0) {
+    update_count = tick_count / connection.settings.PrizeDelay;
+  }
+
+  last_green_tick = tick;
+
+  size_t max_greens = (connection.settings.PrizeFactor * player_manager.player_count) / 1000;
+  if (max_greens > NULLSPACE_ARRAY_SIZE(greens)) {
+    max_greens = NULLSPACE_ARRAY_SIZE(greens);
+  }
+
+  u16 spawn_extent =
+      connection.settings.MinimumVirtual + connection.settings.UpgradeVirtual * (u16)player_manager.player_count;
+  if (spawn_extent < 3) {
+    spawn_extent = 3;
+  } else if (spawn_extent > 1024) {
+    spawn_extent = 1024;
+  }
+
+  for (s32 i = 0; i < update_count; ++i) {
+    VieRNG rng = {(s32)connection.security.prize_seed};
+
+    for (s32 j = 0; j < connection.settings.PrizeHideCount; ++j) {
+      u16 x = (u16)((rng.GetNext() % (spawn_extent - 2)) + 1 + ((1024 - spawn_extent) / 2));
+      u16 y = (u16)((rng.GetNext() % (spawn_extent - 2)) + 1 + ((1024 - spawn_extent) / 2));
+
+      s32 prize_id = ship_controller.GeneratePrize(true);
+
+      u32 duration_rng = rng.GetNext();
+
+      // Insert prize if it's valid and in an empty map space
+      if (prize_id != 0 && green_count < max_greens && connection.map.GetTileId(x, y) == 0) {
+        PrizeGreen* green = greens + green_count++;
+
+        green->position.x = (float)x;
+        green->position.y = (float)y;
+        green->prize_id = prize_id;
+
+        s16 exist_diff = (connection.settings.PrizeMaxExist - connection.settings.PrizeMinExist);
+
+        u32 duration = (duration_rng % (exist_diff + 1)) + connection.settings.PrizeMinExist;
+        green->end_tick = tick + duration;
+      }
+    }
+
+    connection.security.prize_seed = rng.seed;
+  }
 }
 
 void Game::Render(float dt) {
@@ -209,16 +279,17 @@ void Game::RenderGame(float dt) {
   background_renderer.Render(camera, sprite_renderer, ui_camera.surface_dim);
   tile_renderer.Render(camera);
 
-  Player* me = player_manager.GetSelf();
+  Player* self = player_manager.GetSelf();
   u32 self_freq = 0;
-  if (me) {
-    self_freq = me->ship < 8 ? me->frequency : specview.spectate_frequency;
+
+  if (self) {
+    self_freq = self->ship < 8 ? self->frequency : specview.spectate_frequency;
   }
 
   animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim, flags, flag_count,
-                                self_freq);
+                                greens, green_count, self_freq);
 
-  if (me) {
+  if (self) {
     animation.Render(camera, sprite_renderer);
     weapon_manager.Render(camera, sprite_renderer);
     player_manager.Render(camera, sprite_renderer, self_freq);
@@ -229,7 +300,12 @@ void Game::RenderGame(float dt) {
 
     sprite_renderer.Render(camera);
 
-    RenderRadar(me);
+    if (render_radar) {
+      radar.RenderFull(ui_camera, sprite_renderer, tile_renderer);
+    } else {
+      radar.Render(ui_camera, sprite_renderer, tile_renderer, connection.settings.MapZoomFactor, self_freq,
+                   specview.spectate_id, greens, green_count);
+    }
 
     chat.Render(ui_camera, sprite_renderer);
 
@@ -269,142 +345,6 @@ void Game::RenderJoin(float dt) {
                              TextAlignment::Center);
     statbox.Render(ui_camera, sprite_renderer);
     sprite_renderer.Render(ui_camera);
-  }
-}
-
-void Game::RenderRadar(Player* me) {
-  if (tile_renderer.radar_renderable.texture != -1 && me) {
-    float border = 6.0f;
-
-    if (render_radar) {
-      SpriteRenderable& radar_renderable = tile_renderer.radar_renderable;
-      Vector2f position = ui_camera.surface_dim - radar_renderable.dimensions - Vector2f(border, border);
-      sprite_renderer.Draw(ui_camera, radar_renderable, position, Layer::TopMost);
-
-      Vector2f half_extents = radar_renderable.dimensions * 0.5f;
-      Graphics::DrawBorder(sprite_renderer, ui_camera, position + half_extents, half_extents);
-
-      if (sin(GetCurrentTick() / 5) < 0) {
-        Vector2f percent = me->position * (1.0f / 1024.0f);
-        Vector2f start =
-            position + Vector2f(percent.x * radar_renderable.dimensions.x, percent.y * radar_renderable.dimensions.y);
-
-        SpriteRenderable self_renderable = Graphics::color_sprites[25];
-        self_renderable.dimensions = Vector2f(2, 2);
-
-        sprite_renderer.Draw(ui_camera, self_renderable, start, Layer::TopMost);
-      }
-    } else {
-      // calculate uvs for displayable map
-      SpriteRenderable visible;
-      visible.texture = tile_renderer.full_radar_renderable.texture;
-      s16 dim = ((((u16)ui_camera.surface_dim.x / 6) / 4) * 8) / 2;
-      u16 map_zoom = connection.settings.MapZoomFactor;
-
-      float range = (map_zoom / 48.0f) * 512.0f;
-      Vector2f center = me->position;
-
-      // Cap the radar to map range
-      if (center.x - range < 0) center.x = range;
-      if (center.y - range < 0) center.y = range;
-      if (center.x + range > 1024) center.x = 1024 - range;
-      if (center.y + range > 1024) center.y = 1024 - range;
-
-      Vector2f min = Vector2f((center.x - range), (center.y - range)).PixelRounded();
-      Vector2f max = Vector2f((center.x + range), (center.y + range)).PixelRounded();
-
-      float uv_multiplier = 1.0f / 1024.0f;
-      Vector2f min_uv(min.x * uv_multiplier, min.y * uv_multiplier);
-      Vector2f max_uv(max.x * uv_multiplier, max.y * uv_multiplier);
-
-      visible.dimensions = Vector2f(dim, dim);
-      visible.uvs[0] = Vector2f(min_uv.x, min_uv.y);
-      visible.uvs[1] = Vector2f(max_uv.x, min_uv.y);
-      visible.uvs[2] = Vector2f(min_uv.x, max_uv.y);
-      visible.uvs[3] = Vector2f(max_uv.x, max_uv.y);
-
-      Vector2f position = ui_camera.surface_dim - Vector2f(dim, dim) - Vector2f(border, border);
-
-      sprite_renderer.Draw(ui_camera, visible, position, Layer::TopMost);
-
-      Vector2f half_extents(dim * 0.5f, dim * 0.5f);
-
-      u32 team_freq = me->frequency;
-
-      if (me->ship >= 8) {
-        team_freq = specview.spectate_frequency;
-      }
-
-      for (size_t i = 0; i < player_manager.player_count; ++i) {
-        Player* player = player_manager.players + i;
-
-        if (player->ship >= 8) continue;
-        if ((player->togglables & Status_Stealth) && !(me->togglables & Status_XRadar) &&
-            player->frequency != team_freq) {
-          continue;
-        }
-
-        Vector2f p = player->position;
-        Vector2f percent((p.x - center.x) * (1.0f / range), (p.y - center.y) * (1.0f / range));
-
-        if (p.x >= min.x && p.x < max.x && p.y >= min.y && p.y < max.y) {
-          size_t sprite_index = 34;
-          bool render = true;
-          Vector2f indicator_dim = player->flags > 0 ? Vector2f(3, 3) : Vector2f(2, 2);
-
-          if (player->frequency == team_freq) {
-            sprite_index = 29;
-          } else {
-            if (player->bounty > 100) {
-              sprite_index = 33;
-            }
-
-            if (player->flags > 0) {
-              sprite_index = 31;
-            }
-          }
-
-          bool is_me = player->id == specview.spectate_id || (player == me && me->ship != 8);
-
-          if (is_me) {
-            sprite_index = 29;
-
-            render = sin(GetCurrentTick() / 5) < 0;
-          }
-
-          if (render) {
-            SpriteRenderable renderable = Graphics::color_sprites[sprite_index];
-            Vector2f center_radar = position + half_extents;
-            Vector2f start = center_radar + Vector2f(percent.x * half_extents.x, percent.y * half_extents.y);
-
-            renderable.dimensions = indicator_dim;
-
-            sprite_renderer.Draw(ui_camera, renderable, start, Layer::TopMost);
-          }
-        }
-      }
-
-      Graphics::DrawBorder(sprite_renderer, ui_camera, position + half_extents, half_extents);
-
-      // Render text above radar
-      time_t t;
-      time(&t);
-      tm* ti = localtime(&t);
-      char output[256];
-      int hour = ti->tm_hour;
-      bool pm = hour >= 12;
-      if (hour > 12) {
-        hour -= 12;
-      }
-
-      u32 map_coord_x = (u32)floor(me->position.x / (1024 / 20.0f));
-      u32 map_coord_y = (u32)floor(me->position.y / (1024 / 20.0f)) + 1;
-
-      sprintf(output, "%d:%02d%s  %c%d", hour, ti->tm_min, pm ? "pm" : "am", map_coord_x + 'A', map_coord_y);
-      sprite_renderer.DrawText(ui_camera, output, TextColor::White,
-                               Vector2f(ui_camera.surface_dim.x - 5, position.y - 16), Layer::TopMost,
-                               TextAlignment::Right);
-    }
   }
 }
 
@@ -547,6 +487,8 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
   Cleanup();
 
   // TODO: Handle and display errors
+
+  last_green_tick = GetCurrentTick();
 
   lvz.Reset();
 

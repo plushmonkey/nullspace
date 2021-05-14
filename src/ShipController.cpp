@@ -821,6 +821,8 @@ void ShipController::ResetShip() {
 
   self->bounty = 0;
 
+  u32 pristine_seed = player_manager.connection.security.prize_seed;
+
   // Generate random weighted prizes
   if (player_manager.connection.prize_weight_total > 0) {
     int attempts = 0;
@@ -837,6 +839,10 @@ void ShipController::ResetShip() {
       ApplyPrize(self, prize_id);
     }
   }
+
+  // Restore the prize seed to maintain synchronization with other clients.
+  // The GeneratePrizes called above would mutate the seed, so it should be restored.
+  player_manager.connection.security.prize_seed = pristine_seed;
 
   self->energy = (float)ship.energy;
   self->bounty = ship_settings.InitialBounty;

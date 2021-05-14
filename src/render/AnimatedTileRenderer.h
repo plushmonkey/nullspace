@@ -13,6 +13,7 @@ struct Vector2f;
 
 struct AnimatedTileRenderer {
   // Store these here instead of in the animation system to keep them all in sync
+  Animation anim_prize;
   Animation anim_flag;
   Animation anim_flag_team;
   Animation anim_goal;
@@ -31,9 +32,8 @@ struct AnimatedTileRenderer {
   void InitializeDoors(TileRenderer& tile_renderer);
   void Update(float dt);
 
-  // TODO: Pass in game flags to render
   void Render(SpriteRenderer& renderer, Map& map, Camera& camera, const Vector2f& screen_dim, struct GameFlag* flags,
-              size_t flag_count, u32 freq);
+              size_t flag_count, struct PrizeGreen* greens, size_t green_count, u32 freq);
 };
 
 }  // namespace null

@@ -6,6 +6,7 @@
 #include "LvzController.h"
 #include "Memory.h"
 #include "PlayerManager.h"
+#include "Radar.h"
 #include "ShipController.h"
 #include "SpectateView.h"
 #include "StatBox.h"
@@ -28,6 +29,14 @@ struct GameFlag {
   bool dropped = false;
 };
 
+// This is the actual max green count in Continuum
+constexpr size_t kMaxGreenCount = 256;
+struct PrizeGreen {
+  Vector2f position;
+  u32 end_tick;
+  s32 prize_id;
+};
+
 struct Game {
   MemoryArena& perm_arena;
   MemoryArena& temp_arena;
@@ -47,6 +56,7 @@ struct Game {
   SpectateView specview;
   ShipController ship_controller;
   LvzController lvz;
+  Radar radar;
   float fps;
   bool render_radar = false;
   bool menu_open = false;
@@ -56,19 +66,24 @@ struct Game {
   size_t flag_count = 0;
   GameFlag flags[256];
 
+  // Current max green count is min((PrizeFactor * player_count) / 1000, 256)
+  size_t green_count = 0;
+  PrizeGreen greens[kMaxGreenCount];
+  u32 last_green_tick = 0;
+
   Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height);
 
   bool Initialize(InputState& input);
   void Cleanup();
 
   bool Update(const InputState& input, float dt);
+  void UpdateGreens(float dt);
 
   void Render(float dt);
 
   void RenderGame(float dt);
   void RenderJoin(float dt);
 
-  void RenderRadar(Player* player);
   void RenderMenu();
   bool HandleMenuKey(int codepoint, int mods);
 

@@ -41,7 +41,8 @@ enum OverwriteFlag {
   Overwrite_Repel,
   Overwrite_Explode2,
   Overwrite_EmpBurst,
-  Overwrite_Flag
+  Overwrite_Flag,
+  Overwrite_Prizes,
 };
 
 struct ObjectImageList {
@@ -713,6 +714,22 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
       Vector2f dim(dim_x, dim_x);
       Graphics::flag_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
       Graphics::CreateFlagAnimations(Graphics::flag_sprites, count);
+      ImageFree(image_data);
+    }
+  } else if ((overwrite & (1 << Overwrite_Prizes)) == 0 && null_stricmp(extension_free, "prizes") == 0) {
+    overwrite |= (1 << Overwrite_Prizes);
+    renderer.FreeSheet(Graphics::prize_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      float dim_x = width / 10.0f;
+      Vector2f dim(dim_x, dim_x);
+      Graphics::prize_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreatePrizeAnimations(Graphics::prize_sprites, count);
       ImageFree(image_data);
     }
   }

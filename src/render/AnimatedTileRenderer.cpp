@@ -18,6 +18,7 @@ inline void Animate(Animation& anim, float dt) {
 }
 
 void AnimatedTileRenderer::Update(float dt) {
+  Animate(anim_prize, dt);
   Animate(anim_flag, dt);
   Animate(anim_flag_team, dt);
   Animate(anim_goal, dt);
@@ -32,10 +33,18 @@ void AnimatedTileRenderer::Update(float dt) {
 }
 
 void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& camera, const Vector2f& screen_dim,
-                                  struct GameFlag* flags, size_t flag_count, u32 freq) {
+                                  struct GameFlag* flags, size_t flag_count, struct PrizeGreen* greens,
+                                  size_t green_count, u32 freq) {
   Vector2f half_dim = screen_dim * (0.5f / 16.0f);
   Vector2f min = camera.position - half_dim;
   Vector2f max = camera.position + half_dim;
+
+  for (size_t i = 0; i < green_count; ++i) {
+    SpriteRenderable* renderable = &anim_prize.GetFrame();
+    PrizeGreen* green = greens + i;
+
+    renderer.Draw(camera, *renderable, green->position, Layer::AfterTiles);
+  }
 
   for (size_t i = 0; i < flag_count; ++i) {
     SpriteRenderable* renderable = &anim_flag.GetFrame();
@@ -93,6 +102,9 @@ void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& ca
 }
 
 void AnimatedTileRenderer::Initialize() {
+  anim_prize.sprite = &Graphics::anim_prize;
+  anim_prize.t = 0.0f;
+
   anim_flag.sprite = &Graphics::anim_flag;
   anim_flag.t = 0.0f;
 
