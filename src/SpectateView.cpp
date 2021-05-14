@@ -98,7 +98,7 @@ void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
     float x = ui_camera.surface_dim.x / 2.0f;
 
     for (size_t i = 0; i < 4; ++i) {
-      renderer.DrawText(ui_camera, rows[i], TextColor::White, Vector2f(x, (float)i * 12), Layer::TopMost);
+      renderer.DrawText(ui_camera, rows[i], TextColor::White, Vector2f(x, (float)i * 12), Layer::Gauges);
     }
   }
 }

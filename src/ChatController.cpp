@@ -1,5 +1,6 @@
 #include "ChatController.h"
 
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 
@@ -486,6 +487,17 @@ ChatEntry* ChatController::PushEntry(const char* mesg, size_t size, ChatType typ
   entry->sound = 0;
 
   return entry;
+}
+
+void ChatController::AddMessage(ChatType type, const char* fmt, ...) {
+  ChatEntry* entry = PushEntry("", 0, type);
+
+  va_list args;
+  va_start(args, fmt);
+
+  vsprintf(entry->message, fmt, args);
+
+  va_end(args);
 }
 
 ChatType ChatController::GetInputType() {

@@ -7,6 +7,7 @@
 namespace null {
 
 struct Camera;
+struct ChatController;
 struct Connection;
 struct InputState;
 struct PacketDispatcher;
@@ -16,15 +17,20 @@ struct SpriteRenderer;
 struct PlayerManager {
   Connection& connection;
   ShipController* ship_controller = nullptr;
+  ChatController* chat_controller = nullptr;
   size_t player_count = 0;
   Player players[1024];
 
   u16 player_id = 0;
   u32 last_position_tick = 0;
+  bool received_initial_list = false;
 
   PlayerManager(Connection& connection, PacketDispatcher& dispatcher);
 
-  void Initialize(ShipController* ship_controller) { this->ship_controller = ship_controller; }
+  inline void Initialize(ShipController* ship_controller, ChatController* chat_controller) {
+    this->ship_controller = ship_controller;
+    this->chat_controller = chat_controller;
+  }
 
   void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer, u32 self_freq);

@@ -6,10 +6,10 @@
 #include <cstdio>
 
 #include "Memory.h"
+#include "Platform.h"
 #include "Tick.h"
 #include "render/Animation.h"
 #include "render/Graphics.h"
-#include "Platform.h"
 
 namespace null {
 
@@ -107,7 +107,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
   dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
   dispatcher.Register(ProtocolS2C::ArenaSettings, OnArenaSettings, this);
 
-  player_manager.Initialize(&ship_controller);
+  player_manager.Initialize(&ship_controller, &chat);
   weapon_manager.Initialize(&ship_controller);
 }
 

@@ -50,6 +50,7 @@ struct ChatController {
 
   void Render(Camera& camera, SpriteRenderer& renderer);
   ChatEntry* PushEntry(const char* mesg, size_t size, ChatType type);
+  void AddMessage(ChatType type, const char* fmt, ...);
 
   void OnChatPacket(u8* packet, size_t size);
   void OnCharacterPress(int codepoint, int mods);

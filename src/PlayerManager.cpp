@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "Buffer.h"
+#include "ChatController.h"
 #include "InputState.h"
 #include "ShipController.h"
 #include "Tick.h"
@@ -32,6 +33,11 @@ static void OnPlayerEnterPkt(void* user, u8* pkt, size_t size) {
 static void OnPlayerLeavePkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
   manager->OnPlayerLeave(pkt, size);
+}
+
+static void OnJoinGamePkt(void* user, u8* pkt, size_t size) {
+  PlayerManager* manager = (PlayerManager*)user;
+  manager->received_initial_list = true;
 }
 
 static void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
@@ -74,6 +80,7 @@ PlayerManager::PlayerManager(Connection& connection, PacketDispatcher& dispatche
   dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerLeaving, OnPlayerLeavePkt, this);
+  dispatcher.Register(ProtocolS2C::JoinGame, OnJoinGamePkt, this);
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
   dispatcher.Register(ProtocolS2C::LargePosition, OnLargePositionPkt, this);
   dispatcher.Register(ProtocolS2C::SmallPosition, OnSmallPositionPkt, this);
@@ -316,6 +323,7 @@ void PlayerManager::OnPlayerIdChange(u8* pkt, size_t size) {
   printf("Player id: %d\n", player_id);
 
   this->player_count = 0;
+  this->received_initial_list = false;
 }
 
 void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
@@ -354,6 +362,10 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   memset(&player->weapon, 0, sizeof(player->weapon));
 
   printf("%s entered arena\n", name);
+
+  if (chat_controller && received_initial_list) {
+    chat_controller->AddMessage(ChatType::Arena, "%s entered arena", player->name);
+  }
 }
 
 void PlayerManager::OnPlayerLeave(u8* pkt, size_t size) {
@@ -368,6 +380,10 @@ void PlayerManager::OnPlayerLeave(u8* pkt, size_t size) {
 
   if (player) {
     printf("%s left arena\n", player->name);
+
+    if (chat_controller) {
+      chat_controller->AddMessage(ChatType::Arena, "%s left arena", player->name);
+    }
 
     players[index] = players[--player_count];
   }
