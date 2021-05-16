@@ -26,6 +26,18 @@ struct ArenaSettings;
 using TileId = u8;
 constexpr u32 kTileSafe = 171;
 
+constexpr size_t kAnimatedTileCount = 6;
+
+enum class AnimatedTile { Goal, AsteroidSmall1, AsteroidSmall2, AsteroidLarge, SpaceStation, Wormhole };
+constexpr TileId kAnimatedIds[] = { 172, 216, 218, 217, 219, 220 };
+constexpr size_t kAnimatedTileSizes[] = { 1, 1, 1, 2, 6, 5 };
+
+struct AnimatedTileSet {
+  size_t index;
+  size_t count;
+  Tile* tiles;
+};
+
 struct Map {
   bool Load(MemoryArena& arena, const char* filename);
 
@@ -49,6 +61,11 @@ struct Map {
 
   size_t door_count = 0;
   Tile* doors = nullptr;
+
+  AnimatedTileSet animated_tiles[kAnimatedTileCount];
+
+ private:
+  size_t GetTileCount(Tile* tiles, size_t tile_count, TileId id_begin, TileId id_end);
 };
 
 }  // namespace null

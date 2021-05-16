@@ -43,6 +43,7 @@ struct TileRenderer {
  private:
   void RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions, SpriteRenderable& renderable, GLuint* texture,
                    GLint filter);
+  u32 GetRadarTileColor(u8 id);
 };
 
 }  // namespace null

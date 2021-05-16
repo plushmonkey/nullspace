@@ -1,5 +1,7 @@
 #include "AnimatedTileRenderer.h"
 
+#include <cassert>
+
 #include "../Game.h"
 #include "../Map.h"
 #include "../Math.h"
@@ -35,10 +37,6 @@ void AnimatedTileRenderer::Update(float dt) {
 void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& camera, const Vector2f& screen_dim,
                                   struct GameFlag* flags, size_t flag_count, struct PrizeGreen* greens,
                                   size_t green_count, u32 freq) {
-  Vector2f half_dim = screen_dim * (0.5f / 16.0f);
-  Vector2f min = camera.position - half_dim;
-  Vector2f max = camera.position + half_dim;
-
   for (size_t i = 0; i < green_count; ++i) {
     SpriteRenderable* renderable = &anim_prize.GetFrame();
     PrizeGreen* green = greens + i;
@@ -69,33 +67,26 @@ void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& ca
     renderer.Draw(camera, renderable, Vector2f((float)door->x, (float)door->y), Layer::Tiles);
   }
 
-  for (s32 y = (s32)min.y - 5; y < (s32)max.y + 5; ++y) {
-    if (y < 0 || y > 1023) continue;
+  // TODO: Get correct goal renderable for team
+  Animation* animations[] = {&anim_goal,           &anim_asteroid_small1, &anim_asteroid_small2,
+                             &anim_asteroid_large, &anim_space_station,   &anim_wormhole};
 
-    for (s32 x = (s32)min.x - 5; x < (s32)max.x + 5; ++x) {
-      if (x < 0 || x > 1023) continue;
+  assert(NULLSPACE_ARRAY_SIZE(animations) == kAnimatedTileCount);
 
-      u32 id = map.GetTileId((u16)x, (u16)y);
+  Vector2f half_dim_world = screen_dim * (0.5f / 16.0f);
+  Vector2f view_min_world = camera.position - half_dim_world - Vector2f(6, 6);
+  Vector2f view_max_world = camera.position + half_dim_world + Vector2f(6, 6);
 
-      if (id == 172) {
-        // TODO: Determine if goal is team
-        SpriteRenderable& renderable = anim_goal.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Tiles);
-      } else if (id == 216) {
-        SpriteRenderable& renderable = anim_asteroid_small1.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Tiles);
-      } else if (id == 217) {
-        SpriteRenderable& renderable = anim_asteroid_large.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Tiles);
-      } else if (id == 218) {
-        SpriteRenderable& renderable = anim_asteroid_small2.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Tiles);
-      } else if (id == 219) {
-        SpriteRenderable& renderable = anim_space_station.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Tiles);
-      } else if (id == 220) {
-        SpriteRenderable& renderable = anim_wormhole.GetFrame();
-        renderer.Draw(camera, renderable, Vector2f((float)x, (float)y), Layer::Tiles);
+  for (size_t i = 0; i < kAnimatedTileCount; ++i) {
+    SpriteRenderable& renderable = animations[i]->GetFrame();
+    AnimatedTileSet* tileset = map.animated_tiles + i;
+
+    for (size_t j = 0; j < tileset->count; ++j) {
+      Vector2f position((float)tileset->tiles[j].x, (float)tileset->tiles[j].y);
+
+      // The viewable area is extended so it can work with the larger tiles
+      if (BoxContainsPoint(view_min_world, view_max_world, position)) {
+        renderer.Draw(camera, renderable, Vector2f(position.x, position.y), Layer::Tiles);
       }
     }
   }

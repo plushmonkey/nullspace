@@ -312,10 +312,8 @@ void TileRenderer::RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions
         if (id == 0 || id > 241) {
           // Don't write because multiple writes to this area should prioritize walls. If a write happens here then
           // walls could be overwritten with empty space.
-        } else if (id == 171) {
-          data[index] = 0xFF185218;
         } else {
-          data[index] = 0xFF5a5a5a;
+          data[index] = GetRadarTileColor(id);
         }
       }
     }
@@ -332,14 +330,7 @@ void TileRenderer::RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions
 
         size_t index = gen_y * dimensions + gen_x;
 
-        // TODO: other types
-        if (id == 0 || id > 241) {
-          data[index] = 0xFF0A190A;
-        } else if (id == 171) {
-          data[index] = 0xFF185218;
-        } else {
-          data[index] = 0xFF5a5a5a;
-        }
+        data[index] = GetRadarTileColor(id);
 
         x_tile_index += 1024;
       }
@@ -363,6 +354,22 @@ void TileRenderer::RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions
   renderable.uvs[1] = Vector2f(1, 0);
   renderable.uvs[2] = Vector2f(0, 1);
   renderable.uvs[3] = Vector2f(1, 1);
+}
+
+u32 TileRenderer::GetRadarTileColor(u8 id) {
+  // TODO: other types
+  if (id == 0 || id > 241) {
+    return 0xFF0A190A;
+  } else if (id == 171) {
+    return 0xFF185218;
+  } else if (id == 172) {
+    // TODO: team color
+    return 0xFF0839FF;
+  } else if (id >= 162 && id <= 169) {
+    return 0xFFADADAD;
+  }
+
+  return 0xFF5a5a5a;
 }
 
 void TileRenderer::Cleanup() {

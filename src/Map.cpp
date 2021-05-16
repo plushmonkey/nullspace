@@ -1,9 +1,9 @@
 #include "Map.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
-#include <cmath>
 
 #include "ArenaSettings.h"
 #include "Tick.h"
@@ -13,10 +13,10 @@ namespace null {
 constexpr int kFirstDoorId = 162;
 constexpr int kLastDoorId = 169;
 
-// TODO: Fast lookup map and handle doors according to door seed
+// TODO: Fast lookup map
 bool IsSolid(TileId id) {
   if (id == 0) return false;
-  if (id >= 162 && id <= 169) return false;
+  if (id >= 162 && id <= 169) return true;
   if (id < 170) return true;
   if (id >= 192 && id <= 240) return true;
   if (id >= 242 && id <= 252) return true;
@@ -44,8 +44,7 @@ bool Map::Load(MemoryArena& arena, const char* filename) {
     return false;
   }
 
-  // TODO: freeing
-
+  // Maps are allocated in their own arena so they are freed automatically when the arena is reset
   data = (char*)arena.Allocate(size);
   tiles = arena.Allocate(1024 * 1024);
 
@@ -65,25 +64,62 @@ bool Map::Load(MemoryArena& arena, const char* filename) {
 
   // Expand tile data out into full grid
   size_t start = pos;
-  door_count = 0;
-  this->doors = (Tile*)arena.Allocate(0);
 
-  while (pos < size) {
-    Tile* tile = (Tile*)(data + pos);
+  size_t tile_count = (size - pos) / sizeof(Tile);
+  Tile* tiles = (Tile*)(data + pos);
 
-    tiles[tile->y * 1024 + tile->x] = tile->id;
+  this->door_count = GetTileCount(tiles, tile_count, kFirstDoorId, kLastDoorId);
+  this->doors = memory_arena_push_type_count(&arena, Tile, this->door_count);
+
+  for (size_t i = 0; i < kAnimatedTileCount; ++i) {
+    animated_tiles[i].index = 0;
+    animated_tiles[i].count = GetTileCount(tiles, tile_count, kAnimatedIds[i], kAnimatedIds[i]);
+    animated_tiles[i].tiles = memory_arena_push_type_count(&arena, Tile, animated_tiles[i].count);
+  }
+
+  size_t door_index = 0;
+  for (size_t tile_index = 0; tile_index < tile_count; ++tile_index) {
+    Tile* tile = tiles + tile_index;
+
+    this->tiles[tile->y * 1024 + tile->x] = tile->id;
+
     if (tile->id >= kFirstDoorId && tile->id <= kLastDoorId) {
-      // Allocate just enough space for one more door. This will increase the size of the already set door pointer.
-      arena.Allocate(sizeof(Tile), 1);
-
-      Tile* door = doors + door_count++;
+      Tile* door = this->doors + door_index++;
       *door = *tile;
     }
 
-    pos += sizeof(Tile);
+    for (size_t i = 0; i < kAnimatedTileCount; ++i) {
+      if (tile->id == kAnimatedIds[i]) {
+        animated_tiles[i].tiles[animated_tiles[i].index++] = *tile;
+
+        for (size_t j = 0; j < kAnimatedTileSizes[i]; ++j) {
+          size_t y = tile->y + j;
+
+          for (size_t k = 0; k < kAnimatedTileSizes[i]; ++k) {
+            size_t x = tile->x + k;
+
+            this->tiles[y * 1024 + x] = tile->id;
+          }
+        }
+      }
+    }
   }
 
   return true;
+}
+
+size_t Map::GetTileCount(Tile* tiles, size_t tile_count, TileId id_begin, TileId id_end) {
+  size_t count = 0;
+
+  for (size_t i = 0; i < tile_count; ++i) {
+    Tile* tile = tiles + i;
+
+    if (tile->id >= id_begin && tile->id <= id_end) {
+      ++count;
+    }
+  }
+
+  return count;
 }
 
 void Map::UpdateDoors(const ArenaSettings& settings) {

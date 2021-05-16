@@ -65,7 +65,6 @@ void ShipController::Update(const InputState& input, float dt) {
     self->energy = (float)ship.energy;
   }
 
-  // TODO: Real calculations with ship status
   u8 direction = (u8)(self->orientation * 40.0f);
   bool thrust_backward = false;
   bool thrust_forward = false;

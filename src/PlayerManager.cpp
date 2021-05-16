@@ -269,7 +269,7 @@ void PlayerManager::SendPositionPacket() {
 
   if (connection.extra_position_info) {
     buffer.WriteU16(energy);
-    buffer.WriteU16(connection.ping);
+    buffer.WriteU16(connection.ping / 10);
     buffer.WriteU16(0);
 
     struct {
