@@ -450,6 +450,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
         printf("Connected to server running Continuum 0.%d with checksum %08X\n", version, checksum);
       } break;
+      case ProtocolS2C::SetCoordinates: {
+      } break;
       case ProtocolS2C::ToggleLVZ: {
       } break;
       case ProtocolS2C::ModifyLVZ: {

@@ -173,9 +173,15 @@ inline bool BoxContainsPoint(const Vector2f& min, const Vector2f& max, const Vec
 }
 
 inline bool BoxBoxIntersect(const Vector2f& first_min, const Vector2f& first_max, const Vector2f& second_min,
-  const Vector2f& second_max) {
-  return (first_max.x >= second_min.x && first_min.x < second_max.x&& first_max.y >= second_min.y &&
-    first_min.y < second_max.y);
+                            const Vector2f& second_max) {
+  return (first_max.x >= second_min.x && first_min.x < second_max.x && first_max.y >= second_min.y &&
+          first_min.y < second_max.y);
+}
+
+inline bool BoxBoxOverlap(const Vector2f& first_min, const Vector2f& first_max, const Vector2f& second_min,
+                          const Vector2f& second_max) {
+  return (first_max.x > second_min.x && first_min.x < second_max.x && first_max.y > second_min.y &&
+          first_min.y < second_max.y);
 }
 
 inline float BoxPointDistance(Vector2f box_pos, Vector2f box_extent, Vector2f p) {
@@ -189,7 +195,7 @@ inline float BoxPointDistance(Vector2f box_pos, Vector2f box_extent, Vector2f p)
 }
 
 inline bool RayBoxIntersect(const Vector2f& origin, const Vector2f& direction, const Vector2f& box_pos,
-  const Vector2f& box_extent, float* dist, Vector2f* norm) {
+                            const Vector2f& box_extent, float* dist, Vector2f* norm) {
   Vector2f recip(1.0f / direction.x, 1.0f / direction.y);
   const Vector2f& lb = box_pos;
   Vector2f rt = box_pos + box_extent;
@@ -239,7 +245,7 @@ inline bool RayBoxIntersect(const Vector2f& origin, const Vector2f& direction, c
 }
 
 inline bool LineBoxIntersect(Vector2f point, Vector2f direction, Vector2f box_pos, Vector2f box_extent, float* dist,
-  Vector2f* norm) {
+                             Vector2f* norm) {
   if (RayBoxIntersect(point, direction, box_pos, box_extent, dist, norm)) {
     return true;
   }
@@ -524,8 +530,8 @@ inline mat4 LookAt(const Vector3f& eye, const Vector3f& to, Vector3f world_up = 
   Vector3f up = Normalize(side.Cross(forward));
 
   // Insert camera axes in column major order and transform eye into the camera space for translation
-  float values[] = { side.x, up.x, -forward.x, 0, side.y,          up.y,          -forward.y,        0,
-                    side.z, up.z, -forward.z, 0, -Dot(side, eye), -Dot(up, eye), Dot(forward, eye), 1 };
+  float values[] = {side.x, up.x, -forward.x, 0, side.y,          up.y,          -forward.y,        0,
+                    side.z, up.z, -forward.z, 0, -Dot(side, eye), -Dot(up, eye), Dot(forward, eye), 1};
 
   return mat4(values);
 }
@@ -629,8 +635,8 @@ inline mat4 Rotate(const mat4& M, float angle, const Vector3f& rotate_axis) {
   Vector4f R1 = M0 * rotator[1][0] + M1 * rotator[1][1] + M2 * rotator[1][2];
   Vector4f R2 = M0 * rotator[2][0] + M1 * rotator[2][1] + M2 * rotator[2][2];
 
-  float values[] = { R0[0], R0[1], R0[2], R0[3], R1[0],   R1[1],   R1[2],   R2[3],
-                    R2[0], R2[1], R2[2], R1[3], M[3][0], M[3][1], M[3][2], M[3][3] };
+  float values[] = {R0[0], R0[1], R0[2], R0[3], R1[0],   R1[1],   R1[2],   R2[3],
+                    R2[0], R2[1], R2[2], R1[3], M[3][0], M[3][1], M[3][2], M[3][3]};
 
   return mat4((float*)values);
 }

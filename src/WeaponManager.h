@@ -22,11 +22,19 @@ struct Weapon {
   WeaponData data;
 
   u16 frequency;
+  // Player id for delayed prox explosions
+  u16 prox_hit_player_id;
+
+  // Highest of dx or dy when prox was triggered
+  float prox_highest_offset;
+
+  u32 sensor_end_tick;
 
   u32 last_trail_tick;
   u32 bounces_remaining = 0;
 
   u32 flags;
+
   // incremental id for connected multifire bullet
   u32 link_id = kInvalidLink;
 

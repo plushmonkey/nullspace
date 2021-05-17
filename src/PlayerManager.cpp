@@ -70,6 +70,24 @@ static void OnFlagDropPkt(void* user, u8* pkt, size_t size) {
   manager->OnFlagDrop(pkt, size);
 }
 
+static void OnSetCoordinatesPkt(void* user, u8* pkt, size_t size) {
+  PlayerManager* manager = (PlayerManager*)user;
+
+  Player* self = manager->GetSelf();
+
+  if (!self || size < 5) return;
+
+  u16 x = *(u16*)(pkt + 1);
+  u16 y = *(u16*)(pkt + 3);
+
+  self->position.x = (float)x + 0.5f;
+  self->position.y = (float)y + 0.5f;
+  self->velocity.x = 0.0f;
+  self->velocity.y = 0.0f;
+  self->togglables |= Status_Flash;
+  self->warp_animation.t = 0.0f;
+}
+
 inline bool IsPlayerVisible(Player* self, u32 self_freq, Player* player) {
   if (self_freq == player->frequency) return true;
 
@@ -87,6 +105,7 @@ PlayerManager::PlayerManager(Connection& connection, PacketDispatcher& dispatche
   dispatcher.Register(ProtocolS2C::PlayerDeath, OnPlayerDeathPkt, this);
   dispatcher.Register(ProtocolS2C::FlagClaim, OnFlagClaimPkt, this);
   dispatcher.Register(ProtocolS2C::DropFlag, OnFlagDropPkt, this);
+  dispatcher.Register(ProtocolS2C::SetCoordinates, OnSetCoordinatesPkt, this);
 }
 
 void PlayerManager::Update(float dt) {

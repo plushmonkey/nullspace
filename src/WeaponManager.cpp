@@ -142,6 +142,35 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
 
   if (type == WeaponType::Decoy) return WeaponSimulateResult::Continue;
 
+  bool is_prox = weapon.data.type == (u16)WeaponType::ProximityBomb || weapon.data.type == (u16)WeaponType::Thor;
+
+  if (is_prox && weapon.prox_hit_player_id != 0xFFFF) {
+    Player* hit_player = player_manager.GetPlayerById(weapon.prox_hit_player_id);
+
+    if (!hit_player) {
+      return WeaponSimulateResult::PlayerExplosion;
+    }
+
+    float dx = abs(weapon.position.x - hit_player->position.x);
+    float dy = abs(weapon.position.y - hit_player->position.y);
+
+    float highest = dx > dy ? dx : dy;
+
+    if (highest > weapon.prox_highest_offset || GetCurrentTick() >= weapon.sensor_end_tick) {
+      // TODO: Bomb explosion
+      if (hit_player->id == player_manager.player_id) {
+        if (ship_controller) {
+          ship_controller->OnWeaponHit(weapon);
+        }
+      }
+      return WeaponSimulateResult::PlayerExplosion;
+    } else {
+      weapon.prox_highest_offset = highest;
+    }
+
+    return WeaponSimulateResult::Continue;
+  }
+
   for (size_t i = 0; i < player_manager.player_count; ++i) {
     Player* player = player_manager.players + i;
 
@@ -150,26 +179,44 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
     if (player->enter_delay > 0) continue;
 
     float radius = connection.settings.ShipSettings[player->ship].GetRadius();
-    Vector2f r(radius, radius);
+    Vector2f player_r(radius, radius);
     Vector2f& pos = player->position;
 
-    if (weapon.data.type == (u16)WeaponType::ProximityBomb) {
-      float prox = (float)(connection.settings.ProximityDistance + weapon.data.level);
-      Vector2f p(prox, prox);
+    float weapon_radius = 18.0f;
 
-      // TODO: Is this box-box or box-circle intersection?
-      if (BoxBoxIntersect(pos - r, pos + r, weapon.position - p, weapon.position + p)) {
-        if (player->id == player_manager.player_id && !HasLinkRemoved(weapon.link_id)) {
-          if (ship_controller) {
-            ship_controller->OnWeaponHit(weapon);
-          }
+    if (is_prox) {
+      float prox = (float)(connection.settings.ProximityDistance + weapon.data.level);
+
+      if (weapon.data.type == (u16)WeaponType::Thor) {
+        prox += 3;
+      }
+
+      weapon_radius = prox * 18.0f;
+    }
+
+    weapon_radius = (weapon_radius - 14.0f) / 16.0f;
+
+    Vector2f min_w(weapon.position.x - weapon_radius, weapon.position.y - weapon_radius);
+    Vector2f max_w(weapon.position.x + weapon_radius, weapon.position.y + weapon_radius);
+
+    if (BoxBoxOverlap(pos - player_r, pos + player_r, min_w, max_w)) {
+      if (is_prox) {
+        weapon.prox_hit_player_id = player->id;
+        weapon.sensor_end_tick = GetCurrentTick() + connection.settings.BombExplodeDelay;
+
+        float dx = abs(weapon.position.x - player->position.x);
+        float dy = abs(weapon.position.y - player->position.y);
+
+        if (dx > dy) {
+          weapon.prox_highest_offset = dx;
+        } else {
+          weapon.prox_highest_offset = dy;
         }
 
-        return WeaponSimulateResult::PlayerExplosion;
-      }
-    } else if (BoxContainsPoint(pos - r, pos + r, weapon.position)) {
-      if (player->id == player_manager.player_id && !HasLinkRemoved(weapon.link_id)) {
+        return WeaponSimulateResult::Continue;
+      } else if (player->id == player_manager.player_id && !HasLinkRemoved(weapon.link_id)) {
         if (ship_controller) {
+          // TODO: Bomb explosion
           ship_controller->OnWeaponHit(weapon);
         }
       }
@@ -404,6 +451,7 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   weapon->bounces_remaining = 0;
   weapon->flags = 0;
   weapon->link_id = link_id;
+  weapon->prox_hit_player_id = 0xFFFF;
 
   WeaponType type = (WeaponType)weapon->data.type;
 
