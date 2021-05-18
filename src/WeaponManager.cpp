@@ -464,13 +464,13 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
 
   weapon->frequency = player->frequency;
 
-  u16 speed = 0;
+  s16 speed = 0;
   switch (type) {
     case WeaponType::Burst:
     case WeaponType::Bullet:
     case WeaponType::BouncingBullet: {
       weapon->end_tick = local_timestamp + connection.settings.BulletAliveTime;
-      speed = connection.settings.ShipSettings[player->ship].BulletSpeed;
+      speed = (s16)connection.settings.ShipSettings[player->ship].BulletSpeed;
     } break;
     case WeaponType::Thor:
     case WeaponType::Bomb:
@@ -479,7 +479,7 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
         weapon->end_tick = local_timestamp + connection.settings.MineAliveTime;
       } else {
         weapon->end_tick = local_timestamp + connection.settings.BombAliveTime;
-        speed = connection.settings.ShipSettings[player->ship].BombSpeed;
+        speed = (s16)connection.settings.ShipSettings[player->ship].BombSpeed;
         weapon->bounces_remaining = connection.settings.ShipSettings[player->ship].BombBounceCount;
       }
     } break;

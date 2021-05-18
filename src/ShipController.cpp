@@ -900,6 +900,7 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
 
       if (delta.LengthSq() < explode_pixels * explode_pixels) {
         float distance = delta.Length();
+
         damage = (int)((explode_pixels - distance) * (bomb_dmg / explode_pixels));
 
         if (self->id != shooter->id) {
@@ -907,7 +908,7 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
           float shooter_distance = shooter_delta.Length();
 
           if (shooter_distance < explode_pixels) {
-            damage -= (int)(((damage / explode_pixels) * (explode_pixels - shooter_distance)) / 2.0f);
+            damage -= (int)(((bomb_dmg / explode_pixels) * (explode_pixels - shooter_distance)) / 2.0f);
 
             if (damage < 0) {
               damage = 0;
