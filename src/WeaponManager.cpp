@@ -128,6 +128,10 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
 
     if (type == WeaponType::Bullet || type == WeaponType::Bomb || type == WeaponType::ProximityBomb) {
       if (weapon.bounces_remaining == 0) {
+        if ((type == WeaponType::Bomb || type == WeaponType::ProximityBomb) && ship_controller) {
+          ship_controller->OnWeaponHit(weapon);
+        }
+
         return WeaponSimulateResult::WallExplosion;
       }
 
@@ -141,6 +145,9 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
   }
 
   if (type == WeaponType::Decoy) return WeaponSimulateResult::Continue;
+
+  bool is_bomb = weapon.data.type == (u16)WeaponType::Bomb || weapon.data.type == (u16)WeaponType::ProximityBomb ||
+                 weapon.data.type == (u16)WeaponType::Thor;
 
   bool is_prox = weapon.data.type == (u16)WeaponType::ProximityBomb || weapon.data.type == (u16)WeaponType::Thor;
 
@@ -157,12 +164,10 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
     float highest = dx > dy ? dx : dy;
 
     if (highest > weapon.prox_highest_offset || GetCurrentTick() >= weapon.sensor_end_tick) {
-      // TODO: Bomb explosion
-      if (hit_player->id == player_manager.player_id) {
-        if (ship_controller) {
-          ship_controller->OnWeaponHit(weapon);
-        }
+      if (ship_controller) {
+        ship_controller->OnWeaponHit(weapon);
       }
+
       return WeaponSimulateResult::PlayerExplosion;
     } else {
       weapon.prox_highest_offset = highest;
@@ -214,9 +219,8 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
         }
 
         return WeaponSimulateResult::Continue;
-      } else if (player->id == player_manager.player_id && !HasLinkRemoved(weapon.link_id)) {
+      } else if ((is_bomb || player->id == player_manager.player_id) && !HasLinkRemoved(weapon.link_id)) {
         if (ship_controller) {
-          // TODO: Bomb explosion
           ship_controller->OnWeaponHit(weapon);
         }
       }

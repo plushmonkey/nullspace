@@ -853,7 +853,11 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
 
   Player* self = player_manager.GetSelf();
 
-  if (!self || self->enter_delay > 0) return;
+  if (!self || self->enter_delay > 0 || self->ship == 8) return;
+
+  Player* shooter = player_manager.GetPlayerById(weapon.player_id);
+
+  if (!shooter) return;
 
   int damage = 0;
   switch (type) {
@@ -870,16 +874,62 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
     case WeaponType::Thor:
     case WeaponType::Bomb:
     case WeaponType::ProximityBomb: {
-      // TODO: Real calculation
-      damage = connection.settings.BombDamageLevel / 1000;
+      int bomb_dmg = connection.settings.BombDamageLevel;
+      int level = weapon.data.level;
+
+      if (type == WeaponType::Thor) {
+        // Weapon level should always be 0 for thor in normal gameplay, I believe, but this is how it's done
+        bomb_dmg = bomb_dmg + bomb_dmg * weapon.data.level * weapon.data.level;
+        level = 3 + weapon.data.level;
+      }
+
+      bomb_dmg = bomb_dmg / 1000;
+
       if (weapon.flags & WEAPON_FLAG_EMP) {
-        damage = (int)(damage * (connection.settings.EBombDamagePercent / 1000.0f));
-        // TODO: Emp time calculation
+        bomb_dmg = (int)(bomb_dmg * (connection.settings.EBombDamagePercent / 1000.0f));
+      }
+
+      if (connection.settings.ShipSettings[shooter->ship].BombBounceCount > 0) {
+        bomb_dmg = (int)(bomb_dmg * (connection.settings.BBombDamagePercent / 1000.0f));
+      }
+
+      Vector2f delta = Absolute(weapon.position - self->position) * 16.0f;
+
+      float explode_pixels =
+          (float)(connection.settings.BombExplodePixels + connection.settings.BombExplodePixels * level);
+
+      if (delta.LengthSq() < explode_pixels * explode_pixels) {
+        float distance = delta.Length();
+        damage = (int)((explode_pixels - distance) * (bomb_dmg / explode_pixels));
+
+        if (self->id != shooter->id) {
+          Vector2f shooter_delta = Absolute(weapon.position - shooter->position) * 16;
+          float shooter_distance = shooter_delta.Length();
+
+          if (shooter_distance < explode_pixels) {
+            damage -= (int)(((damage / explode_pixels) * (explode_pixels - shooter_distance)) / 2.0f);
+
+            if (damage < 0) {
+              damage = 0;
+            }
+          }
+        }
+
+        if ((weapon.flags & WEAPON_FLAG_EMP) && damage > 0 && self->id != shooter->id) {
+          TileId tile_id = connection.map.GetTileId((u16)self->position.x, (u16)self->position.y);
+
+          if (tile_id != kTileSafe) {
+            u32 emp_time = (u32)((connection.settings.EBombShutdownTime * damage) / damage);
+            // TODO: Set emp time
+          }
+        }
       }
     } break;
     default: {
     } break;
   }
+
+  if (damage <= 0) return;
 
   if (self->energy < damage) {
     connection.SendDeath(weapon.player_id, self->bounty);

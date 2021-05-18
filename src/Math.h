@@ -145,6 +145,8 @@ struct Vector2f {
   }
 };
 
+inline Vector2f Absolute(const Vector2f& v) { return Vector2f(abs(v.x), abs(v.y)); }
+
 inline Vector2f operator*(float value, const Vector2f& v) { return Vector2f(v.x * value, v.y * value); }
 
 inline float Dot(const Vector2f& v1, const Vector2f& v2) { return v1.x * v2.x + v1.y * v2.y; }
