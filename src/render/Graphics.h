@@ -73,6 +73,8 @@ struct Graphics {
   static AnimatedSprite anim_bullet_explode;
   static AnimatedSprite anim_bullets_bounce[4];
   static AnimatedSprite anim_bullet_trails[4];
+  static AnimatedSprite anim_burst_inactive;
+  static AnimatedSprite anim_burst_active;
 
   static AnimatedSprite anim_repel;
 

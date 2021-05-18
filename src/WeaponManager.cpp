@@ -13,6 +13,8 @@
 #include "render/Graphics.h"
 #include "render/SpriteRenderer.h"
 
+// TODO: Spatial partition acceleration structures
+
 namespace null {
 
 static void OnLargePositionPkt(void* user, u8* pkt, size_t size) {
@@ -108,7 +110,6 @@ void WeaponManager::Update(float dt) {
 }
 
 WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, float dt) {
-  Map& map = connection.map;
   WeaponType type = (WeaponType)weapon.data.type;
 
   if (current_tick >= weapon.end_tick) return WeaponSimulateResult::TimedOut;
@@ -116,32 +117,10 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
   // TODO: Implement velocity changes
   if (type == WeaponType::Repel) return WeaponSimulateResult::Continue;
 
-  float dist = (weapon.velocity * dt).Length();
-  for (int i = 0; i < 10 && dist > 0.0f; ++i) {
-    CastResult result = map.Cast(weapon.position, Normalize(weapon.velocity), dist);
+  WeaponSimulateResult position_result = SimulatePosition(weapon, dt);
 
-    weapon.position = result.position;
-
-    if (!result.hit) {
-      break;
-    }
-
-    if (type == WeaponType::Bullet || type == WeaponType::Bomb || type == WeaponType::ProximityBomb) {
-      if (weapon.bounces_remaining == 0) {
-        if ((type == WeaponType::Bomb || type == WeaponType::ProximityBomb) && ship_controller) {
-          ship_controller->OnWeaponHit(weapon);
-        }
-
-        return WeaponSimulateResult::WallExplosion;
-      }
-
-      if (--weapon.bounces_remaining == 0 && !(weapon.flags & WEAPON_FLAG_EMP)) {
-        weapon.animation.sprite = Graphics::anim_bombs + weapon.data.level;
-      }
-    }
-
-    dist -= result.distance;
-    weapon.velocity = weapon.velocity - 2.0f * (weapon.velocity.Dot(result.normal)) * result.normal;
+  if (position_result != WeaponSimulateResult::Continue) {
+    return position_result;
   }
 
   if (type == WeaponType::Decoy) return WeaponSimulateResult::Continue;
@@ -173,6 +152,10 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
       weapon.prox_highest_offset = highest;
     }
 
+    return WeaponSimulateResult::Continue;
+  }
+
+  if (type == WeaponType::Burst && !(weapon.flags & WEAPON_FLAG_BURST_ACTIVE)) {
     return WeaponSimulateResult::Continue;
   }
 
@@ -227,6 +210,59 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
 
       return WeaponSimulateResult::PlayerExplosion;
     }
+  }
+
+  return WeaponSimulateResult::Continue;
+}
+
+bool WeaponManager::SimulateAxis(Weapon& weapon, float dt, int axis) {
+  float previous = weapon.position[axis];
+  Map& map = connection.map;
+
+  weapon.position[axis] += weapon.velocity[axis] * dt;
+
+  // TODO: Handle other special tiles here
+  if (map.IsSolid((u16)weapon.position.x, (u16)weapon.position.y)) {
+    weapon.position[axis] = previous;
+    weapon.velocity[axis] = -weapon.velocity[axis];
+
+    return true;
+  }
+
+  return false;
+}
+
+WeaponSimulateResult WeaponManager::SimulatePosition(Weapon& weapon, float dt) {
+  WeaponType type = (WeaponType)weapon.data.type;
+
+  u32 tick = GetCurrentTick();
+  s32 tick_count = TICK_DIFF(tick, weapon.last_tick);
+
+  // This collision method deviates from Continuum when using variable update rate, so it updates by one tick at a time
+  for (s32 i = 0; i < tick_count; ++i) {
+    bool x_collide = SimulateAxis(weapon, 1.0f / 100.0f, 0);
+    bool y_collide = SimulateAxis(weapon, 1.0f / 100.0f, 1);
+
+    if (x_collide || y_collide) {
+      if (type == WeaponType::Bullet || type == WeaponType::Bomb || type == WeaponType::ProximityBomb) {
+        if (weapon.bounces_remaining == 0) {
+          if ((type == WeaponType::Bomb || type == WeaponType::ProximityBomb) && ship_controller) {
+            ship_controller->OnWeaponHit(weapon);
+          }
+
+          return WeaponSimulateResult::WallExplosion;
+        }
+
+        if (--weapon.bounces_remaining == 0 && !(weapon.flags & WEAPON_FLAG_EMP)) {
+          weapon.animation.sprite = Graphics::anim_bombs + weapon.data.level;
+        }
+      } else if (type == WeaponType::Burst) {
+        weapon.flags |= WEAPON_FLAG_BURST_ACTIVE;
+        weapon.animation.sprite = &Graphics::anim_burst_active;
+      }
+    }
+
+    weapon.last_tick = tick;
   }
 
   return WeaponSimulateResult::Continue;
@@ -291,6 +327,7 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
         shrap->player_id = weapon.player_id;
         shrap->velocity = direction * speed;
         shrap->position = weapon.position + shrap->velocity * (1.0f / 100.0f);
+        shrap->last_tick = GetCurrentTick();
 
         if (connection.map.IsSolid((u16)shrap->position.x, (u16)shrap->position.y)) {
           --weapon_count;
@@ -315,21 +352,26 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer) {
       SpriteRenderable& frame = weapon->animation.GetFrame();
       Vector2f position = weapon->position - frame.dimensions * (0.5f / 16.0f);
 
-      u32 pos_x = (u32)(position.x * 16.0f);
-      u32 pos_y = (u32)(position.y * 16.0f);
-      position = Vector2f(pos_x / 16.0f, pos_y / 16.0f);
-
-      renderer.Draw(camera, frame, position, Layer::Weapons);
+      renderer.Draw(camera, frame, position.PixelRounded(), Layer::Weapons);
     } else if (weapon->data.type == (u16)WeaponType::Decoy) {
       Player* player = player_manager.GetPlayerById(weapon->player_id);
       if (player) {
-        // TODO: Render opposite rotation based on initial orientation
-        u8 direction = (u8)(player->orientation * 40);
+        float orientation = weapon->initial_orientation - (player->orientation - weapon->initial_orientation);
+
+        if (orientation < 0.0f) {
+          orientation += 1.0f;
+        } else if (orientation >= 1.0f) {
+          orientation -= 1.0f;
+        }
+
+        u8 direction = (u8)(orientation * 40);
+        assert(direction < 40);
+
         size_t index = player->ship * 40 + direction;
         SpriteRenderable& frame = Graphics::ship_sprites[index];
         Vector2f position = weapon->position - frame.dimensions * (0.5f / 16.0f);
 
-        renderer.Draw(camera, frame, position, Layer::Ships);
+        renderer.Draw(camera, frame, position.PixelRounded(), Layer::Ships);
       }
     }
   }
@@ -438,7 +480,15 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, const Vector2
         }
       }
     }
+  } else if (type == WeaponType::Burst) {
+    u8 count = connection.settings.ShipSettings[player.ship].BurstShrapnel;
 
+    for (s32 i = 0; i < count; ++i) {
+      s32 orientation = (i * 40000) / count * 9;
+      Vector2f direction(sin(Radians(orientation / 1000.0f)), -cos(Radians(orientation / 1000.0f)));
+
+      GenerateWeapon(pid, weapon, timestamp, position, Vector2f(0, 0), direction, kInvalidLink);
+    }
   } else {
     GenerateWeapon(pid, weapon, timestamp, position, velocity, OrientationToHeading(direction), kInvalidLink);
   }
@@ -456,6 +506,7 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   weapon->flags = 0;
   weapon->link_id = link_id;
   weapon->prox_hit_player_id = 0xFFFF;
+  weapon->last_tick = GetCurrentTick();
 
   WeaponType type = (WeaponType)weapon->data.type;
 
@@ -466,7 +517,6 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
 
   s16 speed = 0;
   switch (type) {
-    case WeaponType::Burst:
     case WeaponType::Bullet:
     case WeaponType::BouncingBullet: {
       weapon->end_tick = local_timestamp + connection.settings.BulletAliveTime;
@@ -488,6 +538,11 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
     } break;
     case WeaponType::Decoy: {
       weapon->end_tick = local_timestamp + connection.settings.DecoyAliveTime;
+      weapon->initial_orientation = player->orientation;
+    } break;
+    case WeaponType::Burst: {
+      weapon->end_tick = local_timestamp + connection.settings.BulletAliveTime;
+      speed = (s16)connection.settings.ShipSettings[player->ship].BurstSpeed;
     } break;
     default: {
     } break;
@@ -572,6 +627,9 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
 
       weapon->animation.sprite = nullptr;
       weapon->animation.repeat = false;
+    } break;
+    case WeaponType::Burst: {
+      weapon->animation.sprite = &Graphics::anim_burst_inactive;
     } break;
     default: {
     } break;

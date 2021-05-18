@@ -11,25 +11,33 @@ enum class WeaponType { None, Bullet, BouncingBullet, Bomb, ProximityBomb, Repel
 constexpr u32 kInvalidLink = 0xFFFFFFFF;
 
 #define WEAPON_FLAG_EMP (1 << 0)
+#define WEAPON_FLAG_BURST_ACTIVE (1 << 1)
 
 struct Weapon {
   Vector2f position;
   Vector2f velocity;
 
+  u32 last_tick;
   u32 end_tick;
 
   u16 player_id;
   WeaponData data;
 
   u16 frequency;
-  // Player id for delayed prox explosions
-  u16 prox_hit_player_id;
 
-  // Highest of dx or dy when prox was triggered
-  float prox_highest_offset;
+  union {
+    struct {
+      // Player id for delayed prox explosions
+      u16 prox_hit_player_id;
 
-  u32 sensor_end_tick;
+      // Highest of dx or dy when prox was triggered
+      float prox_highest_offset;
 
+      u32 sensor_end_tick;
+    };
+    float initial_orientation;
+  };
+  
   u32 last_trail_tick;
   u32 bounces_remaining = 0;
 
@@ -77,6 +85,9 @@ struct WeaponManager {
   void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer);
   WeaponSimulateResult Simulate(Weapon& weapon, u32 current_tick, float dt);
+
+  bool SimulateAxis(Weapon& weapon, float dt, int axis);
+  WeaponSimulateResult SimulatePosition(Weapon& weapon, float dt);
 
   void AddLinkRemoval(u32 link_id, WeaponSimulateResult result);
   bool HasLinkRemoved(u32 link_id);

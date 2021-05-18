@@ -926,6 +926,9 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
         }
       }
     } break;
+    case WeaponType::Burst: {
+      damage = connection.settings.BurstDamageLevel;
+    } break;
     default: {
     } break;
   }

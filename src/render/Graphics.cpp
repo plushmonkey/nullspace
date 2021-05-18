@@ -68,6 +68,8 @@ AnimatedSprite Graphics::anim_bullets[4];
 AnimatedSprite Graphics::anim_bullet_explode;
 AnimatedSprite Graphics::anim_bullets_bounce[4];
 AnimatedSprite Graphics::anim_bullet_trails[4];
+AnimatedSprite Graphics::anim_burst_inactive;
+AnimatedSprite Graphics::anim_burst_active;
 
 AnimatedSprite Graphics::anim_repel;
 
@@ -363,6 +365,14 @@ void Graphics::CreateBulletAnimations(SpriteRenderable* renderables, int count) 
     anim_bullets_bounce[i].frame_count = 4;
     anim_bullets_bounce[i].duration = 0.15f;
   }
+
+  anim_burst_inactive.frames = renderables + 16;
+  anim_burst_inactive.frame_count = 4;
+  anim_burst_inactive.duration = 0.15f;
+
+  anim_burst_active.frames = renderables + count - 4;
+  anim_burst_active.frame_count = 4;
+  anim_burst_active.duration = 0.15f;
 }
 
 void Graphics::CreateBulletTrailAnimations(SpriteRenderable* renderables, int count) {
