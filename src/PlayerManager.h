@@ -1,6 +1,7 @@
 #ifndef NULLSPACE_PLAYER_MANAGER_H_
 #define NULLSPACE_PLAYER_MANAGER_H_
 
+#include "Notification.h"
 #include "Player.h"
 #include "Types.h"
 
@@ -18,6 +19,7 @@ struct PlayerManager {
   Connection& connection;
   ShipController* ship_controller = nullptr;
   ChatController* chat_controller = nullptr;
+  NotificationSystem* notifications = nullptr;
   size_t player_count = 0;
   Player players[1024];
 
@@ -27,9 +29,11 @@ struct PlayerManager {
 
   PlayerManager(Connection& connection, PacketDispatcher& dispatcher);
 
-  inline void Initialize(ShipController* ship_controller, ChatController* chat_controller) {
+  inline void Initialize(ShipController* ship_controller, ChatController* chat_controller,
+                         NotificationSystem* notifications) {
     this->ship_controller = ship_controller;
     this->chat_controller = chat_controller;
+    this->notifications = notifications;
   }
 
   void Update(float dt);

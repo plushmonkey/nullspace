@@ -435,6 +435,13 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
       killer->bounty += connection.settings.BountyIncreaseForKill;
     }
   }
+
+  if (killer && killed) {
+    TextColor color = (killer_id == player_id || killed_id == player_id) ? TextColor::Yellow : TextColor::Green;
+    GameNotification* notification = notifications->PushNotification(color);
+
+    sprintf(notification->message, "%s(%d) killed by: %s", killed->name, killed->bounty, killer->name);
+  }
 }
 
 void PlayerManager::Spawn() {

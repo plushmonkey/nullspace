@@ -107,7 +107,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
   dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
   dispatcher.Register(ProtocolS2C::ArenaSettings, OnArenaSettings, this);
 
-  player_manager.Initialize(&ship_controller, &chat);
+  player_manager.Initialize(&ship_controller, &chat, &notifications);
   weapon_manager.Initialize(&ship_controller);
 }
 
@@ -308,6 +308,7 @@ void Game::RenderGame(float dt) {
     }
 
     chat.Render(ui_camera, sprite_renderer);
+    notifications.Render(ui_camera, sprite_renderer);
 
     if (menu_open) {
       RenderMenu();

@@ -5,6 +5,7 @@
 #include "InputState.h"
 #include "LvzController.h"
 #include "Memory.h"
+#include "Notification.h"
 #include "PlayerManager.h"
 #include "Radar.h"
 #include "ShipController.h"
@@ -40,6 +41,7 @@ struct PrizeGreen {
 struct Game {
   MemoryArena& perm_arena;
   MemoryArena& temp_arena;
+  NotificationSystem notifications;
   AnimationSystem animation;
   PacketDispatcher dispatcher;
   Connection connection;
