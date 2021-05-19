@@ -85,10 +85,10 @@ struct WeaponManager {
 
   void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer);
-  WeaponSimulateResult Simulate(Weapon& weapon, u32 current_tick, float dt);
+  WeaponSimulateResult Simulate(Weapon& weapon, u32 current_tick);
 
   bool SimulateAxis(Weapon& weapon, float dt, int axis);
-  WeaponSimulateResult SimulatePosition(Weapon& weapon, float dt);
+  WeaponSimulateResult SimulatePosition(Weapon& weapon);
 
   void AddLinkRemoval(u32 link_id, WeaponSimulateResult result);
   bool HasLinkRemoved(u32 link_id);

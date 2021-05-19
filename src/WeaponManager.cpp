@@ -36,46 +36,56 @@ void WeaponManager::Update(float dt) {
   // TODO: Remove if player enters safe
   for (size_t i = 0; i < weapon_count; ++i) {
     Weapon* weapon = weapons + i;
-    WeaponSimulateResult result = Simulate(*weapon, tick, dt);
 
-    if (result != WeaponSimulateResult::Continue && weapon->link_id != kInvalidLink) {
-      AddLinkRemoval(weapon->link_id, result);
-    }
+    s32 tick_count = TICK_DIFF(tick, weapon->last_tick);
 
-    if (result == WeaponSimulateResult::PlayerExplosion || result == WeaponSimulateResult::WallExplosion) {
-      CreateExplosion(*weapon);
-      weapons[i--] = weapons[--weapon_count];
-      continue;
-    } else if (result == WeaponSimulateResult::TimedOut) {
-      weapons[i--] = weapons[--weapon_count];
-      continue;
-    }
+    for (s32 j = 0; j < tick_count; ++j) {
+      WeaponSimulateResult result = WeaponSimulateResult::Continue;
 
-    if (weapon->animation.sprite) {
-      weapon->animation.t += dt;
+      result = Simulate(*weapon, tick);
+      weapon->last_tick = tick;
 
-      if (!weapon->animation.IsAnimating() && weapon->animation.repeat) {
-        weapon->animation.t -= weapon->animation.sprite->duration;
+      if (result != WeaponSimulateResult::Continue && weapon->link_id != kInvalidLink) {
+        AddLinkRemoval(weapon->link_id, result);
       }
 
-      if (weapon->data.type == (u16)WeaponType::Bullet || weapon->data.type == (u16)WeaponType::BouncingBullet) {
-        if (TICK_DIFF(tick, weapon->last_trail_tick) >= 1) {
-          SpriteRenderable& frame = Graphics::anim_bullet_trails[weapon->data.level].frames[0];
-          Vector2f offset = (frame.dimensions * (0.5f / 16.0f));
-          Vector2f position = weapon->position - offset.PixelRounded();
+      if (result == WeaponSimulateResult::PlayerExplosion || result == WeaponSimulateResult::WallExplosion) {
+        CreateExplosion(*weapon);
+        weapons[i--] = weapons[--weapon_count];
+        break;
+      } else if (result == WeaponSimulateResult::TimedOut) {
+        weapons[i--] = weapons[--weapon_count];
+        break;
+      }
 
-          animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
-          weapon->last_trail_tick = tick;
+      if (weapon->animation.sprite) {
+        weapon->animation.t += dt;
+
+        if (!weapon->animation.IsAnimating() && weapon->animation.repeat) {
+          weapon->animation.t -= weapon->animation.sprite->duration;
         }
-      } else if ((weapon->data.type == (u16)WeaponType::Bomb || weapon->data.type == (u16)WeaponType::ProximityBomb) &&
-                 !weapon->data.alternate) {
-        if (TICK_DIFF(tick, weapon->last_trail_tick) >= 5) {
-          SpriteRenderable& frame = Graphics::anim_bomb_trails[weapon->data.level].frames[0];
-          Vector2f offset = (frame.dimensions * (0.5f / 16.0f));
-          Vector2f position = weapon->position - offset.PixelRounded();
 
-          animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
-          weapon->last_trail_tick = tick;
+        if (weapon->data.type == (u16)WeaponType::Bullet || weapon->data.type == (u16)WeaponType::BouncingBullet) {
+          if (TICK_DIFF(tick, weapon->last_trail_tick) >= 1) {
+            SpriteRenderable& frame = Graphics::anim_bullet_trails[weapon->data.level].frames[0];
+            Vector2f offset = (frame.dimensions * (0.5f / 16.0f));
+            Vector2f position = weapon->position - offset.PixelRounded();
+
+            animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], position)->layer =
+                Layer::AfterTiles;
+            weapon->last_trail_tick = tick;
+          }
+        } else if ((weapon->data.type == (u16)WeaponType::Bomb ||
+                    weapon->data.type == (u16)WeaponType::ProximityBomb) &&
+                   !weapon->data.alternate) {
+          if (TICK_DIFF(tick, weapon->last_trail_tick) >= 5) {
+            SpriteRenderable& frame = Graphics::anim_bomb_trails[weapon->data.level].frames[0];
+            Vector2f offset = (frame.dimensions * (0.5f / 16.0f));
+            Vector2f position = weapon->position - offset.PixelRounded();
+
+            animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
+            weapon->last_trail_tick = tick;
+          }
         }
       }
     }
@@ -109,7 +119,7 @@ void WeaponManager::Update(float dt) {
   }
 }
 
-WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, float dt) {
+WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick) {
   WeaponType type = (WeaponType)weapon.data.type;
 
   if (current_tick >= weapon.end_tick) return WeaponSimulateResult::TimedOut;
@@ -117,7 +127,9 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
   // TODO: Implement velocity changes
   if (type == WeaponType::Repel) return WeaponSimulateResult::Continue;
 
-  WeaponSimulateResult position_result = SimulatePosition(weapon, dt);
+  Vector2f previous_position = weapon.position;
+
+  WeaponSimulateResult position_result = SimulatePosition(weapon);
 
   if (position_result != WeaponSimulateResult::Continue) {
     return position_result;
@@ -146,6 +158,8 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
       if (ship_controller) {
         ship_controller->OnWeaponHit(weapon);
       }
+
+      weapon.position = previous_position;
 
       return WeaponSimulateResult::PlayerExplosion;
     } else {
@@ -188,6 +202,8 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
     Vector2f max_w(weapon.position.x + weapon_radius, weapon.position.y + weapon_radius);
 
     if (BoxBoxOverlap(pos - player_r, pos + player_r, min_w, max_w)) {
+      bool hit = true;
+
       if (is_prox) {
         weapon.prox_hit_player_id = player->id;
         weapon.sensor_end_tick = GetCurrentTick() + connection.settings.BombExplodeDelay;
@@ -201,11 +217,28 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick, f
           weapon.prox_highest_offset = dy;
         }
 
-        return WeaponSimulateResult::Continue;
-      } else if ((is_bomb || player->id == player_manager.player_id) && !HasLinkRemoved(weapon.link_id)) {
+        weapon_radius = 4.0f / 16.0f;
+
+        min_w = Vector2f(weapon.position.x - weapon_radius, weapon.position.y - weapon_radius);
+        max_w = Vector2f(weapon.position.x + weapon_radius, weapon.position.y + weapon_radius);
+
+        // Fully trigger the bomb if it hits the player's normal radius check
+        hit = BoxBoxOverlap(pos - player_r, pos + player_r, min_w, max_w);
+
+        if (!hit) {
+          return WeaponSimulateResult::Continue;
+        }
+      }
+
+      if (hit && (is_bomb || player->id == player_manager.player_id) && !HasLinkRemoved(weapon.link_id)) {
         if (ship_controller) {
           ship_controller->OnWeaponHit(weapon);
         }
+      }
+
+      // Move the position back so shrap spawns correctly
+      if (type == WeaponType::Bomb || type == WeaponType::ProximityBomb) {
+        weapon.position = previous_position;
       }
 
       return WeaponSimulateResult::PlayerExplosion;
@@ -232,46 +265,39 @@ bool WeaponManager::SimulateAxis(Weapon& weapon, float dt, int axis) {
   return false;
 }
 
-WeaponSimulateResult WeaponManager::SimulatePosition(Weapon& weapon, float dt) {
+WeaponSimulateResult WeaponManager::SimulatePosition(Weapon& weapon) {
   WeaponType type = (WeaponType)weapon.data.type;
 
-  u32 tick = GetCurrentTick();
-  s32 tick_count = TICK_DIFF(tick, weapon.last_tick);
-
   // This collision method deviates from Continuum when using variable update rate, so it updates by one tick at a time
-  for (s32 i = 0; i < tick_count; ++i) {
-    bool x_collide = SimulateAxis(weapon, 1.0f / 100.0f, 0);
-    bool y_collide = SimulateAxis(weapon, 1.0f / 100.0f, 1);
+  bool x_collide = SimulateAxis(weapon, 1.0f / 100.0f, 0);
+  bool y_collide = SimulateAxis(weapon, 1.0f / 100.0f, 1);
 
-    if (x_collide || y_collide) {
-      if ((type == WeaponType::Bullet || type == WeaponType::BouncingBullet) && weapon.data.shrap > 0) {
-        s32 remaining = weapon.end_tick - tick;
-        s32 duration = connection.settings.BulletAliveTime - remaining;
+  if (x_collide || y_collide) {
+    if ((type == WeaponType::Bullet || type == WeaponType::BouncingBullet) && weapon.data.shrap > 0) {
+      s32 remaining = weapon.end_tick - GetCurrentTick();
+      s32 duration = connection.settings.BulletAliveTime - remaining;
 
-        if (remaining < 0 || duration <= 25) {
-          return WeaponSimulateResult::TimedOut;
-        }
-      }
-
-      if (type == WeaponType::Bullet || type == WeaponType::Bomb || type == WeaponType::ProximityBomb) {
-        if (weapon.bounces_remaining == 0) {
-          if ((type == WeaponType::Bomb || type == WeaponType::ProximityBomb) && ship_controller) {
-            ship_controller->OnWeaponHit(weapon);
-          }
-
-          return WeaponSimulateResult::WallExplosion;
-        }
-
-        if (--weapon.bounces_remaining == 0 && !(weapon.flags & WEAPON_FLAG_EMP)) {
-          weapon.animation.sprite = Graphics::anim_bombs + weapon.data.level;
-        }
-      } else if (type == WeaponType::Burst) {
-        weapon.flags |= WEAPON_FLAG_BURST_ACTIVE;
-        weapon.animation.sprite = &Graphics::anim_burst_active;
+      if (remaining < 0 || duration <= 25) {
+        return WeaponSimulateResult::TimedOut;
       }
     }
 
-    weapon.last_tick = tick;
+    if (type == WeaponType::Bullet || type == WeaponType::Bomb || type == WeaponType::ProximityBomb) {
+      if (weapon.bounces_remaining == 0) {
+        if ((type == WeaponType::Bomb || type == WeaponType::ProximityBomb) && ship_controller) {
+          ship_controller->OnWeaponHit(weapon);
+        }
+
+        return WeaponSimulateResult::WallExplosion;
+      }
+
+      if (--weapon.bounces_remaining == 0 && !(weapon.flags & WEAPON_FLAG_EMP)) {
+        weapon.animation.sprite = Graphics::anim_bombs + weapon.data.level;
+      }
+    } else if (type == WeaponType::Burst) {
+      weapon.flags |= WEAPON_FLAG_BURST_ACTIVE;
+      weapon.animation.sprite = &Graphics::anim_burst_active;
+    }
   }
 
   return WeaponSimulateResult::Continue;
@@ -595,7 +621,7 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   WeaponSimulateResult result = WeaponSimulateResult::Continue;
 
   for (s32 i = 0; i < tick_diff; ++i) {
-    result = Simulate(*weapon, GetCurrentTick(), 1.0f / 100.0f);
+    result = Simulate(*weapon, GetCurrentTick());
 
     if (result != WeaponSimulateResult::Continue) {
       if (type == WeaponType::Repel) {
