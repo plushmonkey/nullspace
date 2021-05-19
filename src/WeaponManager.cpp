@@ -62,7 +62,7 @@ void WeaponManager::Update(float dt) {
         if (TICK_DIFF(tick, weapon->last_trail_tick) >= 1) {
           SpriteRenderable& frame = Graphics::anim_bullet_trails[weapon->data.level].frames[0];
           Vector2f offset = (frame.dimensions * (0.5f / 16.0f));
-          Vector2f position = weapon->position.PixelRounded() - offset.PixelRounded();
+          Vector2f position = weapon->position - offset.PixelRounded();
 
           animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
           weapon->last_trail_tick = tick;
@@ -72,7 +72,7 @@ void WeaponManager::Update(float dt) {
         if (TICK_DIFF(tick, weapon->last_trail_tick) >= 5) {
           SpriteRenderable& frame = Graphics::anim_bomb_trails[weapon->data.level].frames[0];
           Vector2f offset = (frame.dimensions * (0.5f / 16.0f));
-          Vector2f position = weapon->position.PixelRounded() - offset.PixelRounded();
+          Vector2f position = weapon->position - offset.PixelRounded();
 
           animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
           weapon->last_trail_tick = tick;
@@ -244,6 +244,15 @@ WeaponSimulateResult WeaponManager::SimulatePosition(Weapon& weapon, float dt) {
     bool y_collide = SimulateAxis(weapon, 1.0f / 100.0f, 1);
 
     if (x_collide || y_collide) {
+      if ((type == WeaponType::Bullet || type == WeaponType::BouncingBullet) && weapon.data.shrap > 0) {
+        s32 remaining = weapon.end_tick - tick;
+        s32 duration = connection.settings.BulletAliveTime - remaining;
+
+        if (remaining < 0 || duration <= 25) {
+          return WeaponSimulateResult::TimedOut;
+        }
+      }
+
       if (type == WeaponType::Bullet || type == WeaponType::Bomb || type == WeaponType::ProximityBomb) {
         if (weapon.bounces_remaining == 0) {
           if ((type == WeaponType::Bomb || type == WeaponType::ProximityBomb) && ship_controller) {
@@ -301,10 +310,21 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
         animation.AddAnimation(Graphics::anim_bomb_explode, weapon.position - offset)->layer = Layer::Explosions;
       }
 
-      for (size_t i = 0; i < weapon.data.shrap && type != WeaponType::Thor; ++i) {
-        float angle = (i / (float)weapon.data.shrap) * 2.0f * 3.14159f;
+      s32 count = weapon.data.shrap;
 
-        Vector2f direction(sin(angle), cos(angle));
+      VieRNG rng = {(s32)weapon.rng_seed};
+
+      for (s32 i = 0; i < count; ++i) {
+        s32 orientation = 0;
+
+        if (!connection.settings.ShrapnelRandom) {
+          orientation = (i * 40000) / count * 9;
+        } else {
+          orientation = (rng.GetNext() % 40000) * 9;
+        }
+
+        Vector2f direction(sin(Radians(orientation / 1000.0f)), -cos(Radians(orientation / 1000.0f)));
+
         float speed = connection.settings.ShrapnelSpeed / 10.0f / 16.0f;
 
         Weapon* shrap = weapons + weapon_count++;
@@ -320,19 +340,21 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
           shrap->data.type = (u16)WeaponType::Bullet;
           shrap->animation.sprite = Graphics::anim_shrapnel + weapon.data.shraplevel;
         }
-        shrap->end_tick = GetCurrentTick() + connection.settings.BulletAliveTime;
         shrap->flags = 0;
         shrap->frequency = weapon.frequency;
         shrap->link_id = 0xFFFFFFFF;
         shrap->player_id = weapon.player_id;
-        shrap->velocity = direction * speed;
-        shrap->position = weapon.position + shrap->velocity * (1.0f / 100.0f);
+        shrap->velocity = Normalize(direction) * speed;
+        shrap->position = weapon.position;
         shrap->last_tick = GetCurrentTick();
+        shrap->end_tick = shrap->last_tick + connection.settings.BulletAliveTime;
 
         if (connection.map.IsSolid((u16)shrap->position.x, (u16)shrap->position.y)) {
           --weapon_count;
         }
       }
+
+      weapon.rng_seed = (u32)rng.seed;
     } break;
     case WeaponType::BouncingBullet:
     case WeaponType::Bullet: {
@@ -377,6 +399,16 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer) {
   }
 }
 
+u32 WeaponManager::CalculateRngSeed(u32 x, u32 y, u32 vel_x, u32 vel_y, u16 shrap_count, u16 weapon_level,
+                                    u32 frequency) {
+  u32 x1000 = (u32)(x * 1000);
+  u32 y1000 = (u32)(y * 1000);
+  u32 x_vel = (u32)(vel_x);
+  u32 y_vel = (u32)(vel_y);
+
+  return shrap_count + weapon_level + x1000 + y1000 + x_vel + y_vel + frequency;
+}
+
 void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
   NetworkBuffer buffer(pkt, size, size);
 
@@ -387,8 +419,7 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
   u16 x = buffer.ReadU16();
   s16 vel_y = (s16)buffer.ReadU16();
   u16 pid = buffer.ReadU16();
-
-  Vector2f velocity((s16)buffer.ReadU16() / 16.0f / 10.0f, vel_y / 16.0f / 10.0f);
+  s16 vel_x = (s16)buffer.ReadU16();
   u8 checksum = buffer.ReadU8();
   buffer.ReadU8();  // Togglables
   u8 ping = buffer.ReadU8();
@@ -408,12 +439,13 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
   if (!player) return;
 
   Vector2f position(x / 16.0f, y / 16.0f);
+  Vector2f velocity(vel_x / 16.0f / 10.0f, vel_y / 16.0f / 10.0f);
   WeaponData data = *(WeaponData*)&weapon_data;
 
-  FireWeapons(*player, data, position, velocity, local_timestamp);
+  FireWeapons(*player, data, x, y, vel_x, vel_y, local_timestamp);
 }
 
-void WeaponManager::FireWeapons(Player& player, WeaponData weapon, const Vector2f& position, const Vector2f& velocity,
+void WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u32 pos_y, s32 vel_x, s32 vel_y,
                                 u32 timestamp) {
   ShipSettings& ship_settings = connection.settings.ShipSettings[player.ship];
   WeaponType type = (WeaponType)weapon.type;
@@ -435,19 +467,21 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, const Vector2
       Vector2f perp = Perpendicular(heading);
       Vector2f offset = perp * (ship_settings.GetRadius() * 0.75f);
 
-      result = GenerateWeapon(pid, weapon, timestamp, position - offset, velocity, heading, link_id);
+      result = GenerateWeapon(pid, weapon, timestamp, pos_x - (u32)(offset.x * 16.0f), pos_y - (u32)(offset.y * 16.0f),
+                              vel_x, vel_y, heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         AddLinkRemoval(link_id, result);
         destroy_link = true;
       }
 
-      result = GenerateWeapon(pid, weapon, timestamp, position + offset, velocity, heading, link_id);
+      result = GenerateWeapon(pid, weapon, timestamp, pos_x + (u32)(offset.x * 16.0f), pos_y + (u32)(offset.y * 16.0f),
+                              vel_x, vel_y, heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         AddLinkRemoval(link_id, result);
         destroy_link = true;
       }
     } else {
-      result = GenerateWeapon(pid, weapon, timestamp, position, velocity, heading, link_id);
+      result = GenerateWeapon(pid, weapon, timestamp, pos_x, pos_y, vel_x, vel_y, heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         AddLinkRemoval(link_id, result);
         destroy_link = true;
@@ -459,12 +493,12 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, const Vector2
       Vector2f first_heading = Rotate(heading, rads);
       Vector2f second_heading = Rotate(heading, -rads);
 
-      result = GenerateWeapon(pid, weapon, timestamp, position, velocity, first_heading, link_id);
+      result = GenerateWeapon(pid, weapon, timestamp, pos_x, pos_y, vel_x, vel_y, first_heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         AddLinkRemoval(link_id, result);
         destroy_link = true;
       }
-      result = GenerateWeapon(pid, weapon, timestamp, position, velocity, second_heading, link_id);
+      result = GenerateWeapon(pid, weapon, timestamp, pos_x, pos_y, vel_x, vel_y, second_heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         AddLinkRemoval(link_id, result);
         destroy_link = true;
@@ -487,21 +521,21 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, const Vector2
       s32 orientation = (i * 40000) / count * 9;
       Vector2f direction(sin(Radians(orientation / 1000.0f)), -cos(Radians(orientation / 1000.0f)));
 
-      GenerateWeapon(pid, weapon, timestamp, position, Vector2f(0, 0), direction, kInvalidLink);
+      GenerateWeapon(pid, weapon, timestamp, pos_x, pos_y, 0, 0, direction, kInvalidLink);
     }
   } else {
-    GenerateWeapon(pid, weapon, timestamp, position, velocity, OrientationToHeading(direction), kInvalidLink);
+    GenerateWeapon(pid, weapon, timestamp, pos_x, pos_y, vel_x, vel_y, OrientationToHeading(direction), kInvalidLink);
   }
 }
 
 WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp,
-                                                   const Vector2f& position, const Vector2f& velocity,
-                                                   const Vector2f& heading, u32 link_id) {
+                                                   u32 pos_x, u32 pos_y, s32 vel_x, s32 vel_y, const Vector2f& heading,
+                                                   u32 link_id) {
   Weapon* weapon = weapons + weapon_count++;
 
   weapon->data = weapon_data;
   weapon->player_id = player_id;
-  weapon->position = position;
+  weapon->position = Vector2f(pos_x / 16.0f, pos_y / 16.0f);
   weapon->bounces_remaining = 0;
   weapon->flags = 0;
   weapon->link_id = link_id;
@@ -551,7 +585,7 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   bool is_mine = (type == WeaponType::Bomb || type == WeaponType::ProximityBomb) && weapon->data.alternate;
 
   if (type != WeaponType::Repel && !is_mine) {
-    weapon->velocity = velocity + heading * (speed / 16.0f / 10.0f);
+    weapon->velocity = Vector2f(vel_x / 16.0f / 10.0f, vel_y / 16.0f / 10.0f) + heading * (speed / 16.0f / 10.0f);
   } else {
     weapon->velocity = Vector2f(0, 0);
   }
@@ -568,7 +602,8 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
         // Create an animation even if the repel was instant.
         Vector2f offset = Graphics::anim_repel.frames[0].dimensions * (0.5f / 16.0f);
 
-        Animation* anim = animation.AddAnimation(Graphics::anim_repel, position.PixelRounded() - offset.PixelRounded());
+        Animation* anim =
+            animation.AddAnimation(Graphics::anim_repel, weapon->position.PixelRounded() - offset.PixelRounded());
         anim->layer = Layer::AfterShips;
         anim->repeat = false;
       }
@@ -578,6 +613,12 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
       return result;
     }
   }
+
+  vel_x = (s32)(weapon->velocity.x * 16.0f * 10.0f);
+  vel_y = (s32)(weapon->velocity.y * 16.0f * 10.0f);
+
+  weapon->rng_seed =
+      CalculateRngSeed(pos_x, pos_y, vel_x, vel_y, weapon_data.shrap, weapon_data.level, player->frequency);
 
   weapon->animation.t = 0.0f;
   weapon->animation.sprite = nullptr;
@@ -621,7 +662,8 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
     case WeaponType::Repel: {
       Vector2f offset = Graphics::anim_repel.frames[0].dimensions * (0.5f / 16.0f);
 
-      Animation* anim = animation.AddAnimation(Graphics::anim_repel, position.PixelRounded() - offset.PixelRounded());
+      Animation* anim =
+          animation.AddAnimation(Graphics::anim_repel, weapon->position.PixelRounded() - offset.PixelRounded());
       anim->layer = Layer::AfterShips;
       anim->repeat = false;
 

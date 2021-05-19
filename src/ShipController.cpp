@@ -231,7 +231,12 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
     if (connection.map.GetTileId((u16)self.position.x, (u16)self.position.y) == kTileSafe) {
       self.velocity = Vector2f(0, 0);
     } else if (self.energy > energy_cost) {
-      weapon_manager.FireWeapons(self, self.weapon, self.position, self.velocity, GetCurrentTick());
+      u32 x = (u32)(self.position.x * 16);
+      u32 y = (u32)(self.position.y * 16);
+      s32 vel_x = (s32)(self.velocity.x * 16.0f * 10.0f);
+      s32 vel_y = (s32)(self.velocity.y * 16.0f * 10.0f);
+
+      weapon_manager.FireWeapons(self, self.weapon, x, y, vel_x, vel_y, GetCurrentTick());
       self.energy -= energy_cost;
       player_manager.SendPositionPacket();
     }
@@ -860,15 +865,27 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
   if (!shooter) return;
 
   int damage = 0;
+
   switch (type) {
     case WeaponType::Bullet:
     case WeaponType::BouncingBullet: {
-      // if (connection.settings.ExactDamage) {
-      if (1) {
+      if (weapon.data.shrap > 0) {
+        s32 remaining = weapon.end_tick - GetCurrentTick();
+        s32 duration = connection.settings.BulletAliveTime - remaining;
+
+        if (duration <= 25) {
+          damage = connection.settings.InactiveShrapDamage / 1000;
+        } else {
+          float multiplier = connection.settings.ShrapnelDamagePercent / 1000.0f;
+
+          damage = (connection.settings.BulletDamageLevel / 1000) +
+                   (connection.settings.BulletDamageUpgrade / 1000) * weapon.data.level;
+
+          damage = (int)(damage * multiplier);
+        }
+      } else {
         damage = (connection.settings.BulletDamageLevel / 1000) +
                  (connection.settings.BulletDamageUpgrade / 1000) * weapon.data.level;
-      } else {
-        // TODO: random
       }
     } break;
     case WeaponType::Thor:
@@ -931,6 +948,12 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
     } break;
     default: {
     } break;
+  }
+
+  if (!connection.settings.ExactDamage &&
+      (type == WeaponType::Bullet || type == WeaponType::BouncingBullet || type == WeaponType::Burst)) {
+    u32 r = (rand() * 1000) % (damage * damage + 1);
+    damage = (s32)sqrt(r);
   }
 
   if (damage <= 0) return;

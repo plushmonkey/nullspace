@@ -34,10 +34,11 @@ struct Weapon {
       float prox_highest_offset;
 
       u32 sensor_end_tick;
+      u32 rng_seed;
     };
     float initial_orientation;
   };
-  
+
   u32 last_trail_tick;
   u32 bounces_remaining = 0;
 
@@ -94,13 +95,13 @@ struct WeaponManager {
 
   void CreateExplosion(Weapon& weapon);
 
-  void OnWeaponPacket(u8* pkt, size_t size);
-  void FireWeapons(Player& player, WeaponData weapon, const Vector2f& position, const Vector2f& velocity,
-                   u32 timestamp);
+  u32 CalculateRngSeed(u32 x, u32 y, u32 vel_x, u32 vel_y, u16 shrap_count, u16 weapon_level, u32 frequency);
 
-  WeaponSimulateResult GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp,
-                                      const Vector2f& position, const Vector2f& velocity, const Vector2f& heading,
-                                      u32 link_id);
+  void OnWeaponPacket(u8* pkt, size_t size);
+  void FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u32 pos_y, s32 vel_x, s32 vel_y, u32 timestamp);
+
+  WeaponSimulateResult GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp, u32 pos_x, u32 pos_y,
+                                      s32 vel_x, s32 vel_y, const Vector2f& heading, u32 link_id);
 };
 
 }  // namespace null
