@@ -660,9 +660,7 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   weapon->flags = 0;
   weapon->link_id = link_id;
   weapon->prox_hit_player_id = 0xFFFF;
-  weapon->last_tick = 0;
-  weapon->last_event_position = weapon->position;
-  weapon->last_event_time = GetTime();
+  weapon->last_tick = local_timestamp;
 
   WeaponType type = (WeaponType)weapon->data.type;
 
@@ -736,7 +734,8 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
     }
   }
 
-  weapon->last_tick = GetCurrentTick();
+  weapon->last_event_position = weapon->position;
+  weapon->last_event_time = GetTime();
 
   vel_x = (s32)(weapon->velocity.x * 16.0f * 10.0f);
   vel_y = (s32)(weapon->velocity.y * 16.0f * 10.0f);
