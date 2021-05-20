@@ -13,9 +13,14 @@ constexpr u32 kInvalidLink = 0xFFFFFFFF;
 #define WEAPON_FLAG_EMP (1 << 0)
 #define WEAPON_FLAG_BURST_ACTIVE (1 << 1)
 
+// TODO: This weapon struct is pretty large. It could be broken into multiple pieces to increase iteration speed if
+// performance is ever a concern.
 struct Weapon {
   Vector2f position;
   Vector2f velocity;
+
+  Vector2f last_event_position;
+  u64 last_event_time;
 
   u32 last_tick;
   u32 end_tick;
@@ -106,6 +111,8 @@ struct WeaponManager {
                                       s32 vel_x, s32 vel_y, const Vector2f& heading, u32 link_id);
 
   void ClearWeapons(Player& player);
+
+  u64 GetTime();
 };
 
 }  // namespace null

@@ -1,6 +1,7 @@
 #include "WeaponManager.h"
 
 #include <cassert>
+#include <chrono>
 #include <cmath>
 
 #include "Buffer.h"
@@ -249,10 +250,13 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
   float effect_radius_sq = effect_radius * effect_radius;
   float speed = connection.settings.RepelSpeed / 16.0f / 10.0f;
 
+  u64 time = GetTime();
+
   for (size_t i = 0; i < weapon_count; ++i) {
     Weapon& other = weapons[i];
 
     if (other.frequency == weapon.frequency) continue;
+    if (other.data.type == (u16)WeaponType::Repel) continue;
 
     float dist_sq = other.position.DistanceSq(weapon.position);
 
@@ -260,6 +264,9 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
       Vector2f direction = Normalize(other.position - weapon.position);
 
       other.velocity = direction * speed;
+      other.last_event_time = time;
+      other.last_event_position = other.position;
+
       WeaponType type = (WeaponType)other.data.type;
 
       if (other.data.alternate && (type == WeaponType::Bomb || type == WeaponType::ProximityBomb)) {
@@ -320,6 +327,9 @@ WeaponSimulateResult WeaponManager::SimulatePosition(Weapon& weapon) {
   bool y_collide = SimulateAxis(weapon, 1.0f / 100.0f, 1);
 
   if (x_collide || y_collide) {
+    weapon.last_event_time = GetTime();
+    weapon.last_event_position = weapon.position;
+
     if ((type == WeaponType::Bullet || type == WeaponType::BouncingBullet) && weapon.data.shrap > 0) {
       s32 remaining = weapon.end_tick - GetCurrentTick();
       s32 duration = connection.settings.BulletAliveTime - remaining;
@@ -432,6 +442,8 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
         shrap->position = weapon.position;
         shrap->last_tick = GetCurrentTick();
         shrap->end_tick = shrap->last_tick + connection.settings.BulletAliveTime;
+        shrap->last_event_position = shrap->position;
+        shrap->last_event_time = GetTime();
 
         if (connection.map.IsSolid((u16)shrap->position.x, (u16)shrap->position.y)) {
           --weapon_count;
@@ -463,11 +475,19 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer, float dt) {
       }
     }
 
+    u64 time = GetTime();
+    float elapsed_seconds = (time - weapon->last_event_time) / 1000000.0f;
+    Vector2f travel_ray = elapsed_seconds * weapon->velocity;
+
+    // TODO: This is pretty heavy. Maybe make it an option to toggle off and just use the simulated position
+    CastResult cast = connection.map.Cast(weapon->last_event_position, Normalize(travel_ray), travel_ray.Length());
+    Vector2f extrapolated_pos = cast.position;
+
     if (weapon->animation.IsAnimating()) {
       SpriteRenderable& frame = weapon->animation.GetFrame();
-      Vector2f position = weapon->position - frame.dimensions * (0.5f / 16.0f);
+      Vector2f position = extrapolated_pos - frame.dimensions * (0.5f / 16.0f);
 
-      renderer.Draw(camera, frame, position, Layer::Weapons);
+      renderer.Draw(camera, frame, position.PixelRounded(), Layer::Weapons);
     } else if (weapon->data.type == (u16)WeaponType::Decoy) {
       Player* player = player_manager.GetPlayerById(weapon->player_id);
       if (player) {
@@ -484,7 +504,7 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer, float dt) {
 
         size_t index = player->ship * 40 + direction;
         SpriteRenderable& frame = Graphics::ship_sprites[index];
-        Vector2f position = weapon->position - frame.dimensions * (0.5f / 16.0f);
+        Vector2f position = extrapolated_pos - frame.dimensions * (0.5f / 16.0f);
 
         renderer.Draw(camera, frame, position.PixelRounded(), Layer::Ships);
       }
@@ -634,6 +654,8 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   weapon->link_id = link_id;
   weapon->prox_hit_player_id = 0xFFFF;
   weapon->last_tick = 0;
+  weapon->last_event_position = weapon->position;
+  weapon->last_event_time = GetTime();
 
   WeaponType type = (WeaponType)weapon->data.type;
 
@@ -723,6 +745,12 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   SetWeaponSprite(*player, *weapon);
 
   return result;
+}
+
+u64 WeaponManager::GetTime() {
+  return std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now())
+      .time_since_epoch()
+      .count();
 }
 
 void WeaponManager::SetWeaponSprite(Player& player, Weapon& weapon) {

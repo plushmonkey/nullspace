@@ -185,6 +185,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       }
 
       used_weapon = true;
+      next_bomb_tick = tick + ship_settings.BombFireDelay;
     }
   } else if (input.IsDown(InputAction::Thor)) {
     if (TICK_GT(tick, next_bomb_tick)) {
@@ -194,6 +195,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       }
 
       used_weapon = true;
+      next_bomb_tick = tick + ship_settings.BombFireDelay;
     }
   } else if (input.IsDown(InputAction::Decoy)) {
     if (TICK_GT(tick, next_bomb_tick)) {
@@ -203,6 +205,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       }
 
       used_weapon = true;
+      next_bomb_tick = tick + ship_settings.BombFireDelay;
     }
   } else if (input.IsDown(InputAction::Bullet) && TICK_GT(tick, next_bullet_tick)) {
     // TODO: Real weapon data stored
