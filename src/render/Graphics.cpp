@@ -379,7 +379,7 @@ void Graphics::CreateBulletTrailAnimations(SpriteRenderable* renderables, int co
   for (size_t i = 0; i < 3; ++i) {
     anim_bullet_trails[i].frames = renderables + i * 14 + 3 * 14;
     anim_bullet_trails[i].frame_count = 14;
-    anim_bullet_trails[i].duration = 0.15f;
+    anim_bullet_trails[i].duration = 0.14f;
   }
   anim_bullet_trails[3] = anim_bullet_trails[2];
 }

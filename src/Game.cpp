@@ -291,7 +291,7 @@ void Game::RenderGame(float dt) {
 
   if (self) {
     animation.Render(camera, sprite_renderer);
-    weapon_manager.Render(camera, sprite_renderer);
+    weapon_manager.Render(camera, sprite_renderer, dt);
     player_manager.Render(camera, sprite_renderer, self_freq);
 
     sprite_renderer.Render(camera);

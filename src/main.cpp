@@ -85,6 +85,7 @@ enum class GameScreen { MainMenu, Playing };
 struct WindowState {
   InputState input;
   GameScreen screen = GameScreen::MainMenu;
+  Game* game = nullptr;
 };
 
 MemoryArena* perm_global = nullptr;
@@ -173,6 +174,7 @@ struct nullspace {
     }
 
     window_state.screen = GameScreen::Playing;
+    window_state.game = game;
 
     game->connection.SendEncryptionRequest(kEncryptMethod);
     return true;
@@ -308,6 +310,7 @@ struct nullspace {
           // Switch out of any active shaders so they can be cleaned up.
           glUseProgram(0);
           window_state.screen = GameScreen::MainMenu;
+          window_state.game = nullptr;
           game->Cleanup();
           continue;
         }
@@ -462,6 +465,7 @@ const ActionKey kDefaultKeys[] = {
     ActionKey(InputAction::XRadar, GLFW_KEY_END),
     ActionKey(InputAction::Repel, GLFW_KEY_LEFT_CONTROL, GLFW_MOD_SHIFT),
     ActionKey(InputAction::Repel, GLFW_KEY_RIGHT_CONTROL, GLFW_MOD_SHIFT),
+    ActionKey(InputAction::Repel, GLFW_KEY_GRAVE_ACCENT),
     ActionKey(InputAction::Warp, GLFW_KEY_INSERT),
     ActionKey(InputAction::Portal, GLFW_KEY_INSERT, GLFW_MOD_SHIFT),
     ActionKey(InputAction::Decoy, GLFW_KEY_F5),
@@ -532,22 +536,30 @@ static void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_
     int req_mods = kDefaultKeys[i].mods;
     if (kDefaultKeys[i].key == key && (req_mods & mods) == req_mods) {
       action = kDefaultKeys + i;
-      break;
+
+      if (key_action == GLFW_PRESS) {
+        window_state->input.SetAction(action->action, true);
+      } else if (key_action == GLFW_RELEASE) {
+        window_state->input.SetAction(action->action, false);
+      }
     }
-  }
-
-  if (!action) return;
-
-  if (key_action == GLFW_PRESS) {
-    window_state->input.SetAction(action->action, true);
-  } else if (key_action == GLFW_RELEASE) {
-    window_state->input.SetAction(action->action, false);
   }
 }
 
 void OnCharacter(GLFWwindow* window, unsigned int codepoint) {
   if (codepoint < 256) {
     WindowState* window_state = (WindowState*)glfwGetWindowUserPointer(window);
+
+    // Loop over the actions and don't send the keypress if the chat is currently empty
+    if (window_state->game) {
+      for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(kDefaultKeys); ++i) {
+        if (kDefaultKeys[i].key == codepoint) {
+          if (window_state->game->chat.input[0] == 0) {
+            return;
+          }
+        }
+      }
+    }
 
     window_state->input.OnCharacter((char)codepoint);
   }

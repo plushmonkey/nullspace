@@ -163,7 +163,48 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
   u16 energy_cost = 0;
 
-  if (input.IsDown(InputAction::Bullet) && TICK_GT(tick, next_bullet_tick)) {
+  bool in_safe = connection.map.GetTileId(self.position) == kTileSafeId;
+
+  // TODO: EMP item delays aren't the same as normal bomb tick
+
+  if (input.IsDown(InputAction::Repel)) {
+    if (TICK_GT(tick, next_bomb_tick)) {
+      if (ship.repels > 0 && !in_safe) {
+        self.weapon.type = (u16)WeaponType::Repel;
+        --ship.repels;
+      }
+
+      used_weapon = true;
+      next_bomb_tick = tick + ship_settings.BombFireDelay;
+    }
+  } else if (input.IsDown(InputAction::Burst)) {
+    if (TICK_GT(tick, next_bomb_tick)) {
+      if (ship.bursts > 0 && !in_safe) {
+        self.weapon.type = (u16)WeaponType::Burst;
+        --ship.bursts;
+      }
+
+      used_weapon = true;
+    }
+  } else if (input.IsDown(InputAction::Thor)) {
+    if (TICK_GT(tick, next_bomb_tick)) {
+      if (ship.thors > 0 && !in_safe) {
+        self.weapon.type = (u16)WeaponType::Thor;
+        --ship.thors;
+      }
+
+      used_weapon = true;
+    }
+  } else if (input.IsDown(InputAction::Decoy)) {
+    if (TICK_GT(tick, next_bomb_tick)) {
+      if (ship.decoys > 0 && !in_safe) {
+        self.weapon.type = (u16)WeaponType::Decoy;
+        --ship.decoys;
+      }
+
+      used_weapon = true;
+    }
+  } else if (input.IsDown(InputAction::Bullet) && TICK_GT(tick, next_bullet_tick)) {
     // TODO: Real weapon data stored
     if (ship.guns > 0) {
       self.weapon.level = ship.guns - 1;
@@ -959,11 +1000,17 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
   if (damage <= 0) return;
 
   if (self->energy < damage) {
-    connection.SendDeath(weapon.player_id, self->bounty);
+    bool is_bomb = (type == WeaponType::Bomb || type == WeaponType::ProximityBomb || type == WeaponType::Thor);
 
-    self->enter_delay = (connection.settings.EnterDelay / 100.0f) + self->explode_animation.sprite->duration;
-    self->explode_animation.t = 0.0f;
-    self->energy = 0;
+    if (is_bomb && shooter->id == self->id) {
+      self->energy = 1.0f;
+    } else {
+      connection.SendDeath(weapon.player_id, self->bounty);
+
+      self->enter_delay = (connection.settings.EnterDelay / 100.0f) + self->explode_animation.sprite->duration;
+      self->explode_animation.t = 0.0f;
+      self->energy = 0;
+    }
   } else {
     self->energy -= damage;
   }

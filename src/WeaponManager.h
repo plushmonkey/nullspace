@@ -84,9 +84,9 @@ struct WeaponManager {
   void Initialize(ShipController* ship_controller) { this->ship_controller = ship_controller; }
 
   void Update(float dt);
-  void Render(Camera& camera, SpriteRenderer& renderer);
-  WeaponSimulateResult Simulate(Weapon& weapon, u32 current_tick);
-  WeaponSimulateResult SimulateRepel(Weapon& weapon, u32 current_tick);
+  void Render(Camera& camera, SpriteRenderer& renderer, float dt);
+  WeaponSimulateResult Simulate(Weapon& weapon);
+  WeaponSimulateResult SimulateRepel(Weapon& weapon);
 
   bool SimulateAxis(Weapon& weapon, float dt, int axis);
   WeaponSimulateResult SimulatePosition(Weapon& weapon);

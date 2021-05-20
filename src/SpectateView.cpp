@@ -28,7 +28,7 @@ void SpectateView::Update(const InputState& input, float dt) {
   float spectate_speed = 30.0f * dt;
 
   if (input.IsDown(InputAction::Afterburner)) {
-    spectate_speed *= 2;
+    spectate_speed *= 2.5f;
   }
 
   bool moved = false;
