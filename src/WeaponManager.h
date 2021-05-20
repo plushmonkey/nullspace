@@ -102,6 +102,8 @@ struct WeaponManager {
 
   WeaponSimulateResult GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp, u32 pos_x, u32 pos_y,
                                       s32 vel_x, s32 vel_y, const Vector2f& heading, u32 link_id);
+
+  void ClearWeapons(Player& player);
 };
 
 }  // namespace null

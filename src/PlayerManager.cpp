@@ -398,6 +398,8 @@ void PlayerManager::OnPlayerLeave(u8* pkt, size_t size) {
   Player* player = GetPlayerById(pid, &index);
 
   if (player) {
+    weapon_manager->ClearWeapons(*player);
+
     printf("%s left arena\n", player->name);
 
     if (chat_controller) {
@@ -508,6 +510,8 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
     player->warp_animation.t = 0.0f;
     player->enter_delay = 0.0f;
     player->flags = 0;
+
+    weapon_manager->ClearWeapons(*player);
   }
 }
 

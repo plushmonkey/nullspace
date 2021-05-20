@@ -33,9 +33,15 @@ void WeaponManager::Update(float dt) {
   u32 tick = GetCurrentTick();
   link_removal_count = 0;
 
-  // TODO: Remove if player enters safe
   for (size_t i = 0; i < weapon_count; ++i) {
     Weapon* weapon = weapons + i;
+
+    Player* player = player_manager.GetPlayerById(weapon->player_id);
+
+    if (player && connection.map.GetTileId((u16)player->position.x, (u16)player->position.y) == kTileSafe) {
+      weapons[i--] = weapons[--weapon_count];
+      continue;
+    }
 
     s32 tick_count = TICK_DIFF(tick, weapon->last_tick);
 
@@ -301,6 +307,16 @@ WeaponSimulateResult WeaponManager::SimulatePosition(Weapon& weapon) {
   }
 
   return WeaponSimulateResult::Continue;
+}
+
+void WeaponManager::ClearWeapons(Player& player) {
+  for (size_t i = 0; i < weapon_count; ++i) {
+    Weapon* weapon = weapons + i;
+
+    if (weapon->player_id == player.id) {
+      weapons[i--] = weapons[--weapon_count];
+    }
+  }
 }
 
 bool WeaponManager::HasLinkRemoved(u32 link_id) {
