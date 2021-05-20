@@ -31,6 +31,7 @@ WeaponManager::WeaponManager(Connection& connection, PlayerManager& player_manag
 }
 
 void WeaponManager::Update(float dt) {
+  u64 time = GetTime();
   u32 tick = GetCurrentTick();
   link_removal_count = 0;
 
@@ -85,6 +86,12 @@ void WeaponManager::Update(float dt) {
           weapon->last_trail_tick = weapon->last_tick;
         }
       }
+    }
+
+    // Keep weapon render position synchronized with simulation
+    if (time - weapon->last_event_time >= 250000) {
+      weapon->last_event_time = time;
+      weapon->last_event_position = weapon->position;
     }
   }
 
