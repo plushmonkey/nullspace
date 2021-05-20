@@ -308,6 +308,8 @@ bool WeaponManager::SimulateAxis(Weapon& weapon, float dt, int axis) {
 
   weapon.position[axis] += weapon.velocity[axis] * dt;
 
+  if (weapon.data.type == (u16)WeaponType::Thor) return false;
+
   // TODO: Handle other special tiles here
   if (map.IsSolid((u16)weapon.position.x, (u16)weapon.position.y)) {
     weapon.position[axis] = previous;
@@ -478,10 +480,15 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer, float dt) {
     u64 time = GetTime();
     float elapsed_seconds = (time - weapon->last_event_time) / 1000000.0f;
     Vector2f travel_ray = elapsed_seconds * weapon->velocity;
+    Vector2f extrapolated_pos;
 
-    // TODO: This is pretty heavy. Maybe make it an option to toggle off and just use the simulated position
-    CastResult cast = connection.map.Cast(weapon->last_event_position, Normalize(travel_ray), travel_ray.Length());
-    Vector2f extrapolated_pos = cast.position;
+    if (weapon->data.type != (u16)WeaponType::Thor) {
+      // TODO: This is pretty heavy. Maybe make it an option to toggle off and just use the simulated position
+      CastResult cast = connection.map.Cast(weapon->last_event_position, Normalize(travel_ray), travel_ray.Length());
+      extrapolated_pos = cast.position;
+    } else {
+      extrapolated_pos = weapon->last_event_position + travel_ray;
+    }
 
     if (weapon->animation.IsAnimating()) {
       SpriteRenderable& frame = weapon->animation.GetFrame();
