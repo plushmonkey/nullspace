@@ -271,6 +271,17 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon, u32 current_ti
       Vector2f direction = Normalize(other.position - weapon.position);
 
       other.velocity = direction * speed;
+      WeaponType type = (WeaponType)other.data.type;
+
+      if (other.data.alternate && (type == WeaponType::Bomb || type == WeaponType::ProximityBomb)) {
+        other.data.alternate = 0;
+
+        Player* player = player_manager.GetPlayerById(other.player_id);
+
+        if (player) {
+          SetWeaponSprite(*player, other);
+        }
+      }
     }
   }
 
@@ -707,59 +718,67 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   weapon->animation.repeat = true;
   weapon->last_trail_tick = 0;
 
+  SetWeaponSprite(*player, *weapon);
+
+  return result;
+}
+
+void WeaponManager::SetWeaponSprite(Player& player, Weapon& weapon) {
+  WeaponType type = (WeaponType)weapon.data.type;
+
   switch (type) {
     case WeaponType::Bullet: {
-      weapon->animation.sprite = Graphics::anim_bullets + weapon->data.level;
+      weapon.animation.sprite = Graphics::anim_bullets + weapon.data.level;
     } break;
     case WeaponType::BouncingBullet: {
-      weapon->animation.sprite = Graphics::anim_bullets_bounce + weapon->data.level;
+      weapon.animation.sprite = Graphics::anim_bullets_bounce + weapon.data.level;
     } break;
     case WeaponType::ProximityBomb:
     case WeaponType::Bomb: {
-      bool emp = connection.settings.ShipSettings[player->ship].EmpBomb;
+      bool emp = connection.settings.ShipSettings[player.ship].EmpBomb;
 
-      if (weapon->data.alternate) {
+      if (weapon.data.alternate) {
         if (emp) {
-          weapon->animation.sprite = Graphics::anim_emp_mines + weapon->data.level;
-          weapon->flags |= WEAPON_FLAG_EMP;
+          weapon.animation.sprite = Graphics::anim_emp_mines + weapon.data.level;
+          weapon.flags |= WEAPON_FLAG_EMP;
         } else {
-          weapon->animation.sprite = Graphics::anim_mines + weapon->data.level;
+          weapon.animation.sprite = Graphics::anim_mines + weapon.data.level;
         }
       } else {
         if (emp) {
-          weapon->animation.sprite = Graphics::anim_emp_bombs + weapon->data.level;
-          weapon->flags |= WEAPON_FLAG_EMP;
+          weapon.animation.sprite = Graphics::anim_emp_bombs + weapon.data.level;
+          weapon.flags |= WEAPON_FLAG_EMP;
         } else {
-          if (weapon->bounces_remaining > 0) {
-            weapon->animation.sprite = Graphics::anim_bombs_bounceable + weapon->data.level;
+          if (weapon.bounces_remaining > 0) {
+            weapon.animation.sprite = Graphics::anim_bombs_bounceable + weapon.data.level;
           } else {
-            weapon->animation.sprite = Graphics::anim_bombs + weapon->data.level;
+            weapon.animation.sprite = Graphics::anim_bombs + weapon.data.level;
           }
         }
       }
     } break;
     case WeaponType::Thor: {
-      weapon->animation.sprite = &Graphics::anim_thor;
+      weapon.animation.sprite = &Graphics::anim_thor;
     } break;
     case WeaponType::Repel: {
       Vector2f offset = Graphics::anim_repel.frames[0].dimensions * (0.5f / 16.0f);
 
       Animation* anim =
-          animation.AddAnimation(Graphics::anim_repel, weapon->position.PixelRounded() - offset.PixelRounded());
+          animation.AddAnimation(Graphics::anim_repel, weapon.position.PixelRounded() - offset.PixelRounded());
       anim->layer = Layer::AfterShips;
       anim->repeat = false;
 
-      weapon->animation.sprite = nullptr;
-      weapon->animation.repeat = false;
+      weapon.animation.sprite = nullptr;
+      weapon.animation.repeat = false;
     } break;
     case WeaponType::Burst: {
-      weapon->animation.sprite = &Graphics::anim_burst_inactive;
+      weapon.animation.sprite = &Graphics::anim_burst_inactive;
     } break;
     default: {
     } break;
   }
 
-  return result;
+  weapon.animation.t = 0.0f;
 }
 
 }  // namespace null

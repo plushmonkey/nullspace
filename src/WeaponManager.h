@@ -95,6 +95,7 @@ struct WeaponManager {
   bool HasLinkRemoved(u32 link_id);
 
   void CreateExplosion(Weapon& weapon);
+  void SetWeaponSprite(Player& player, Weapon& weapon);
 
   u32 CalculateRngSeed(u32 x, u32 y, u32 vel_x, u32 vel_y, u16 shrap_count, u16 weapon_level, u32 frequency);
 
