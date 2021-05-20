@@ -95,7 +95,7 @@ void ShipController::Update(const InputState& input, float dt) {
 
   self->velocity.Truncate(ship.speed / 10.0f / 16.0f);
 
-  if (player_manager.connection.map.GetTileId((u16)self->position.x, (u16)self->position.y) == kTileSafe) {
+  if (player_manager.connection.map.GetTileId(self->position) == kTileSafeId) {
     self->togglables |= Status_Safety;
   } else {
     self->togglables &= ~Status_Safety;
@@ -228,7 +228,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       self.togglables |= Status_Flash;
     }
 
-    if (connection.map.GetTileId((u16)self.position.x, (u16)self.position.y) == kTileSafe) {
+    if (connection.map.GetTileId(self.position) == kTileSafeId) {
       self.velocity = Vector2f(0, 0);
     } else if (self.energy > energy_cost) {
       u32 x = (u32)(self.position.x * 16);
@@ -936,7 +936,7 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
         if ((weapon.flags & WEAPON_FLAG_EMP) && damage > 0 && self->id != shooter->id) {
           TileId tile_id = connection.map.GetTileId((u16)self->position.x, (u16)self->position.y);
 
-          if (tile_id != kTileSafe) {
+          if (tile_id != kTileSafeId) {
             u32 emp_time = (u32)((connection.settings.EBombShutdownTime * damage) / damage);
             // TODO: Set emp time
           }

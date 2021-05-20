@@ -24,13 +24,13 @@ struct CastResult {
 struct ArenaSettings;
 
 using TileId = u8;
-constexpr u32 kTileSafe = 171;
+constexpr u32 kTileSafeId = 171;
 
 constexpr size_t kAnimatedTileCount = 6;
 
 enum class AnimatedTile { Goal, AsteroidSmall1, AsteroidSmall2, AsteroidLarge, SpaceStation, Wormhole };
-constexpr TileId kAnimatedIds[] = { 172, 216, 218, 217, 219, 220 };
-constexpr size_t kAnimatedTileSizes[] = { 1, 1, 1, 2, 6, 5 };
+constexpr TileId kAnimatedIds[] = {172, 216, 218, 217, 219, 220};
+constexpr size_t kAnimatedTileSizes[] = {1, 1, 1, 2, 6, 5};
 
 struct AnimatedTileSet {
   size_t index;
@@ -43,6 +43,7 @@ struct Map {
 
   bool IsSolid(u16 x, u16 y) const;
   TileId GetTileId(u16 x, u16 y) const;
+  TileId GetTileId(const Vector2f& position) const;
 
   void UpdateDoors(const ArenaSettings& settings);
   void SeedDoors(u32 seed);

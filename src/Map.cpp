@@ -226,6 +226,8 @@ TileId Map::GetTileId(u16 x, u16 y) const {
   return tiles[y * 1024 + x];
 }
 
+TileId Map::GetTileId(const Vector2f& position) const { return GetTileId((u16)position.x, (u16)position.y); }
+
 bool Map::IsSolid(u16 x, u16 y) const {
   TileId id = GetTileId(x, y);
 
@@ -241,7 +243,7 @@ u32 Map::GetChecksum(u32 key) const {
   for (int y = basekey % 32; y < 1024; y += 32) {
     for (int x = basekey % 31; x < 1024; x += 31) {
       u8 tile = (u8)GetTileId(x, y);
-      if ((tile >= kTileStart && tile <= kTileEnd) || tile == kTileSafe) {
+      if ((tile >= kTileStart && tile <= kTileEnd) || tile == kTileSafeId) {
         key += basekey ^ tile;
       }
     }

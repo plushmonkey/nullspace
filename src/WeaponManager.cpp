@@ -38,7 +38,7 @@ void WeaponManager::Update(float dt) {
 
     Player* player = player_manager.GetPlayerById(weapon->player_id);
 
-    if (player && connection.map.GetTileId((u16)player->position.x, (u16)player->position.y) == kTileSafe) {
+    if (player && connection.map.GetTileId(player->position) == kTileSafeId) {
       weapons[i--] = weapons[--weapon_count];
       continue;
     }
@@ -130,8 +130,9 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick) {
 
   if (current_tick >= weapon.end_tick) return WeaponSimulateResult::TimedOut;
 
-  // TODO: Implement velocity changes
-  if (type == WeaponType::Repel) return WeaponSimulateResult::Continue;
+  if (type == WeaponType::Repel) {
+    return SimulateRepel(weapon, current_tick);
+  }
 
   Vector2f previous_position = weapon.position;
 
@@ -248,6 +249,45 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon, u32 current_tick) {
       }
 
       return WeaponSimulateResult::PlayerExplosion;
+    }
+  }
+
+  return WeaponSimulateResult::Continue;
+}
+
+WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon, u32 current_tick) {
+  float effect_radius = connection.settings.RepelDistance / 16.0f;
+  float effect_radius_sq = effect_radius * effect_radius;
+  float speed = connection.settings.RepelSpeed / 16.0f / 10.0f;
+
+  for (size_t i = 0; i < weapon_count; ++i) {
+    Weapon& other = weapons[i];
+
+    if (other.frequency == weapon.frequency) continue;
+
+    float dist_sq = other.position.DistanceSq(weapon.position);
+
+    if (dist_sq <= effect_radius_sq) {
+      Vector2f direction = Normalize(other.position - weapon.position);
+
+      other.velocity = direction * speed;
+    }
+  }
+
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player& player = player_manager.players[i];
+
+    if (player.frequency == weapon.frequency) continue;
+    if (player.ship >= 8) continue;
+
+    float dist_sq = player.position.DistanceSq(weapon.position);
+
+    if (dist_sq <= effect_radius_sq) {
+      if (connection.map.GetTileId(player.position) != kTileSafeId) {
+        Vector2f direction = Normalize(player.position - weapon.position);
+
+        player.velocity = direction * speed;
+      }
     }
   }
 

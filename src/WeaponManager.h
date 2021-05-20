@@ -86,6 +86,7 @@ struct WeaponManager {
   void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer);
   WeaponSimulateResult Simulate(Weapon& weapon, u32 current_tick);
+  WeaponSimulateResult SimulateRepel(Weapon& weapon, u32 current_tick);
 
   bool SimulateAxis(Weapon& weapon, float dt, int axis);
   WeaponSimulateResult SimulatePosition(Weapon& weapon);
