@@ -2,6 +2,8 @@
 
 #include "render/Graphics.h"
 
+#include <stdarg.h>
+
 #ifdef _WIN32
 #ifdef APIENTRY
 // Fix warning with glad definition
