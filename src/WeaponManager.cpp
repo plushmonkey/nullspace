@@ -68,7 +68,8 @@ void WeaponManager::Update(float dt) {
         if (TICK_DIFF(weapon->last_tick, weapon->last_trail_tick) >= 2) {
           SpriteRenderable& frame = Graphics::anim_bullet_trails[weapon->data.level].frames[0];
           Vector2f offset = Vector2f(1 / 16.0f, 1 / 16.0f);
-          Vector2f position = weapon->position - offset;
+          // Spawn trails back slightly so they don't advance past the render position
+          Vector2f position = (weapon->position - weapon->velocity * (1.0f / 100.0f) - offset).PixelRounded();
 
           animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
           weapon->last_trail_tick = weapon->last_tick;
@@ -78,7 +79,7 @@ void WeaponManager::Update(float dt) {
         if (TICK_DIFF(weapon->last_tick, weapon->last_trail_tick) >= 5) {
           SpriteRenderable& frame = Graphics::anim_bomb_trails[weapon->data.level].frames[0];
           Vector2f offset = (frame.dimensions * (0.5f / 16.0f));
-          Vector2f position = weapon->position - offset.PixelRounded();
+          Vector2f position = (weapon->position - weapon->velocity * (1.0f / 100.0f) - offset).PixelRounded();
 
           animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
           weapon->last_trail_tick = weapon->last_tick;
