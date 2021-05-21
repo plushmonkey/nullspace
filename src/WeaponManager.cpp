@@ -527,7 +527,7 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer, float dt) {
         Player* self = player_manager.GetSelf();
 
         if (self && player->id != self->id) {
-          player_manager.RenderPlayerName(camera, renderer, *self, *player, extrapolated_pos, false);
+          player_manager.RenderPlayerName(camera, renderer, *self, *player, extrapolated_pos, true);
         }
       }
     }

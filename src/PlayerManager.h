@@ -18,6 +18,7 @@ struct SpriteRenderer;
 struct WeaponManager;
 
 struct PlayerManager {
+  MemoryArena& perm_arena;
   Connection& connection;
   WeaponManager* weapon_manager = nullptr;
   ShipController* ship_controller = nullptr;
@@ -29,13 +30,15 @@ struct PlayerManager {
   u32 last_position_tick = 0;
   bool received_initial_list = false;
 
+  AttachInfo* attach_free = nullptr;
+
   size_t player_count = 0;
   Player players[1024];
 
   // Indirection table to look up player by id quickly
   u16 player_lookup[65536];
 
-  PlayerManager(Connection& connection, PacketDispatcher& dispatcher);
+  PlayerManager(MemoryArena& perm_arena, Connection& connection, PacketDispatcher& dispatcher);
 
   inline void Initialize(WeaponManager* weapon_manager, ShipController* ship_controller,
                          ChatController* chat_controller, NotificationSystem* notifications, SpectateView* specview) {
@@ -50,7 +53,7 @@ struct PlayerManager {
   void Render(Camera& camera, SpriteRenderer& renderer);
 
   void RenderPlayerName(Camera& camera, SpriteRenderer& renderer, Player& self, Player& player,
-                        const Vector2f& position, bool display_energy);
+                        const Vector2f& position, bool is_decoy);
 
   void Spawn();
 
@@ -69,8 +72,14 @@ struct PlayerManager {
   void OnSmallPositionPacket(u8* pkt, size_t size);
   void OnFlagClaim(u8* pkt, size_t size);
   void OnFlagDrop(u8* pkt, size_t size);
+  void OnCreateTurretLink(u8* pkt, size_t size);
+  void OnDestroyTurretLink(u8* pkt, size_t size);
 
   void OnPositionPacket(Player& player, const Vector2f& position);
+
+  void AttachPlayer(Player& requester, Player& destination);
+  void DetachPlayer(Player& player);
+  void DetachAllChildren(Player& player);
 };
 
 }  // namespace null

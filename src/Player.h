@@ -8,6 +8,7 @@
 namespace null {
 
 using PlayerId = u16;
+constexpr PlayerId kInvalidPlayerId = 0xFFFF;
 
 enum StatusFlag {
   Status_Stealth = (1 << 0),
@@ -27,6 +28,11 @@ struct WeaponData {
   u16 shraplevel : 2;
   u16 shrap : 5;
   u16 alternate : 1;
+};
+
+struct AttachInfo {
+  u16 player_id;
+  struct AttachInfo* next;
 };
 
 struct Player {
@@ -81,6 +87,8 @@ struct Player {
   u32 last_bounce_tick;
 
   u16 attach_parent;
+  AttachInfo* children;
+
   u16 flags;
 
   u16 timestamp;

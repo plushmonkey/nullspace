@@ -89,7 +89,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       animation(),
       dispatcher(),
       connection(perm_arena, temp_arena, dispatcher),
-      player_manager(connection, dispatcher),
+      player_manager(perm_arena, connection, dispatcher),
       weapon_manager(connection, player_manager, dispatcher, animation),
       camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f / 16.0f),
       ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),

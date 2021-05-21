@@ -71,6 +71,16 @@ static void OnFlagDropPkt(void* user, u8* pkt, size_t size) {
   manager->OnFlagDrop(pkt, size);
 }
 
+static void OnCreateTurretLinkPkt(void* user, u8* pkt, size_t size) {
+  PlayerManager* manager = (PlayerManager*)user;
+  manager->OnCreateTurretLink(pkt, size);
+}
+
+static void OnDestroyTurretLinkPkt(void* user, u8* pkt, size_t size) {
+  PlayerManager* manager = (PlayerManager*)user;
+  manager->OnDestroyTurretLink(pkt, size);
+}
+
 static void OnSetCoordinatesPkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
 
@@ -95,7 +105,8 @@ inline bool IsPlayerVisible(Player& self, u32 self_freq, Player& player) {
   return (!(player.togglables & Status_Cloak)) || (self.togglables & Status_XRadar);
 }
 
-PlayerManager::PlayerManager(Connection& connection, PacketDispatcher& dispatcher) : connection(connection) {
+PlayerManager::PlayerManager(MemoryArena& perm_arena, Connection& connection, PacketDispatcher& dispatcher)
+    : perm_arena(perm_arena), connection(connection) {
   dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerLeaving, OnPlayerLeavePkt, this);
@@ -107,6 +118,8 @@ PlayerManager::PlayerManager(Connection& connection, PacketDispatcher& dispatche
   dispatcher.Register(ProtocolS2C::FlagClaim, OnFlagClaimPkt, this);
   dispatcher.Register(ProtocolS2C::DropFlag, OnFlagDropPkt, this);
   dispatcher.Register(ProtocolS2C::SetCoordinates, OnSetCoordinatesPkt, this);
+  dispatcher.Register(ProtocolS2C::CreateTurret, OnCreateTurretLinkPkt, this);
+  dispatcher.Register(ProtocolS2C::DestroyTurret, OnDestroyTurretLinkPkt, this);
 
   memset(player_lookup, 0xFF, sizeof(player_lookup));
 }
@@ -173,6 +186,7 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
 
     if (player->ship == 8) continue;
     if (player->position == Vector2f(0, 0)) continue;
+    if (player->attach_parent != kInvalidPlayerId) continue;
 
     if (player->explode_animation.IsAnimating()) {
       SpriteRenderable& renderable = player->explode_animation.GetFrame();
@@ -205,12 +219,32 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
   for (size_t i = 0; i < this->player_count; ++i) {
     Player* player = this->players + i;
 
-    RenderPlayerName(camera, renderer, *self, *player, player->position, true);
+    if (player->ship == 8) continue;
+    if (player->position == Vector2f(0, 0)) continue;
+    if (player->attach_parent != kInvalidPlayerId) continue;
+
+    Vector2f position = player->position;
+
+    RenderPlayerName(camera, renderer, *self, *player, position, false);
+
+    AttachInfo* info = player->children;
+
+    while (info) {
+      position += Vector2f(0, 12.0f / 16.0f);
+
+      Player* child = GetPlayerById(info->player_id);
+
+      if (child) {
+        RenderPlayerName(camera, renderer, *self, *child, position, true);
+      }
+
+      info = info->next;
+    }
   }
 }
 
 void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, Player& self, Player& player,
-                                     const Vector2f& position, bool display_energy) {
+                                     const Vector2f& position, bool is_decoy) {
   if (player.ship == 8) return;
   if (player.position == Vector2f(0, 0)) return;
 
@@ -242,7 +276,7 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
 
     Vector2f current_position = position.PixelRounded() + offset;
 
-    if (display_energy) {
+    if (!is_decoy) {
       float max_energy = (float)ship_controller->ship.energy;
 
       if (player.id == player_id && player.energy < max_energy * 0.5f) {
@@ -343,7 +377,7 @@ Player* PlayerManager::GetSelf() { return GetPlayerById(player_id); }
 Player* PlayerManager::GetPlayerById(u16 id, size_t* index) {
   u16 player_index = player_lookup[id];
 
-  if (player_index <= 0xFFFF) {
+  if (player_index <= kInvalidPlayerId) {
     if (index) {
       *index = player_index;
     }
@@ -369,7 +403,7 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
 
   size_t player_index = player_count++;
 
-  assert(player_index <= 0xFFFF);
+  assert(player_index <= kInvalidPlayerId);
 
   Player* player = players + player_index;
 
@@ -398,12 +432,21 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   player->explode_animation.t = Graphics::anim_ship_explode.duration;
   player->enter_delay = 0.0f;
   player->last_bounce_tick = 0;
+  player->children = nullptr;
 
   memset(&player->weapon, 0, sizeof(player->weapon));
 
   player_lookup[player->id] = (u16)player_index;
 
   printf("%s entered arena\n", name);
+
+  if (player->attach_parent != kInvalidPlayerId) {
+    Player* destination = GetPlayerById(player->attach_parent);
+
+    if (destination) {
+      AttachPlayer(*player, *destination);
+    }
+  }
 
   if (chat_controller && received_initial_list) {
     chat_controller->AddMessage(ChatType::Arena, "%s entered arena", player->name);
@@ -425,14 +468,17 @@ void PlayerManager::OnPlayerLeave(u8* pkt, size_t size) {
 
     printf("%s left arena\n", player->name);
 
+    DetachAllChildren(*player);
+
     if (chat_controller) {
       chat_controller->AddMessage(ChatType::Arena, "%s left arena", player->name);
     }
 
     // Swap the last player in the list's lookup to point to their new index
-    assert(index <= 0xFFFF);
+    assert(index < 1024);
+
     player_lookup[players[player_count - 1].id] = (u16)index;
-    player_lookup[player->id] = 0xFFFF;
+    player_lookup[player->id] = kInvalidPlayerId;
 
     players[index] = players[--player_count];
   }
@@ -740,6 +786,109 @@ void PlayerManager::OnFlagDrop(u8* pkt, size_t size) {
       player->flags--;
     }
   }
+}
+
+void PlayerManager::AttachPlayer(Player& requester, Player& destination) {
+  requester.attach_parent = destination.id;
+
+  // Fetch or allocate new AttachInfo and append it to destination's children list
+  if (!attach_free) {
+    attach_free = memory_arena_push_type(&perm_arena, AttachInfo);
+  }
+
+  AttachInfo* info = attach_free;
+  attach_free = attach_free->next;
+
+  info->player_id = requester.id;
+  info->next = destination.children;
+
+  destination.children = info;
+}
+
+void PlayerManager::OnCreateTurretLink(u8* pkt, size_t size) {
+  u16 request_id = *(u16*)(pkt + 1);
+
+  if (size < 5) {
+    Player* self = GetSelf();
+
+    if (self) {
+      DetachPlayer(*self);
+    }
+
+    return;
+  }
+
+  u16 destination_id = *(u16*)(pkt + 3);
+
+  Player* requester = GetPlayerById(request_id);
+
+  if (requester && destination_id == kInvalidPlayerId) {
+    DetachPlayer(*requester);
+  } else {
+    Player* destination = GetPlayerById(destination_id);
+
+    if (!requester || !destination) return;
+
+    AttachPlayer(*requester, *destination);
+  }
+}
+
+void PlayerManager::OnDestroyTurretLink(u8* pkt, size_t size) {
+  u16 pid = *(u16*)(pkt + 1);
+
+  Player* player = GetPlayerById(pid);
+
+  if (player) {
+    DetachAllChildren(*player);
+  }
+}
+
+void PlayerManager::DetachPlayer(Player& player) {
+  if (player.attach_parent != kInvalidPlayerId) {
+    Player* parent = GetPlayerById(player.attach_parent);
+
+    if (parent) {
+      AttachInfo* current = parent->children;
+      AttachInfo* prev = nullptr;
+
+      while (current) {
+        // Remove player from the parent's list of attached ships and return it to freelist.
+        if (current->player_id == player.id) {
+          if (prev) {
+            prev->next = current->next;
+          } else {
+            parent->children = current->next;
+          }
+
+          current->player_id = kInvalidPlayerId;
+          current->next = attach_free;
+          attach_free = current;
+
+          break;
+        }
+
+        prev = current;
+        current = current->next;
+      }
+    }
+
+    player.attach_parent = kInvalidPlayerId;
+  }
+}
+
+void PlayerManager::DetachAllChildren(Player& player) {
+  AttachInfo* current = player.children;
+
+  while (current) {
+    AttachInfo* remove = current;
+    current = current->next;
+
+    remove->player_id = kInvalidPlayerId;
+    remove->next = attach_free;
+    attach_free = remove;
+  }
+
+  player.children = nullptr;
 }
 
 bool PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
