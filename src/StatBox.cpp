@@ -256,16 +256,20 @@ void StatBox::RecordFullView(const Player& me) {
     StatTextOutput* l_output = AddTextOutput(Vector2f(kLX + 8, y), color, TextAlignment::Right);
     sprintf(l_output->text, "%d", player->losses);
 
-    // TODO: Calculate stats
-    float r = 0.0f;
     float ave = 0.0f;
+
+    s32 r = ((player->kill_points + (player->wins - player->losses) * 10) * 10) / (player->wins + 100);
+
+    if (r < 0) {
+      r = 0;
+    }
 
     if (player->wins > 0) {
       ave = player->kill_points / (float)player->wins;
     }
 
     StatTextOutput* r_output = AddTextOutput(Vector2f(kRX + 8, y), color, TextAlignment::Right);
-    sprintf(r_output->text, "%d", (int)r);
+    sprintf(r_output->text, "%d", r);
 
     StatTextOutput* ave_output = AddTextOutput(Vector2f(width, y), color, TextAlignment::Right);
     sprintf(ave_output->text, "%.1f", ave);
