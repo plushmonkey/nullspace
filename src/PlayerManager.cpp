@@ -107,6 +107,8 @@ PlayerManager::PlayerManager(Connection& connection, PacketDispatcher& dispatche
   dispatcher.Register(ProtocolS2C::FlagClaim, OnFlagClaimPkt, this);
   dispatcher.Register(ProtocolS2C::DropFlag, OnFlagDropPkt, this);
   dispatcher.Register(ProtocolS2C::SetCoordinates, OnSetCoordinatesPkt, this);
+
+  memset(player_lookup, 0xFF, sizeof(player_lookup));
 }
 
 void PlayerManager::Update(float dt) {
@@ -339,15 +341,14 @@ void PlayerManager::SendPositionPacket() {
 Player* PlayerManager::GetSelf() { return GetPlayerById(player_id); }
 
 Player* PlayerManager::GetPlayerById(u16 id, size_t* index) {
-  for (size_t i = 0; i < player_count; ++i) {
-    Player* player = players + i;
+  u16 player_index = player_lookup[id];
 
-    if (player->id == id) {
-      if (index) {
-        *index = i;
-      }
-      return player;
+  if (player_index <= 0xFFFF) {
+    if (index) {
+      *index = player_index;
     }
+
+    return players + player_index;
   }
 
   return nullptr;
@@ -366,7 +367,11 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
 
   buffer.ReadU8();
 
-  Player* player = players + player_count++;
+  size_t player_index = player_count++;
+
+  assert(player_index <= 0xFFFF);
+
+  Player* player = players + player_index;
 
   player->ship = buffer.ReadU8();
   u8 audio = buffer.ReadU8();
@@ -396,6 +401,8 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
 
   memset(&player->weapon, 0, sizeof(player->weapon));
 
+  player_lookup[player->id] = (u16)player_index;
+
   printf("%s entered arena\n", name);
 
   if (chat_controller && received_initial_list) {
@@ -421,6 +428,11 @@ void PlayerManager::OnPlayerLeave(u8* pkt, size_t size) {
     if (chat_controller) {
       chat_controller->AddMessage(ChatType::Arena, "%s left arena", player->name);
     }
+
+    // Swap the last player in the list's lookup to point to their new index
+    assert(index <= 0xFFFF);
+    player_lookup[players[player_count - 1].id] = (u16)index;
+    player_lookup[player->id] = 0xFFFF;
 
     players[index] = players[--player_count];
   }

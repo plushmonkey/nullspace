@@ -24,12 +24,16 @@ struct PlayerManager {
   ChatController* chat_controller = nullptr;
   NotificationSystem* notifications = nullptr;
   SpectateView* specview = nullptr;
-  size_t player_count = 0;
-  Player players[1024];
 
   u16 player_id = 0;
   u32 last_position_tick = 0;
   bool received_initial_list = false;
+
+  size_t player_count = 0;
+  Player players[1024];
+
+  // Indirection table to look up player by id quickly
+  u16 player_lookup[65536];
 
   PlayerManager(Connection& connection, PacketDispatcher& dispatcher);
 
