@@ -8,6 +8,7 @@
 #include "ChatController.h"
 #include "InputState.h"
 #include "ShipController.h"
+#include "SpectateView.h"
 #include "Tick.h"
 #include "WeaponManager.h"
 #include "net/Checksum.h"
@@ -88,10 +89,10 @@ static void OnSetCoordinatesPkt(void* user, u8* pkt, size_t size) {
   self->warp_animation.t = 0.0f;
 }
 
-inline bool IsPlayerVisible(Player* self, u32 self_freq, Player* player) {
-  if (self_freq == player->frequency) return true;
+inline bool IsPlayerVisible(Player& self, u32 self_freq, Player& player) {
+  if (self_freq == player.frequency) return true;
 
-  return (!(player->togglables & Status_Cloak)) || (self->togglables & Status_XRadar);
+  return (!(player.togglables & Status_Cloak)) || (self.togglables & Status_XRadar);
 }
 
 PlayerManager::PlayerManager(Connection& connection, PacketDispatcher& dispatcher) : connection(connection) {
@@ -157,10 +158,12 @@ void PlayerManager::Update(float dt) {
   }
 }
 
-void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_freq) {
+void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
   Player* self = GetPlayerById(player_id);
 
   if (!self) return;
+
+  u32 self_freq = specview->GetFrequency();
 
   // Draw player ships
   for (size_t i = 0; i < this->player_count; ++i) {
@@ -175,7 +178,7 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
 
       renderer.Draw(camera, renderable, position, Layer::AfterShips);
     } else if (player->enter_delay <= 0.0f) {
-      if (IsPlayerVisible(self, self_freq, player)) {
+      if (IsPlayerVisible(*self, self_freq, *player)) {
         size_t index = player->ship * 40 + (u8)(player->orientation * 40.0f);
 
         Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
@@ -200,51 +203,64 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer, u32 self_fr
   for (size_t i = 0; i < this->player_count; ++i) {
     Player* player = this->players + i;
 
-    if (player->ship == 8) continue;
-    if (player->position == Vector2f(0, 0)) continue;
-    if (!IsPlayerVisible(self, self_freq, player)) continue;
+    RenderPlayerName(camera, renderer, *self, *player, player->position, true);
+  }
+}
 
-    if (player->enter_delay <= 0.0f) {
-      size_t index = player->ship * 40 + (u8)(player->orientation * 40.0f);
-      Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
+void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, Player& self, Player& player,
+                                     const Vector2f& position, bool display_energy) {
+  if (player.ship == 8) return;
+  if (player.position == Vector2f(0, 0)) return;
 
-      offset = offset.PixelRounded();
+  u32 self_freq = specview->GetFrequency();
 
-      char display[48];
+  if (!IsPlayerVisible(self, self_freq, player)) return;
 
-      if (player->flags > 0) {
-        sprintf(display, "%s(%d:%d)[%d]", player->name, player->bounty, player->flags, player->ping * 10);
-      } else {
-        sprintf(display, "%s(%d)[%d]", player->name, player->bounty, player->ping * 10);
-      }
+  if (player.enter_delay <= 0.0f) {
+    size_t index = player.ship * 40 + (u8)(player.orientation * 40.0f);
+    Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
 
-      TextColor color = TextColor::Blue;
+    offset = offset.PixelRounded();
 
-      if (player->frequency == self_freq) {
-        color = TextColor::Yellow;
-      } else if (player->flags > 0) {
-        color = TextColor::DarkRed;
-      }
+    char display[48];
 
-      Vector2f position = player->position.PixelRounded() + offset;
+    if (player.flags > 0) {
+      sprintf(display, "%s(%d:%d)[%d]", player.name, player.bounty, player.flags, player.ping * 10);
+    } else {
+      sprintf(display, "%s(%d)[%d]", player.name, player.bounty, player.ping * 10);
+    }
 
+    TextColor color = TextColor::Blue;
+
+    if (player.frequency == self_freq) {
+      color = TextColor::Yellow;
+    } else if (player.flags > 0) {
+      color = TextColor::DarkRed;
+    }
+
+    Vector2f current_position = position.PixelRounded() + offset;
+
+    if (display_energy) {
       float max_energy = (float)ship_controller->ship.energy;
-      if (player->id == player_id && player->energy < max_energy * 0.5f) {
-        TextColor energy_color = player->energy < max_energy * 0.25f ? TextColor::DarkRed : TextColor::Yellow;
+
+      if (player.id == player_id && player.energy < max_energy * 0.5f) {
+        TextColor energy_color = player.energy < max_energy * 0.25f ? TextColor::DarkRed : TextColor::Yellow;
         char energy_output[16];
-        sprintf(energy_output, "%d", (u32)player->energy);
-        renderer.DrawText(camera, energy_output, energy_color, position, Layer::AfterShips);
-        position.y += (12.0f / 16.0f);
-      } else if (player->id != player_id && player->energy > 0.0f) {
+        sprintf(energy_output, "%d", (u32)player.energy);
+
+        renderer.DrawText(camera, energy_output, energy_color, current_position, Layer::AfterShips);
+
+        current_position.y += (12.0f / 16.0f);
+      } else if (player.id != player_id && player.energy > 0.0f) {
         char energy_output[16];
-        sprintf(energy_output, "%d", (u32)player->energy);
-        Vector2f energy_p = player->position.PixelRounded() + Vector2f(-0.5f, offset.y);
+        sprintf(energy_output, "%d", (u32)player.energy);
+        Vector2f energy_p = position.PixelRounded() + Vector2f(-0.5f, offset.y);
 
         renderer.DrawText(camera, energy_output, TextColor::Blue, energy_p, Layer::AfterShips, TextAlignment::Right);
       }
-
-      renderer.DrawText(camera, display, color, position, Layer::AfterShips);
     }
+
+    renderer.DrawText(camera, display, color, current_position, Layer::AfterShips);
   }
 }
 

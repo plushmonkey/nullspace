@@ -24,6 +24,8 @@ struct SpectateView {
 
   SpectateView(Connection& connection, StatBox& statbox);
 
+  u32 GetFrequency();
+
   void Update(const InputState& input, float dt);
   void Render(Camera& ui_camera, SpriteRenderer& renderer);
 

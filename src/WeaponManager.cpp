@@ -505,6 +505,7 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer, float dt) {
       renderer.Draw(camera, frame, position.PixelRounded(), Layer::Weapons);
     } else if (weapon->data.type == (u16)WeaponType::Decoy) {
       Player* player = player_manager.GetPlayerById(weapon->player_id);
+
       if (player) {
         float orientation = weapon->initial_orientation - (player->orientation - weapon->initial_orientation);
 
@@ -522,6 +523,12 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer, float dt) {
         Vector2f position = extrapolated_pos - frame.dimensions * (0.5f / 16.0f);
 
         renderer.Draw(camera, frame, position.PixelRounded(), Layer::Ships);
+
+        Player* self = player_manager.GetSelf();
+
+        if (self && player->id != self->id) {
+          player_manager.RenderPlayerName(camera, renderer, *self, *player, extrapolated_pos, false);
+        }
       }
     }
   }

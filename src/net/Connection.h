@@ -41,9 +41,11 @@ struct Connection {
   enum class LoginState {
     EncryptionRequested,  // Sent encryption request
     Authentication,       // Sent password packet
+    Registering,
     ArenaLogin,           // Requested to join arena
     MapDownload,
-    Complete
+    Complete,
+    Quit
   };
 
   MemoryArena& perm_arena;
@@ -103,6 +105,7 @@ struct Connection {
   void SendDeath(u16 killer, u16 bounty);
   void SendFrequencyChange(u16 freq);
   void SendArenaLogin(u8 ship, u16 audio, u16 xres, u16 yres, u16 arena_number, const char* arena_name);
+  void SendPassword(bool registration);
 };
 
 }  // namespace null

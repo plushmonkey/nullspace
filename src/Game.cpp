@@ -107,7 +107,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
   dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
   dispatcher.Register(ProtocolS2C::ArenaSettings, OnArenaSettings, this);
 
-  player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications);
+  player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications, &specview);
   weapon_manager.Initialize(&ship_controller);
 }
 
@@ -280,11 +280,7 @@ void Game::RenderGame(float dt) {
   tile_renderer.Render(camera);
 
   Player* self = player_manager.GetSelf();
-  u32 self_freq = 0;
-
-  if (self) {
-    self_freq = self->ship < 8 ? self->frequency : specview.spectate_frequency;
-  }
+  u32 self_freq = specview.GetFrequency();
 
   animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim, flags, flag_count,
                                 greens, green_count, self_freq);
@@ -292,7 +288,7 @@ void Game::RenderGame(float dt) {
   if (self) {
     animation.Render(camera, sprite_renderer);
     weapon_manager.Render(camera, sprite_renderer, dt);
-    player_manager.Render(camera, sprite_renderer, self_freq);
+    player_manager.Render(camera, sprite_renderer);
 
     sprite_renderer.Render(camera);
 

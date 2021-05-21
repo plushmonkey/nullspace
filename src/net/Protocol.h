@@ -82,7 +82,7 @@ enum class ProtocolS2C {
   Chat,
   PlayerPrize,
   ScoreUpdate,
-  Password,
+  PasswordResponse,
   SoccerGoal,
   Voice,
   FrequencyChange,

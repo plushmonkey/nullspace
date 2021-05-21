@@ -13,6 +13,7 @@ struct Connection;
 struct InputState;
 struct PacketDispatcher;
 struct ShipController;
+struct SpectateView;
 struct SpriteRenderer;
 struct WeaponManager;
 
@@ -22,6 +23,7 @@ struct PlayerManager {
   ShipController* ship_controller = nullptr;
   ChatController* chat_controller = nullptr;
   NotificationSystem* notifications = nullptr;
+  SpectateView* specview = nullptr;
   size_t player_count = 0;
   Player players[1024];
 
@@ -32,15 +34,19 @@ struct PlayerManager {
   PlayerManager(Connection& connection, PacketDispatcher& dispatcher);
 
   inline void Initialize(WeaponManager* weapon_manager, ShipController* ship_controller,
-                         ChatController* chat_controller, NotificationSystem* notifications) {
+                         ChatController* chat_controller, NotificationSystem* notifications, SpectateView* specview) {
     this->weapon_manager = weapon_manager;
     this->ship_controller = ship_controller;
     this->chat_controller = chat_controller;
     this->notifications = notifications;
+    this->specview = specview;
   }
 
   void Update(float dt);
-  void Render(Camera& camera, SpriteRenderer& renderer, u32 self_freq);
+  void Render(Camera& camera, SpriteRenderer& renderer);
+
+  void RenderPlayerName(Camera& camera, SpriteRenderer& renderer, Player& self, Player& player,
+                        const Vector2f& position, bool display_energy);
 
   void Spawn();
 

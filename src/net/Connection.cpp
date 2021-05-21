@@ -123,8 +123,10 @@ Connection::TickResult Connection::Tick() {
         return TickResult::Success;
       }
 
-      fprintf(stderr, "Unexpected socket error: %d\n", err);
-      this->Disconnect();
+      if (login_state != LoginState::Quit) {
+        fprintf(stderr, "Unexpected socket error: %d\n", err);
+        this->Disconnect();
+      }
       return TickResult::ConnectionError;
     } else if (bytes_recv > 0) {
       assert(bytes_recv <= kMaxPacketSize);
@@ -156,6 +158,50 @@ Connection::TickResult Connection::Tick() {
   return TickResult::Success;
 }
 
+void Connection::SendPassword(bool registration) {
+  u8 data[kMaxPacketSize];
+  NetworkBuffer buffer(data, kMaxPacketSize);
+
+  char name[32] = {};
+  char password[32] = {};
+
+  u32 version = 40;
+  u8 packet_type = 0x24;
+
+  if (encrypt_method == EncryptMethod::Subspace) {
+    version = 0x86;
+    packet_type = 0x09;
+  }
+
+  strcpy(name, kPlayerName);
+  strcpy(password, kPlayerPassword);
+
+  buffer.WriteU8(packet_type);                 // Continuum password packet
+  buffer.WriteU8(registration ? 0x01 : 0x00);  // New user
+  buffer.WriteString(name, 32);
+  buffer.WriteString(password, 32);
+  buffer.WriteU32(1178436307);  // Machine ID
+  buffer.WriteU8(0x00);         // connect type
+  buffer.WriteU16(240);         // Time zone bias
+  buffer.WriteU16(0);           // Unknown
+  buffer.WriteU16(version);     // Version
+  buffer.WriteU32(0xA5);
+  buffer.WriteU32(0x00);
+  buffer.WriteU32(0);  // permission id
+
+  buffer.WriteU32(0);
+  buffer.WriteU32(0);
+  buffer.WriteU32(0);
+
+  if (encrypt_method == EncryptMethod::Continuum) {
+    for (int i = 0; i < 16; ++i) {
+      buffer.WriteU32(0);
+    }
+  }
+
+  packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
+}
+
 void Connection::ProcessPacket(u8* pkt, size_t size) {
   NetworkBuffer buffer(pkt, size, size);
 
@@ -170,52 +216,14 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
     switch (type) {
       case ProtocolCore::EncryptionResponse: {
-        // Send password packet now
-        u8 data[kMaxPacketSize];
-        NetworkBuffer buffer(data, kMaxPacketSize);
-
-        char name[32] = {};
-        char password[32] = {};
-
-        u32 version = 40;
-        u8 packet_type = 0x24;
-
         if (encrypt_method == EncryptMethod::Subspace) {
           if (!vie_encrypt.Initialize(*(u32*)(pkt + 2))) {
             fprintf(stderr, "Failed to initialize vie encryption.\n");
           }
-
-          version = 0x86;
-          packet_type = 0x09;
         }
 
-        strcpy(name, kPlayerName);
-        strcpy(password, kPlayerPassword);
+        SendPassword(false);
 
-        buffer.WriteU8(packet_type);  // Continuum password packet
-        buffer.WriteU8(0x00);         // New user
-        buffer.WriteString(name, 32);
-        buffer.WriteString(password, 32);
-        buffer.WriteU32(1178436307);  // Machine ID
-        buffer.WriteU8(0x00);         // connect type
-        buffer.WriteU16(240);         // Time zone bias
-        buffer.WriteU16(0);           // Unknown
-        buffer.WriteU16(version);     // Version
-        buffer.WriteU32(0xA5);
-        buffer.WriteU32(0x00);
-        buffer.WriteU32(0);  // permission id
-
-        buffer.WriteU32(0);
-        buffer.WriteU32(0);
-        buffer.WriteU32(0);
-
-        if (encrypt_method == EncryptMethod::Continuum) {
-          for (int i = 0; i < 16; ++i) {
-            buffer.WriteU32(0);
-          }
-        }
-
-        packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
         login_state = LoginState::Authentication;
 
         SendSyncTimeRequestPacket(true);
@@ -361,14 +369,55 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
       case ProtocolS2C::PlayerPrize: {
       } break;
-      case ProtocolS2C::Password: {
+      case ProtocolS2C::PasswordResponse: {
         u8 response = buffer.ReadU8();
 
         printf("Login response: %s\n", kLoginResponses[response]);
 
+        u8 register_request = pkt[19];
+
+        if (register_request) {
+          printf("Registration form requested.\n");
+
+          // Should display registration form here then send this once complete.
+          login_state = LoginState::Registering;
+#if 0
+          u8 data[766];
+          NetworkBuffer registration(data, NULLSPACE_ARRAY_SIZE(data), 0);
+
+          char strbuffer[64] = {};
+
+          registration.WriteU8(0x17);
+          registration.WriteString(strbuffer, 32);  // Real name
+          strcpy(strbuffer, "a@a.com");
+          registration.WriteString(strbuffer, 64);  // Email
+          memset(strbuffer, 0, 64);
+          registration.WriteString(strbuffer, 32);  // City
+          registration.WriteString(strbuffer, 24);  // State
+          registration.WriteU8('M');                // Sex
+          registration.WriteU8(0);                  // Age
+          registration.WriteU8(1);                  // Connecting from home
+          registration.WriteU8(0);                  // Work
+          registration.WriteU8(0);                  // School
+          registration.WriteU32(0);                 // Processor type
+          registration.WriteU32(0);                 // Unknown
+          registration.WriteString(strbuffer, 40);  // Real name windows registration
+          registration.WriteString(strbuffer, 40);  // Organization
+
+          for (size_t i = 0; i < 13; ++i) {
+            registration.WriteString(strbuffer, 40); // Drivers
+          }
+
+          Send(registration);
+#endif
+        }
+
         if (response == 0x00 || response == 0x0D) {
           SendArenaLogin(8, 0, 1920, 1080, 0xFFFF, "");
           login_state = LoginState::ArenaLogin;
+        } else if (response == 0x01) {
+          // Send password packet again requesting the registration form
+          SendPassword(true);
         }
       } break;
       case ProtocolS2C::CreateTurret: {
@@ -585,6 +634,36 @@ size_t Connection::Send(u8* data, size_t size) {
   if (rand() % 100 < PACKET_SHEDDING) return size;
 #endif
 
+  // TODO: This should be a proper system, but right now it just needs to handle registration form
+  if (size > 520) {
+    // Max size of data reduced by reliable header and small chunk header
+    constexpr size_t kMaxSize = 520 - 6 - 2;
+    assert(size <= kMaxSize * 2);
+
+    ArenaSnapshot snapshot = temp_arena.GetSnapshot();
+
+    u8* small_chunk_body = temp_arena.Allocate(520);
+
+    small_chunk_body[0] = 0x00;
+    small_chunk_body[1] = 0x08;
+    memcpy(small_chunk_body + 2, data, kMaxSize);
+
+    packet_sequencer.SendReliableMessage(*this, small_chunk_body, 520 - 6);
+
+    size_t remaining = size - kMaxSize;
+    u8* small_chunk_tail = temp_arena.Allocate(520);
+
+    small_chunk_tail[0] = 0x00;
+    small_chunk_tail[1] = 0x09;
+    memcpy(small_chunk_tail + 2, data + kMaxSize, remaining);
+
+    packet_sequencer.SendReliableMessage(*this, small_chunk_tail, remaining + 2);
+
+    temp_arena.Revert(snapshot);
+
+    return size;
+  }
+
   sockaddr_in addr;
   addr.sin_family = remote_addr.family;
   addr.sin_port = remote_addr.port;
@@ -689,6 +768,7 @@ void Connection::SendFrequencyChange(u16 freq) {
 }
 
 void Connection::Disconnect() {
+  login_state = LoginState::Quit;
   closesocket(this->fd);
   this->connected = false;
 }

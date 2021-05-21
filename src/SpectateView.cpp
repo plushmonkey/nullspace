@@ -15,6 +15,14 @@ namespace null {
 
 SpectateView::SpectateView(Connection& connection, StatBox& statbox) : connection(connection), statbox(statbox) {}
 
+u32 SpectateView::GetFrequency() {
+  Player* self = statbox.player_manager.GetSelf();
+
+  if (!self) return 0;
+
+  return self->ship < 8 ? self->frequency : spectate_frequency;
+}
+
 void SpectateView::Update(const InputState& input, float dt) {
   Player* self = statbox.player_manager.GetSelf();
 
