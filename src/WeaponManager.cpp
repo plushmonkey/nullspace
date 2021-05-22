@@ -31,8 +31,8 @@ WeaponManager::WeaponManager(Connection& connection, PlayerManager& player_manag
 }
 
 void WeaponManager::Update(float dt) {
-  u64 time = GetTime();
   u32 tick = GetCurrentTick();
+
   link_removal_count = 0;
 
   for (size_t i = 0; i < weapon_count; ++i) {
@@ -86,12 +86,6 @@ void WeaponManager::Update(float dt) {
           weapon->last_trail_tick = weapon->last_tick;
         }
       }
-    }
-
-    // Keep weapon render position synchronized with simulation
-    if (time - weapon->last_event_time >= 250000) {
-      weapon->last_event_time = time;
-      weapon->last_event_position = weapon->position;
     }
   }
 
@@ -494,6 +488,15 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer, float dt) {
       // TODO: This is pretty heavy. Maybe make it an option to toggle off and just use the simulated position
       CastResult cast = connection.map.Cast(weapon->last_event_position, Normalize(travel_ray), travel_ray.Length());
       extrapolated_pos = cast.position;
+
+      float desync_threshold = weapon->velocity.Length() * (4.0f / 100.0f);
+
+      // Resync render position when deviating too much from projected path
+      if (extrapolated_pos.DistanceSq(weapon->position) > desync_threshold * desync_threshold) {
+        extrapolated_pos = weapon->position;
+        weapon->last_event_position = weapon->position;
+        weapon->last_event_time = time;
+      }
     } else {
       extrapolated_pos = weapon->last_event_position + travel_ray;
     }
