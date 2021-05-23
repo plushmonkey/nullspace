@@ -15,6 +15,7 @@ SpriteRenderable* Graphics::textf_sprites = nullptr;
 SpriteRenderable* Graphics::energyfont_sprites = nullptr;
 
 SpriteRenderable* Graphics::ship_sprites = nullptr;
+SpriteRenderable* Graphics::turret_sprites = nullptr;
 SpriteRenderable* Graphics::spectate_sprites = nullptr;
 
 SpriteRenderable* Graphics::warp_sprites = nullptr;
@@ -161,6 +162,9 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
 
   ship_sprites = LoadTileSheet(renderer, "ships", Vector2f(36, 36), &count);
   if (!ship_sprites) return false;
+
+  turret_sprites = LoadTileSheet(renderer, "turret2", Vector2f(16, 16), &count);
+  if (!turret_sprites) return false;
 
   spectate_sprites = LoadTileSheet(renderer, "spectate", Vector2f(8, 8), &count);
   if (!spectate_sprites) return false;

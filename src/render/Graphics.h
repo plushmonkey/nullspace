@@ -20,6 +20,7 @@ struct Graphics {
   static SpriteRenderable* energyfont_sprites;
 
   static SpriteRenderable* ship_sprites;
+  static SpriteRenderable* turret_sprites;
   static SpriteRenderable* spectate_sprites;
 
   static SpriteRenderable* warp_sprites;

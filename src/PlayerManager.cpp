@@ -202,6 +202,24 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
 
         renderer.Draw(camera, Graphics::ship_sprites[index], position, Layer::Ships);
       }
+
+      AttachInfo* info = player->children;
+
+      while (info) {
+        Player* child = GetPlayerById(info->player_id);
+
+        if (child) {
+          size_t index = (size_t)(child->orientation * 40.0f);
+
+          Vector2f offset = Graphics::turret_sprites[index].dimensions * (0.5f / 16.0f);
+          Vector2f position = player->position.PixelRounded() - offset.PixelRounded();
+
+          renderer.Draw(camera, Graphics::turret_sprites[index], position, Layer::Ships);
+        }
+
+        info = info->next;
+      }
+
       if (player->warp_animation.IsAnimating()) {
         SpriteRenderable& renderable = player->warp_animation.GetFrame();
         Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
@@ -235,7 +253,7 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
       Player* child = GetPlayerById(info->player_id);
 
       if (child) {
-        RenderPlayerName(camera, renderer, *self, *child, position, true);
+        RenderPlayerName(camera, renderer, *self, *child, position, false);
       }
 
       info = info->next;
