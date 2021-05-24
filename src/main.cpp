@@ -1,5 +1,6 @@
 #define NOMINMAX
 
+#include <algorithm>
 #include <cstdio>
 
 #include "Buffer.h"
@@ -82,10 +83,59 @@ static void OnCharacter(GLFWwindow* window, unsigned int codepoint);
 
 enum class GameScreen { MainMenu, Playing };
 
+struct ActionKey {
+  int key;
+  InputAction action;
+  int mods;
+
+  ActionKey() {}
+  ActionKey(InputAction action, int key, int mods = 0) : key(key), action(action), mods(mods) {}
+};
+
+const ActionKey kDefaultKeys[] = {
+    ActionKey(InputAction::Left, GLFW_KEY_LEFT),
+    ActionKey(InputAction::Right, GLFW_KEY_RIGHT),
+    ActionKey(InputAction::Forward, GLFW_KEY_UP),
+    ActionKey(InputAction::Backward, GLFW_KEY_DOWN),
+    ActionKey(InputAction::Afterburner, GLFW_KEY_LEFT_SHIFT),
+    ActionKey(InputAction::Afterburner, GLFW_KEY_RIGHT_SHIFT),
+    ActionKey(InputAction::Mine, GLFW_KEY_TAB, GLFW_MOD_SHIFT),
+    ActionKey(InputAction::Bomb, GLFW_KEY_TAB),
+    ActionKey(InputAction::Bullet, GLFW_KEY_LEFT_CONTROL),
+    ActionKey(InputAction::Bullet, GLFW_KEY_RIGHT_CONTROL),
+    ActionKey(InputAction::Thor, GLFW_KEY_F6),
+    ActionKey(InputAction::Burst, GLFW_KEY_DELETE, GLFW_MOD_SHIFT),
+    ActionKey(InputAction::Multifire, GLFW_KEY_DELETE),
+    ActionKey(InputAction::Antiwarp, GLFW_KEY_END, GLFW_MOD_SHIFT),
+    ActionKey(InputAction::Stealth, GLFW_KEY_HOME),
+    ActionKey(InputAction::Cloak, GLFW_KEY_HOME, GLFW_MOD_SHIFT),
+    ActionKey(InputAction::XRadar, GLFW_KEY_END),
+    ActionKey(InputAction::Repel, GLFW_KEY_LEFT_CONTROL, GLFW_MOD_SHIFT),
+    ActionKey(InputAction::Repel, GLFW_KEY_RIGHT_CONTROL, GLFW_MOD_SHIFT),
+    ActionKey(InputAction::Repel, GLFW_KEY_GRAVE_ACCENT),
+    ActionKey(InputAction::Warp, GLFW_KEY_INSERT),
+    ActionKey(InputAction::Portal, GLFW_KEY_INSERT, GLFW_MOD_SHIFT),
+    ActionKey(InputAction::Decoy, GLFW_KEY_F5),
+    ActionKey(InputAction::Rocket, GLFW_KEY_F3),
+    ActionKey(InputAction::Brick, GLFW_KEY_F4),
+    ActionKey(InputAction::Attach, GLFW_KEY_F7),
+    ActionKey(InputAction::StatBoxCycle, GLFW_KEY_F2),
+    ActionKey(InputAction::StatBoxPrevious, GLFW_KEY_PAGE_UP),
+    ActionKey(InputAction::StatBoxNext, GLFW_KEY_PAGE_DOWN),
+    ActionKey(InputAction::StatBoxPreviousPage, GLFW_KEY_PAGE_UP, GLFW_MOD_SHIFT),
+    ActionKey(InputAction::StatBoxNextPage, GLFW_KEY_PAGE_DOWN, GLFW_MOD_SHIFT),
+    ActionKey(InputAction::StatBoxHelpNext, GLFW_KEY_F1),
+    ActionKey(InputAction::Play, GLFW_KEY_F11),
+    ActionKey(InputAction::DisplayMap, GLFW_KEY_LEFT_ALT),
+    ActionKey(InputAction::DisplayMap, GLFW_KEY_RIGHT_ALT),
+    ActionKey(InputAction::ChatDisplay, GLFW_KEY_ESCAPE),
+};
+
 struct WindowState {
   InputState input;
   GameScreen screen = GameScreen::MainMenu;
   Game* game = nullptr;
+  ActionKey keys[NULLSPACE_ARRAY_SIZE(kDefaultKeys)];
 };
 
 MemoryArena* perm_global = nullptr;
@@ -172,6 +222,12 @@ struct nullspace {
       fprintf(stderr, "Failed to connect. Error: %d\n", (int)result);
       return false;
     }
+
+    memcpy(window_state.keys, kDefaultKeys, sizeof(kDefaultKeys));
+
+    // Sort keys so the mods will be checked first
+    std::sort(window_state.keys, window_state.keys + NULLSPACE_ARRAY_SIZE(kDefaultKeys),
+              [](const ActionKey& l, const ActionKey& r) { return l.mods > r.mods; });
 
     window_state.screen = GameScreen::Playing;
     window_state.game = game;
@@ -437,52 +493,6 @@ struct nullspace {
   }
 };
 
-struct ActionKey {
-  int key;
-  InputAction action;
-  int mods;
-
-  ActionKey(InputAction action, int key, int mods = 0) : key(key), action(action), mods(mods) {}
-};
-
-const ActionKey kDefaultKeys[] = {
-    ActionKey(InputAction::Left, GLFW_KEY_LEFT),
-    ActionKey(InputAction::Right, GLFW_KEY_RIGHT),
-    ActionKey(InputAction::Forward, GLFW_KEY_UP),
-    ActionKey(InputAction::Backward, GLFW_KEY_DOWN),
-    ActionKey(InputAction::Afterburner, GLFW_KEY_LEFT_SHIFT),
-    ActionKey(InputAction::Afterburner, GLFW_KEY_RIGHT_SHIFT),
-    ActionKey(InputAction::Mine, GLFW_KEY_TAB, GLFW_MOD_SHIFT),
-    ActionKey(InputAction::Bomb, GLFW_KEY_TAB),
-    ActionKey(InputAction::Bullet, GLFW_KEY_LEFT_CONTROL),
-    ActionKey(InputAction::Bullet, GLFW_KEY_RIGHT_CONTROL),
-    ActionKey(InputAction::Thor, GLFW_KEY_F6),
-    ActionKey(InputAction::Burst, GLFW_KEY_DELETE, GLFW_MOD_SHIFT),
-    ActionKey(InputAction::Multifire, GLFW_KEY_DELETE),
-    ActionKey(InputAction::Antiwarp, GLFW_KEY_END, GLFW_MOD_SHIFT),
-    ActionKey(InputAction::Stealth, GLFW_KEY_HOME),
-    ActionKey(InputAction::Cloak, GLFW_KEY_HOME, GLFW_MOD_SHIFT),
-    ActionKey(InputAction::XRadar, GLFW_KEY_END),
-    ActionKey(InputAction::Repel, GLFW_KEY_LEFT_CONTROL, GLFW_MOD_SHIFT),
-    ActionKey(InputAction::Repel, GLFW_KEY_RIGHT_CONTROL, GLFW_MOD_SHIFT),
-    ActionKey(InputAction::Repel, GLFW_KEY_GRAVE_ACCENT),
-    ActionKey(InputAction::Warp, GLFW_KEY_INSERT),
-    ActionKey(InputAction::Portal, GLFW_KEY_INSERT, GLFW_MOD_SHIFT),
-    ActionKey(InputAction::Decoy, GLFW_KEY_F5),
-    ActionKey(InputAction::Rocket, GLFW_KEY_F3),
-    ActionKey(InputAction::Brick, GLFW_KEY_F4),
-    ActionKey(InputAction::Attach, GLFW_KEY_F7),
-    ActionKey(InputAction::PlayerListCycle, GLFW_KEY_F2),
-    ActionKey(InputAction::PlayerListPrevious, GLFW_KEY_PAGE_UP),
-    ActionKey(InputAction::PlayerListNext, GLFW_KEY_PAGE_DOWN),
-    ActionKey(InputAction::PlayerListPreviousPage, GLFW_KEY_PAGE_UP, GLFW_MOD_SHIFT),
-    ActionKey(InputAction::PlayerListNextPage, GLFW_KEY_PAGE_DOWN, GLFW_MOD_SHIFT),
-    ActionKey(InputAction::Play, GLFW_KEY_F11),
-    ActionKey(InputAction::DisplayMap, GLFW_KEY_LEFT_ALT),
-    ActionKey(InputAction::DisplayMap, GLFW_KEY_RIGHT_ALT),
-    ActionKey(InputAction::ChatDisplay, GLFW_KEY_ESCAPE),
-};
-
 static void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_action, int mods) {
   WindowState* window_state = (WindowState*)glfwGetWindowUserPointer(window);
 
@@ -497,26 +507,11 @@ static void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_
     if (mods & GLFW_MOD_CONTROL) {
       window_state->input.OnCharacter(NULLSPACE_KEY_PASTE, mods);
     }
-  } else if (key == GLFW_KEY_PAGE_DOWN && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_PAGE_DOWN, mods);
-  } else if (key == GLFW_KEY_PAGE_UP && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_PAGE_UP, mods);
-  } else if (key == GLFW_KEY_LEFT_CONTROL && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_CONTROL, mods);
-  } else if (key == GLFW_KEY_RIGHT_CONTROL && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_CONTROL, mods);
-  } else if (key == GLFW_KEY_F2 && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_F2, mods);
-  } else if (key == GLFW_KEY_END && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_END, mods);
-  } else if (key == GLFW_KEY_DELETE && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_DELETE, mods);
-  } else if (key == GLFW_KEY_HOME && key_action != GLFW_RELEASE) {
-    window_state->input.OnCharacter(NULLSPACE_KEY_HOME, mods);
   }
 
   bool shift = key == GLFW_KEY_RIGHT_SHIFT || key == GLFW_KEY_LEFT_SHIFT;
   bool ctrl = key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL;
+
   // TODO: Redo all of the input. This is really bad
   if (shift || ctrl) {
     int mod = shift ? GLFW_MOD_SHIFT : GLFW_MOD_CONTROL;
@@ -531,14 +526,20 @@ static void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_
     }
   }
 
+  ActionKey* keys = window_state->keys;
+
   const ActionKey* action = nullptr;
   for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(kDefaultKeys); ++i) {
-    int req_mods = kDefaultKeys[i].mods;
-    if (kDefaultKeys[i].key == key && (req_mods & mods) == req_mods) {
-      action = kDefaultKeys + i;
+    int req_mods = keys[i].mods;
 
-      if (key_action == GLFW_PRESS) {
+    if (keys[i].key == key && (req_mods & mods) == req_mods) {
+      action = keys + i;
+
+      if (key_action != GLFW_RELEASE) {
+        window_state->input.OnAction(action->action);
+
         window_state->input.SetAction(action->action, true);
+        break;
       } else if (key_action == GLFW_RELEASE) {
         window_state->input.SetAction(action->action, false);
       }
@@ -564,6 +565,7 @@ void OnCharacter(GLFWwindow* window, unsigned int codepoint) {
     window_state->input.OnCharacter((char)codepoint);
   }
 }
+
 }  // namespace null
 
 #if OPENGL_DEBUG

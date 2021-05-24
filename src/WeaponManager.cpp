@@ -768,6 +768,11 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
 
   SetWeaponSprite(*player, *weapon);
 
+  if (player->id == player_manager.player_id &&
+      (type == WeaponType::Bomb || type == WeaponType::ProximityBomb || type == WeaponType::Thor)) {
+    player->bombflash_anim_t = 0.0f;
+  }
+
   return result;
 }
 

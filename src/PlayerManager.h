@@ -4,6 +4,8 @@
 #include "Notification.h"
 #include "Player.h"
 #include "Types.h"
+#include "render/Animation.h"
+#include "render/Graphics.h"
 
 namespace null {
 
@@ -32,6 +34,10 @@ struct PlayerManager {
 
   AttachInfo* attach_free = nullptr;
 
+  Animation explode_animation;
+  Animation warp_animation;
+  Animation bombflash_animation;
+
   size_t player_count = 0;
   Player players[1024];
 
@@ -47,6 +53,10 @@ struct PlayerManager {
     this->chat_controller = chat_controller;
     this->notifications = notifications;
     this->specview = specview;
+
+    warp_animation.sprite = &Graphics::anim_ship_warp;
+    explode_animation.sprite = &Graphics::anim_ship_explode;
+    bombflash_animation.sprite = &Graphics::anim_bombflash;
   }
 
   void Update(float dt);
@@ -77,9 +87,11 @@ struct PlayerManager {
 
   void OnPositionPacket(Player& player, const Vector2f& position);
 
+  void AttachSelf(Player* destination);
   void AttachPlayer(Player& requester, Player& destination);
   void DetachPlayer(Player& player);
   void DetachAllChildren(Player& player);
+  size_t GetTurretCount(Player& player);
 };
 
 }  // namespace null

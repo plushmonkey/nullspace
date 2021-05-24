@@ -23,31 +23,6 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
     }
 
     game->menu_open = !game->menu_open;
-  } else if (codepoint == NULLSPACE_KEY_END) {
-    Player* self = game->player_manager.GetSelf();
-    if (self) {
-      if (mods & NULLSPACE_KEY_MOD_SHIFT) {
-        self->togglables ^= Status_Antiwarp;
-      } else {
-        self->togglables ^= Status_XRadar;
-      }
-    }
-  } else if (codepoint == NULLSPACE_KEY_DELETE) {
-    game->ship_controller.ship.multifire = !game->ship_controller.ship.multifire;
-  } else if (codepoint == NULLSPACE_KEY_HOME) {
-    Player* self = game->player_manager.GetSelf();
-
-    if (self) {
-      if (mods & NULLSPACE_KEY_MOD_SHIFT) {
-        self->togglables ^= Status_Cloak;
-
-        if (!(self->togglables & Status_Cloak)) {
-          self->togglables |= Status_Flash;
-        }
-      } else {
-        self->togglables ^= Status_Stealth;
-      }
-    }
   } else if (game->menu_open) {
     if (game->HandleMenuKey(codepoint, mods)) {
       game->chat.display_full = false;
@@ -56,8 +31,45 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
   }
 
   game->chat.OnCharacterPress(codepoint, mods);
-  game->statbox.OnCharacterPress(codepoint, mods);
-  game->specview.OnCharacterPress(codepoint, mods);
+}
+
+static void OnAction(void* user, InputAction action) {
+  Game* game = (Game*)user;
+  Player* self = game->player_manager.GetSelf();
+
+  if (!self) return;
+
+  switch (action) {
+    case InputAction::XRadar: {
+      self->togglables ^= Status_XRadar;
+    } break;
+    case InputAction::Antiwarp: {
+      self->togglables ^= Status_Antiwarp;
+    } break;
+    case InputAction::Multifire: {
+      game->ship_controller.ship.multifire = !game->ship_controller.ship.multifire;
+    } break;
+    case InputAction::Stealth: {
+      self->togglables ^= Status_Stealth;
+    } break;
+    case InputAction::Cloak: {
+      self->togglables ^= Status_Cloak;
+
+      if (!(self->togglables & Status_Cloak)) {
+        self->togglables |= Status_Flash;
+      }
+    } break;
+    case InputAction::Attach: {
+      Player* selected = game->statbox.GetSelectedPlayer();
+
+      game->player_manager.AttachSelf(selected);
+    } break;
+    default: {
+    } break;
+  }
+
+  game->statbox.OnAction(action);
+  game->specview.OnAction(action);
 }
 
 static void OnFlagClaimPkt(void* user, u8* pkt, size_t size) {
@@ -128,6 +140,7 @@ bool Game::Initialize(InputState& input) {
   }
 
   input.SetCallback(OnCharacterPress, this);
+  input.action_callback = OnAction;
 
   return true;
 }

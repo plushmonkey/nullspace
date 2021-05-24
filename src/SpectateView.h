@@ -1,13 +1,13 @@
 #ifndef NULLSPACE_SPECTATE_VIEW_H_
 #define NULLSPACE_SPECTATE_VIEW_H_
 
+#include "InputState.h"
 #include "Types.h"
 
 namespace null {
 
 struct Camera;
 struct Connection;
-struct InputState;
 struct Player;
 struct SpriteRenderer;
 struct StatBox;
@@ -29,7 +29,7 @@ struct SpectateView {
   void Update(const InputState& input, float dt);
   void Render(Camera& ui_camera, SpriteRenderer& renderer);
 
-  void OnCharacterPress(int codepoint, int mods);
+  void OnAction(InputAction action);
 
   void SpectateSelected();
 };

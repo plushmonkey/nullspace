@@ -29,6 +29,7 @@ SpriteRenderable* Graphics::bomb_sprites = nullptr;
 SpriteRenderable* Graphics::bomb_trail_sprites = nullptr;
 SpriteRenderable* Graphics::mine_sprites = nullptr;
 SpriteRenderable* Graphics::shrapnel_sprites = nullptr;
+SpriteRenderable* Graphics::bombflash_sprites = nullptr;
 
 SpriteRenderable* Graphics::bullet_sprites = nullptr;
 SpriteRenderable* Graphics::bullet_trail_sprites = nullptr;
@@ -58,6 +59,7 @@ AnimatedSprite Graphics::anim_bomb_explode;
 AnimatedSprite Graphics::anim_emp_explode;
 AnimatedSprite Graphics::anim_thor;
 AnimatedSprite Graphics::anim_bomb_trails[4];
+AnimatedSprite Graphics::anim_bombflash;
 
 AnimatedSprite Graphics::anim_mines[4];
 AnimatedSprite Graphics::anim_emp_mines[4];
@@ -254,6 +256,13 @@ bool Graphics::InitializeFont(SpriteRenderer& renderer) {
 
 bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   int count;
+
+  bombflash_sprites = LoadTileSheet(renderer, "bombflsh", Vector2f(8, 8), &count);
+  if (!bombflash_sprites) return false;
+
+  anim_bombflash.frames = bombflash_sprites;
+  anim_bombflash.frame_count = 6;
+  anim_bombflash.duration = 0.12f;
 
   bomb_sprites = LoadTileSheet(renderer, "bombs", Vector2f(16, 16), &count);
   if (!bomb_sprites) return false;

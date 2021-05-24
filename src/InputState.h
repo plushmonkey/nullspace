@@ -8,17 +8,10 @@ namespace null {
 // TODO: All of this needs redone to handle os repeating presses correctly
 
 // Reserved key presses that exist in ascii space outside of normal characters
-#define NULLSPACE_KEY_END 1
-#define NULLSPACE_KEY_DELETE 2
-#define NULLSPACE_KEY_HOME 3
 #define NULLSPACE_KEY_BACKSPACE 8
 #define NULLSPACE_KEY_ENTER 10
 #define NULLSPACE_KEY_PASTE 26
 #define NULLSPACE_KEY_ESCAPE 27
-#define NULLSPACE_KEY_PAGE_UP 28
-#define NULLSPACE_KEY_PAGE_DOWN 29
-#define NULLSPACE_KEY_CONTROL 30
-#define NULLSPACE_KEY_F2 31
 
 #define NULLSPACE_KEY_MOD_SHIFT (1 << 0)
 #define NULLSPACE_KEY_MOD_CONTROL (1 << 1)
@@ -47,21 +40,24 @@ enum class InputAction {
   Rocket,
   Brick,
   Attach,
-  PlayerListCycle,
-  PlayerListPrevious,
-  PlayerListNext,
-  PlayerListPreviousPage,
-  PlayerListNextPage,
+  StatBoxCycle,
+  StatBoxPrevious,
+  StatBoxNext,
+  StatBoxPreviousPage,
+  StatBoxNextPage,
+  StatBoxHelpNext,
   Play,
   DisplayMap,
   ChatDisplay,
 };
 
 using CharacterCallback = void (*)(void* user, int codepoint, int mods);
+using ActionCallback = void (*)(void* user, InputAction action);
 
 struct InputState {
   u32 actions = 0;
   CharacterCallback callback = nullptr;
+  ActionCallback action_callback = nullptr;
   void* user = nullptr;
 
   void Clear() { actions = 0; }
@@ -79,6 +75,12 @@ struct InputState {
   void OnCharacter(int codepoint, int mods = 0) {
     if (callback) {
       callback(user, codepoint, mods);
+    }
+  }
+
+  void OnAction(InputAction action) {
+    if (action_callback) {
+      action_callback(user, action);
     }
   }
 

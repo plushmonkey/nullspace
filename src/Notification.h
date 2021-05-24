@@ -24,6 +24,7 @@ struct NotificationSystem {
 
   // Refreshes the oldest notification and returns it so the message can be set.
   GameNotification* PushNotification(TextColor color);
+  GameNotification* PushFormatted(TextColor color, const char* fmt, ...);
 };
 
 }  // namespace null

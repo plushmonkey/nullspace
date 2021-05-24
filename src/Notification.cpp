@@ -1,5 +1,8 @@
 #include "Notification.h"
 
+#include <stdarg.h>
+#include <stdio.h>
+
 #include "Tick.h"
 #include "render/Camera.h"
 
@@ -54,6 +57,17 @@ GameNotification* NotificationSystem::PushNotification(TextColor color) {
   best->color = color;
 
   return best;
+}
+
+GameNotification* NotificationSystem::PushFormatted(TextColor color, const char* fmt, ...) {
+  GameNotification* notification = PushNotification(color);
+
+  va_list args;
+  va_start(args, fmt);
+  vsprintf(notification->message, fmt, args);
+  va_end(args);
+
+  return notification;
 }
 
 }  // namespace null

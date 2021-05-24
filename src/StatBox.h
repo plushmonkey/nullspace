@@ -1,6 +1,7 @@
 #ifndef NULLSPACE_STATBOX_H_
 #define NULLSPACE_STATBOX_H_
 
+#include "InputState.h"
 #include "Math.h"
 #include "PlayerManager.h"
 #include "render/SpriteRenderer.h"
@@ -53,7 +54,7 @@ struct StatBox {
   void RecordFullView(const Player& me);
   void RecordFrequencyView(const Player& me);
 
-  void OnCharacterPress(int codepoint, int mods);
+  void OnAction(InputAction action);
   void RecordView();
   void UpdateView();
 
@@ -71,7 +72,8 @@ struct StatBox {
   void OnPlayerFreqAndShipChange(u8* pkt, size_t size);
 
   StatTextOutput* AddTextOutput(const Vector2f& position, TextColor color, TextAlignment alignment);
-  StatRenderableOutput* AddRenderableOutput(SpriteRenderable& renderable, const Vector2f& position, const Vector2f& dimensions);
+  StatRenderableOutput* AddRenderableOutput(SpriteRenderable& renderable, const Vector2f& position,
+                                            const Vector2f& dimensions);
 
  private:
   void RecordName(Player* player, float y, bool selected, bool same_freq);

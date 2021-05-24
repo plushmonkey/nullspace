@@ -69,12 +69,22 @@ void ShipController::Update(const InputState& input, float dt) {
   bool thrust_backward = false;
   bool thrust_forward = false;
 
-  if (input.IsDown(InputAction::Backward)) {
-    self->velocity -= OrientationToHeading(direction) * (ship.thrust * (10.0f / 16.0f)) * dt;
-    thrust_backward = true;
-  } else if (input.IsDown(InputAction::Forward)) {
-    self->velocity += OrientationToHeading(direction) * (ship.thrust * (10.0f / 16.0f)) * dt;
-    thrust_forward = true;
+  if (self->attach_parent == kInvalidPlayerId) {
+    if (input.IsDown(InputAction::Backward)) {
+      self->velocity -= OrientationToHeading(direction) * (ship.thrust * (10.0f / 16.0f)) * dt;
+      thrust_backward = true;
+    } else if (input.IsDown(InputAction::Forward)) {
+      self->velocity += OrientationToHeading(direction) * (ship.thrust * (10.0f / 16.0f)) * dt;
+      thrust_forward = true;
+    }
+  } else {
+    Player* parent = player_manager.GetPlayerById(self->attach_parent);
+    if (parent) {
+      self->position = parent->position;
+      self->velocity = parent->velocity;
+      self->lerp_time = parent->lerp_time;
+      self->lerp_velocity = parent->lerp_velocity;
+    }
   }
 
   if (input.IsDown(InputAction::Left)) {
@@ -1009,8 +1019,8 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
     } else {
       connection.SendDeath(weapon.player_id, self->bounty);
 
-      self->enter_delay = (connection.settings.EnterDelay / 100.0f) + self->explode_animation.sprite->duration;
-      self->explode_animation.t = 0.0f;
+      self->enter_delay = (connection.settings.EnterDelay / 100.0f) + player_manager.explode_animation.GetDuration();
+      self->explode_anim_t = 0.0f;
       self->energy = 0;
     }
   } else {

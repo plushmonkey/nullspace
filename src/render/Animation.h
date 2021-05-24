@@ -22,9 +22,14 @@ struct Animation {
   bool repeat = false;
 
   bool IsAnimating() { return sprite && t < sprite->duration; }
+  bool IsAnimating(float check_t) { return check_t < sprite->duration; }
 
-  SpriteRenderable& GetFrame() {
-    size_t frame = (size_t)((t / sprite->duration) * sprite->frame_count);
+  float GetDuration() { return sprite->duration; }
+
+  inline SpriteRenderable& GetFrame() { return GetFrame(t); }
+
+  SpriteRenderable& GetFrame(float user_t) {
+    size_t frame = (size_t)((user_t / sprite->duration) * sprite->frame_count);
     if (frame >= sprite->frame_count) {
       frame = sprite->frame_count - 1;
     }

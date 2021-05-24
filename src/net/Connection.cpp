@@ -457,6 +457,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
       case ProtocolS2C::FlagClaim: {
       } break;
+      case ProtocolS2C::DestroyTurret: {
+      } break;
       case ProtocolS2C::DropFlag: {
       } break;
       case ProtocolS2C::Spectate: {
@@ -607,6 +609,17 @@ void Connection::SendSecurityPacket() {
   buffer.WriteU8(0);      // slow frame
 
   packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
+}
+
+void Connection::SendAttachRequest(u16 destination_pid) {
+#pragma pack(push, 1)
+  struct {
+    u8 type;
+    u16 player_id;
+  } attach_request = {0x10, destination_pid};
+#pragma pack(pop)
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&attach_request, sizeof(attach_request));
 }
 
 ConnectResult Connection::Connect(const char* ip, u16 port) {

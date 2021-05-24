@@ -102,6 +102,7 @@ void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
             follow_player->portals);
     sprintf(rows[2], "Decy:%-2d Thor:%-2d", follow_player->decoys, follow_player->thors);
     sprintf(rows[3], "Wall:%-2d Rckt:%-2d", follow_player->bricks, follow_player->rockets);
+    // TODO: Super and shields display
 
     float x = ui_camera.surface_dim.x / 2.0f;
 
@@ -126,10 +127,13 @@ void SpectateView::SpectateSelected() {
   }
 }
 
-void SpectateView::OnCharacterPress(int codepoint, int mods) {
+void SpectateView::OnAction(InputAction action) {
   Player* self = statbox.player_manager.GetSelf();
 
-  if (self && self->ship == 8 && codepoint == NULLSPACE_KEY_CONTROL) {
+  if (!self || self->ship != 8) return;
+
+  // TODO: F5 to follow ball and F4 to spectate multiple players
+  if (action == InputAction::Bullet || action == InputAction::Bomb) {
     SpectateSelected();
   }
 }

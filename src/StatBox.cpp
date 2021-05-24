@@ -37,27 +37,45 @@ StatBox::StatBox(PlayerManager& player_manager, PacketDispatcher& dispatcher) : 
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
 }
 
-void StatBox::OnCharacterPress(int codepoint, int mods) {
-  bool shift = mods & NULLSPACE_KEY_MOD_SHIFT;
+void StatBox::OnAction(InputAction action) {
+  // TODO: Clipped view and page jumping
 
-  if (codepoint == NULLSPACE_KEY_PAGE_UP && selected_index > 0) {
-    if (shift) {
+  switch (action) {
+    case InputAction::StatBoxPrevious: {
+      if (view_type == StatViewType::None) {
+        view_type = StatViewType::Names;
+        UpdateView();
+      } else if (selected_index > 0) {
+        --selected_index;
+
+        RecordView();
+      }
+    } break;
+    case InputAction::StatBoxNext: {
+      if (view_type == StatViewType::None) {
+        view_type = StatViewType::Names;
+        UpdateView();
+      } else if (selected_index < player_manager.player_count - 1) {
+        ++selected_index;
+      }
+      RecordView();
+    } break;
+    case InputAction::StatBoxPreviousPage: {
       selected_index = 0;
-    } else {
-      --selected_index;
-    }
-    RecordView();
-  } else if (codepoint == NULLSPACE_KEY_PAGE_DOWN && selected_index < player_manager.player_count - 1) {
-    if (shift) {
-      // TODO: Full page skips instead of directly to the end
+      RecordView();
+    } break;
+    case InputAction::StatBoxNextPage: {
       selected_index = player_manager.player_count - 1;
-    } else {
-      ++selected_index;
-    }
-    RecordView();
-  } else if (codepoint == NULLSPACE_KEY_F2) {
-    view_type = (StatViewType)(((int)view_type + 1) % 7);
-    UpdateView();
+      RecordView();
+    } break;
+    case InputAction::StatBoxCycle: {
+      constexpr size_t kStatBoxViewCount = 7;
+
+      view_type = (StatViewType)(((int)view_type + 1) % kStatBoxViewCount);
+      UpdateView();
+    } break;
+    default: {
+    } break;
   }
 }
 

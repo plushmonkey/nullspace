@@ -96,7 +96,7 @@ static void OnSetCoordinatesPkt(void* user, u8* pkt, size_t size) {
   self->velocity.x = 0.0f;
   self->velocity.y = 0.0f;
   self->togglables |= Status_Flash;
-  self->warp_animation.t = 0.0f;
+  self->warp_anim_t = 0.0f;
 }
 
 inline bool IsPlayerVisible(Player& self, u32 self_freq, Player& player) {
@@ -137,13 +137,14 @@ void PlayerManager::Update(float dt) {
 
     SimulatePlayer(*player, dt);
 
-    player->explode_animation.t += dt;
-    player->warp_animation.t += dt;
+    player->explode_anim_t += dt;
+    player->warp_anim_t += dt;
+    player->bombflash_anim_t += dt;
 
     if (player->enter_delay > 0.0f) {
       player->enter_delay -= dt;
 
-      if (!player->explode_animation.IsAnimating()) {
+      if (!explode_animation.IsAnimating(player->explode_anim_t)) {
         if (player != self) {
           player->position = Vector2f(0, 0);
           player->lerp_time = 0.0f;
@@ -154,7 +155,7 @@ void PlayerManager::Update(float dt) {
 
       if (player == self && player->enter_delay <= 0.0f) {
         Spawn();
-        player->warp_animation.t = 0.0f;
+        player->warp_anim_t = 0.0f;
       }
     }
   }
@@ -188,8 +189,8 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
     if (player->position == Vector2f(0, 0)) continue;
     if (player->attach_parent != kInvalidPlayerId) continue;
 
-    if (player->explode_animation.IsAnimating()) {
-      SpriteRenderable& renderable = player->explode_animation.GetFrame();
+    if (explode_animation.IsAnimating(player->explode_anim_t)) {
+      SpriteRenderable& renderable = explode_animation.GetFrame(player->explode_anim_t);
       Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
 
       renderer.Draw(camera, renderable, position, Layer::AfterShips);
@@ -220,13 +221,24 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
         info = info->next;
       }
 
-      if (player->warp_animation.IsAnimating()) {
-        SpriteRenderable& renderable = player->warp_animation.GetFrame();
+      if (warp_animation.IsAnimating(player->warp_anim_t)) {
+        SpriteRenderable& renderable = warp_animation.GetFrame(player->warp_anim_t);
         Vector2f position = player->position - renderable.dimensions * (0.5f / 16.0f);
 
         renderer.Draw(camera, renderable, position, Layer::AfterShips);
       }
-    } else if (player == self && player->enter_delay > 0 && !player->explode_animation.IsAnimating()) {
+
+      if (bombflash_animation.IsAnimating(player->bombflash_anim_t)) {
+        SpriteRenderable& renderable = bombflash_animation.GetFrame(player->bombflash_anim_t);
+        Vector2f heading = OrientationToHeading((u8)(player->orientation * 40.0f));
+        ShipSettings& ship_settings = connection.settings.ShipSettings[player->ship];
+
+        Vector2f position =
+            player->position + heading * ship_settings.GetRadius() - renderable.dimensions * (0.5f / 16.0f);
+
+        renderer.Draw(camera, renderable, position, Layer::Weapons);
+      }
+    } else if (player == self && player->enter_delay > 0 && !explode_animation.IsAnimating(player->explode_anim_t)) {
       char output[256];
       sprintf(output, "%.1f", player->enter_delay);
       renderer.DrawText(camera, output, TextColor::DarkRed, camera.position, Layer::TopMost, TextAlignment::Center);
@@ -453,10 +465,9 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   player->koth = buffer.ReadU8();
   player->timestamp = GetCurrentTick() & 0xFFFF;
   player->lerp_time = 0.0f;
-  player->warp_animation.sprite = &Graphics::anim_ship_warp;
-  player->warp_animation.t = Graphics::anim_ship_warp.duration;
-  player->explode_animation.sprite = &Graphics::anim_ship_explode;
-  player->explode_animation.t = Graphics::anim_ship_explode.duration;
+  player->warp_anim_t = Graphics::anim_ship_warp.duration;
+  player->explode_anim_t = Graphics::anim_ship_explode.duration;
+  player->bombflash_anim_t = Graphics::anim_bombflash.duration;
   player->enter_delay = 0.0f;
   player->last_bounce_tick = 0;
   player->children = nullptr;
@@ -527,9 +538,11 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
 
   if (killed) {
     // Hide the player until they send a new position packet
-    killed->enter_delay = (connection.settings.EnterDelay / 100.0f) + killed->explode_animation.sprite->duration;
-    killed->explode_animation.t = 0.0f;
+    killed->enter_delay = (connection.settings.EnterDelay / 100.0f) + explode_animation.GetDuration();
+    killed->explode_anim_t = 0.0f;
     killed->flags = 0;
+
+    DetachAllChildren(*killed);
   }
 
   if (killer) {
@@ -608,7 +621,7 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
     player->velocity = Vector2f(0, 0);
 
     player->lerp_time = 0.0f;
-    player->warp_animation.t = 0.0f;
+    player->warp_anim_t = 0.0f;
     player->enter_delay = 0.0f;
     player->flags = 0;
 
@@ -641,7 +654,7 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
     player->bounty = buffer.ReadU16();
 
     if (player->togglables & Status_Flash) {
-      player->warp_animation.t = 0.0f;
+      player->warp_anim_t = 0.0f;
     }
 
     Vector2f pkt_position(x / 16.0f, y / 16.0f);
@@ -716,7 +729,7 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
     player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
 
     if (player->togglables & Status_Flash) {
-      player->warp_animation.t = 0.0f;
+      player->warp_anim_t = 0.0f;
     }
 
     if (size >= 18) {
@@ -761,7 +774,7 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
 
 void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position) {
   if (player.position == Vector2f(0, 0) && position != Vector2f(0, 0)) {
-    player.warp_animation.t = 0.0f;
+    player.warp_anim_t = 0.0f;
   }
 
   Vector2f previous_pos = player.position;
@@ -815,6 +828,64 @@ void PlayerManager::OnFlagDrop(u8* pkt, size_t size) {
   }
 }
 
+void PlayerManager::AttachSelf(Player* destination) {
+  if (!destination) return;
+
+  Player* self = GetSelf();
+
+  if (!self) return;
+
+  if (self->attach_parent != kInvalidPlayerId) {
+    connection.SendAttachRequest(kInvalidPlayerId);
+    DetachPlayer(*self);
+    return;
+  }
+
+  if (self->energy < (float)ship_controller->ship.energy) {
+    notifications->PushFormatted(TextColor::Yellow, "Not enough energy to attach.");
+    return;
+  }
+
+  ShipSettings& src_settings = connection.settings.ShipSettings[self->ship];
+
+  if (self->bounty < src_settings.AttachBounty) {
+    notifications->PushFormatted(TextColor::Yellow, "Bounty not high enough to attach.");
+    return;
+  }
+
+  if (self->id == destination->id) {
+    notifications->PushFormatted(TextColor::Yellow, "Cannot attach to self.");
+    return;
+  }
+
+  if (self->frequency != destination->frequency) {
+    notifications->PushFormatted(TextColor::Yellow, "Must attach to somebody of same frequency.");
+    return;
+  }
+
+  if (destination->ship >= 8) {
+    notifications->PushFormatted(TextColor::Yellow, "Cannot attach to spectator.");
+    return;
+  }
+
+  ShipSettings& dest_settings = connection.settings.ShipSettings[destination->ship];
+
+  if (dest_settings.TurretLimit == 0) {
+    notifications->PushFormatted(TextColor::Yellow, "Target ship is not attachable.");
+    return;
+  }
+
+  size_t turret_count = GetTurretCount(*destination);
+  if (turret_count >= dest_settings.TurretLimit) {
+    notifications->PushFormatted(TextColor::Yellow, "Too many turrets already attached.");
+    return;
+  }
+
+  connection.SendAttachRequest(destination->id);
+
+  self->attach_parent = destination->id;
+}
+
 void PlayerManager::AttachPlayer(Player& requester, Player& destination) {
   requester.attach_parent = destination.id;
 
@@ -856,7 +927,21 @@ void PlayerManager::OnCreateTurretLink(u8* pkt, size_t size) {
 
     if (!requester || !destination) return;
 
+    if (requester->id == player_id) {
+      Player* self = GetSelf();
+
+      // If the attach happening was requested (not server controlled), then reduce energy
+      if (self && self->attach_parent == destination_id) {
+        self->energy = self->energy * 0.333f;
+      }
+    }
+
     AttachPlayer(*requester, *destination);
+
+    requester->position = destination->position;
+    requester->velocity = destination->velocity;
+    requester->lerp_velocity = destination->lerp_velocity;
+    requester->lerp_time = destination->lerp_time;
   }
 }
 
@@ -866,6 +951,10 @@ void PlayerManager::OnDestroyTurretLink(u8* pkt, size_t size) {
   Player* player = GetPlayerById(pid);
 
   if (player) {
+    Player* self = GetSelf();
+    if (self && self->attach_parent == pid) {
+      connection.SendAttachRequest(kInvalidPlayerId);
+    }
     DetachAllChildren(*player);
   }
 }
@@ -916,6 +1005,18 @@ void PlayerManager::DetachAllChildren(Player& player) {
   }
 
   player.children = nullptr;
+}
+
+size_t PlayerManager::GetTurretCount(Player& player) {
+  AttachInfo* info = player.children;
+  size_t count = 0;
+
+  while (info) {
+    ++count;
+    info = info->next;
+  }
+
+  return count;
 }
 
 bool PlayerManager::SimulateAxis(Player& player, float dt, int axis) {

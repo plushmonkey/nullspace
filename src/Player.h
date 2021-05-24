@@ -96,8 +96,9 @@ struct Player {
 
   float enter_delay;
 
-  Animation warp_animation;
-  Animation explode_animation;
+  float warp_anim_t;
+  float explode_anim_t;
+  float bombflash_anim_t;
 };
 
 }  // namespace null
