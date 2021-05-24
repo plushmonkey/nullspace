@@ -310,7 +310,16 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
         sprintf(energy_output, "%d", (u32)player.energy);
         Vector2f energy_p = position.PixelRounded() + Vector2f(-0.5f, offset.y);
 
-        renderer.DrawText(camera, energy_output, TextColor::Blue, energy_p, Layer::AfterShips, TextAlignment::Right);
+        float initial_energy = (float)connection.settings.ShipSettings[player.ship].InitialEnergy;
+        TextColor color = TextColor::Blue;
+
+        if (player.energy < initial_energy / 4.0f) {
+          color = TextColor::DarkRed;
+        } else if (player.energy < initial_energy / 2.0f) {
+          color = TextColor::Yellow;
+        }
+
+        renderer.DrawText(camera, energy_output, color, energy_p, Layer::AfterShips, TextAlignment::Right);
       }
     }
 
