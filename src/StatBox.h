@@ -10,6 +10,7 @@ namespace null {
 
 enum class StatViewType { Names, Points, PointSort, TeamSort, Full, Frequency, None };
 
+struct BannerPool;
 struct Camera;
 struct PacketDispatcher;
 struct SpriteRenderer;
@@ -29,6 +30,8 @@ struct StatRenderableOutput {
 
 struct StatBox {
   PlayerManager& player_manager;
+  BannerPool& banners;
+
   StatViewType view_type = StatViewType::Names;
 
   size_t selected_index = -1;
@@ -44,7 +47,7 @@ struct StatBox {
   size_t renderable_count = 0;
   StatRenderableOutput renderable_outputs[256];
 
-  StatBox(PlayerManager& player_manager, PacketDispatcher& dispatcher);
+  StatBox(PlayerManager& player_manager, BannerPool& banners, PacketDispatcher& dispatcher);
 
   void Render(Camera& camera, SpriteRenderer& renderer);
 

@@ -169,6 +169,7 @@
     <ClCompile Include="lib\imgui\imgui_draw.cpp" />
     <ClCompile Include="lib\imgui\imgui_tables.cpp" />
     <ClCompile Include="lib\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="src\BannerPool.cpp" />
     <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\ChatController.cpp" />
     <ClCompile Include="src\FileRequester.cpp" />
@@ -213,6 +214,7 @@
     <ClInclude Include="lib\imgui\imstb_textedit.h" />
     <ClInclude Include="lib\imgui\imstb_truetype.h" />
     <ClInclude Include="src\ArenaSettings.h" />
+    <ClInclude Include="src\BannerPool.h" />
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\ChatController.h" />
     <ClInclude Include="src\FileRequester.h" />

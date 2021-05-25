@@ -80,7 +80,7 @@ void WeaponManager::Update(float dt) {
         if (TICK_DIFF(weapon->last_tick, weapon->last_trail_tick) >= 5) {
           SpriteRenderable& frame = Graphics::anim_bomb_trails[weapon->data.level].frames[0];
           Vector2f offset = (frame.dimensions * (0.5f / 16.0f));
-          Vector2f position = (weapon->position - weapon->velocity * (1.0f / 100.0f) - offset).PixelRounded();
+          Vector2f position = (weapon->position - offset).PixelRounded();
 
           animation.AddAnimation(Graphics::anim_bomb_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
           weapon->last_trail_tick = weapon->last_tick;

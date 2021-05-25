@@ -335,6 +335,15 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
       }
     }
 
+    u16 player_index = player_lookup[player.id];
+
+    if (banners->player_banners[player_index] != -1) {
+      BannerRegistration* reg = banners->registrations + banners->player_banners[player_index];
+
+      renderer.Draw(camera, reg->renderable, current_position + Vector2f(0, 2.0f / 16.0f), Layer::AfterShips);
+      current_position += Vector2f(1.0f, 0);
+    }
+
     renderer.DrawText(camera, display, color, current_position, Layer::AfterShips);
   }
 }
@@ -442,7 +451,7 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
 
   size_t player_index = player_count++;
 
-  assert(player_index <= kInvalidPlayerId);
+  assert(player_index < NULLSPACE_ARRAY_SIZE(players));
 
   Player* player = players + player_index;
 
@@ -475,6 +484,8 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   memset(&player->weapon, 0, sizeof(player->weapon));
 
   player_lookup[player->id] = (u16)player_index;
+
+  banners->FreeBanner(player->id);
 
   printf("%s entered arena\n", name);
 
@@ -514,6 +525,8 @@ void PlayerManager::OnPlayerLeave(u8* pkt, size_t size) {
 
     // Swap the last player in the list's lookup to point to their new index
     assert(index < 1024);
+
+    banners->FreeBanner(player->id);
 
     player_lookup[players[player_count - 1].id] = (u16)index;
     player_lookup[player->id] = kInvalidPlayerId;

@@ -1,6 +1,7 @@
 #ifndef NULLSPACE_PLAYER_MANAGER_H_
 #define NULLSPACE_PLAYER_MANAGER_H_
 
+#include "BannerPool.h"
 #include "Notification.h"
 #include "Player.h"
 #include "Types.h"
@@ -27,6 +28,7 @@ struct PlayerManager {
   ChatController* chat_controller = nullptr;
   NotificationSystem* notifications = nullptr;
   SpectateView* specview = nullptr;
+  BannerPool* banners = nullptr;
 
   u16 player_id = 0;
   u32 last_position_tick = 0;
@@ -47,12 +49,14 @@ struct PlayerManager {
   PlayerManager(MemoryArena& perm_arena, Connection& connection, PacketDispatcher& dispatcher);
 
   inline void Initialize(WeaponManager* weapon_manager, ShipController* ship_controller,
-                         ChatController* chat_controller, NotificationSystem* notifications, SpectateView* specview) {
+                         ChatController* chat_controller, NotificationSystem* notifications, SpectateView* specview,
+                         BannerPool* banners) {
     this->weapon_manager = weapon_manager;
     this->ship_controller = ship_controller;
     this->chat_controller = chat_controller;
     this->notifications = notifications;
     this->specview = specview;
+    this->banners = banners;
 
     warp_animation.sprite = &Graphics::anim_ship_warp;
     explode_animation.sprite = &Graphics::anim_ship_explode;
@@ -69,6 +73,8 @@ struct PlayerManager {
 
   Player* GetSelf();
   Player* GetPlayerById(u16 id, size_t* index = nullptr);
+  inline u16 GetPlayerIndex(u16 id) { return player_lookup[id]; }
+
   void SendPositionPacket();
   void SimulatePlayer(Player& player, float dt);
   bool SimulateAxis(Player& player, float dt, int axis);

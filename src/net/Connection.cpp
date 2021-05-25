@@ -468,6 +468,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
       case ProtocolS2C::TeamAndShipChange: {
       } break;
+      case ProtocolS2C::PlayerBannerChange: {
+      } break;
       case ProtocolS2C::BrickDropped: {
       } break;
       case ProtocolS2C::KeepAlive: {

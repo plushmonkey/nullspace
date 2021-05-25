@@ -103,10 +103,11 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       connection(perm_arena, temp_arena, dispatcher),
       player_manager(perm_arena, connection, dispatcher),
       weapon_manager(connection, player_manager, dispatcher, animation),
+      banner_pool(temp_arena, player_manager, dispatcher),
       camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f / 16.0f),
       ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),
       fps(60.0f),
-      statbox(player_manager, dispatcher),
+      statbox(player_manager, banner_pool, dispatcher),
       chat(dispatcher, connection, player_manager, statbox),
       specview(connection, statbox),
       ship_controller(player_manager, weapon_manager, dispatcher),
@@ -119,7 +120,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
   dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
   dispatcher.Register(ProtocolS2C::ArenaSettings, OnArenaSettings, this);
 
-  player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications, &specview);
+  player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications, &specview, &banner_pool);
   weapon_manager.Initialize(&ship_controller);
 }
 
@@ -526,6 +527,7 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
 }
 
 void Game::Cleanup() {
+  banner_pool.Cleanup();
   background_renderer.Cleanup();
   sprite_renderer.Cleanup();
   tile_renderer.Cleanup();

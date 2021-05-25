@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 
+#include "BannerPool.h"
 #include "InputState.h"
 #include "Platform.h"
 #include "net/PacketDispatcher.h"
@@ -31,10 +32,19 @@ static void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
   statbox->OnPlayerFreqAndShipChange(pkt, size);
 }
 
-StatBox::StatBox(PlayerManager& player_manager, PacketDispatcher& dispatcher) : player_manager(player_manager) {
+static void OnPlayerBannerChangePkt(void* user, u8* pkt, size_t size) {
+  StatBox* statbox = (StatBox*)user;
+
+  // TODO: This could be a flag to trigger on a frame so it doesn't happen a bunch of times on login
+  statbox->RecordView();
+}
+
+StatBox::StatBox(PlayerManager& player_manager, BannerPool& banners, PacketDispatcher& dispatcher)
+    : player_manager(player_manager), banners(banners) {
   dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerLeaving, OnPlayerLeavePkt, this);
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
+  dispatcher.Register(ProtocolS2C::PlayerBannerChange, OnPlayerBannerChangePkt, this);
 }
 
 void StatBox::OnAction(InputAction action) {
@@ -152,6 +162,16 @@ void StatBox::RecordPointsView(const Player& me) {
     float y = kBorder + kHeaderHeight + 1.0f + i * 12.0f;
     RecordName(player, y, selected_index == i, player->frequency == me.frequency);
 
+    u16 player_index = player_manager.GetPlayerIndex(player->id);
+
+    if (banners.player_banners[player_index] != -1) {
+      BannerRegistration* reg = banners.registrations + banners.player_banners[player_index];
+
+      float x = kBorder + kSpectateWidth + 3.0f + 12 * 8;
+
+      AddRenderableOutput(reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
+    }
+
     TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;
 
     StatTextOutput* points_output = AddTextOutput(Vector2f(width, y), color, TextAlignment::Right);
@@ -204,6 +224,16 @@ void StatBox::RecordTeamSortView(const Player& me) {
     ++freq_count;
 
     RecordName(player, y, selected_index == i, player->frequency == me.frequency);
+
+    u16 player_index = player_manager.GetPlayerIndex(player->id);
+
+    if (banners.player_banners[player_index] != -1) {
+      BannerRegistration* reg = banners.registrations + banners.player_banners[player_index];
+
+      float x = kBorder + kSpectateWidth + 3.0f + 12 * 8;
+
+      AddRenderableOutput(reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
+    }
 
     TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;
 
@@ -262,6 +292,16 @@ void StatBox::RecordFullView(const Player& me) {
 
     float y = kBorder + kHeaderHeight + 1.0f + i * 12.0f;
     RecordName(player, y, selected_index == i, player->frequency == me.frequency);
+
+    u16 player_index = player_manager.GetPlayerIndex(player->id);
+
+    if (banners.player_banners[player_index] != -1) {
+      BannerRegistration* reg = banners.registrations + banners.player_banners[player_index];
+
+      float x = kBorder + kSpectateWidth + 3.0f + 12 * 8;
+
+      AddRenderableOutput(reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
+    }
 
     TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;
 
