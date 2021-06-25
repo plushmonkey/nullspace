@@ -21,14 +21,17 @@ enum StatusFlag {
   Status_InputChange = (1 << 7)
 };
 
+enum class WeaponType : u16 { None, Bullet, BouncingBullet, Bomb, ProximityBomb, Repel, Decoy, Burst, Thor };
+
 struct WeaponData {
-  u16 type : 5;
+  WeaponType type : 5;
   u16 level : 2;
   u16 shrapbouncing : 1;
   u16 shraplevel : 2;
   u16 shrap : 5;
   u16 alternate : 1;
 };
+static_assert(sizeof(WeaponData) == 2);
 
 struct AttachInfo {
   u16 player_id;

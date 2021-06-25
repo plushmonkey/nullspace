@@ -314,7 +314,7 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
         char energy_output[16];
         sprintf(energy_output, "%d", (u32)player.energy);
 
-        renderer.DrawText(camera, energy_output, energy_color, current_position, Layer::AfterShips);
+        renderer.DrawText(camera, energy_output, energy_color, current_position, Layer::Ships);
 
         current_position.y += (12.0f / 16.0f);
       } else if (player.id != player_id && player.energy > 0.0f) {
@@ -331,7 +331,7 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
           color = TextColor::Yellow;
         }
 
-        renderer.DrawText(camera, energy_output, color, energy_p, Layer::AfterShips, TextAlignment::Right);
+        renderer.DrawText(camera, energy_output, color, energy_p, Layer::Ships, TextAlignment::Right);
       }
     }
 
@@ -340,11 +340,11 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
     if (banners->player_banners[player_index] != -1) {
       BannerRegistration* reg = banners->registrations + banners->player_banners[player_index];
 
-      renderer.Draw(camera, reg->renderable, current_position + Vector2f(0, 2.0f / 16.0f), Layer::AfterShips);
+      renderer.Draw(camera, reg->renderable, current_position + Vector2f(0, 2.0f / 16.0f), Layer::Ships);
       current_position += Vector2f(1.0f, 0);
     }
 
-    renderer.DrawText(camera, display, color, current_position, Layer::AfterShips);
+    renderer.DrawText(camera, display, color, current_position, Layer::Ships);
   }
 }
 

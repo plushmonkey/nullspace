@@ -65,7 +65,7 @@ void WeaponManager::Update(float dt) {
         break;
       }
 
-      if (weapon->data.type == (u16)WeaponType::Bullet || weapon->data.type == (u16)WeaponType::BouncingBullet) {
+      if (weapon->data.type == WeaponType::Bullet || weapon->data.type == WeaponType::BouncingBullet) {
         if (TICK_DIFF(weapon->last_tick, weapon->last_trail_tick) >= 2) {
           SpriteRenderable& frame = Graphics::anim_bullet_trails[weapon->data.level].frames[0];
           Vector2f offset = Vector2f(1 / 16.0f, 1 / 16.0f);
@@ -75,7 +75,7 @@ void WeaponManager::Update(float dt) {
           animation.AddAnimation(Graphics::anim_bullet_trails[weapon->data.level], position)->layer = Layer::AfterTiles;
           weapon->last_trail_tick = weapon->last_tick;
         }
-      } else if ((weapon->data.type == (u16)WeaponType::Bomb || weapon->data.type == (u16)WeaponType::ProximityBomb) &&
+      } else if ((weapon->data.type == WeaponType::Bomb || weapon->data.type == WeaponType::ProximityBomb) &&
                  !weapon->data.alternate) {
         if (TICK_DIFF(weapon->last_tick, weapon->last_trail_tick) >= 5) {
           SpriteRenderable& frame = Graphics::anim_bomb_trails[weapon->data.level].frames[0];
@@ -118,7 +118,7 @@ void WeaponManager::Update(float dt) {
 }
 
 WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
-  WeaponType type = (WeaponType)weapon.data.type;
+  WeaponType type = weapon.data.type;
 
   if (weapon.last_tick++ >= weapon.end_tick) return WeaponSimulateResult::TimedOut;
 
@@ -136,10 +136,10 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
 
   if (type == WeaponType::Decoy) return WeaponSimulateResult::Continue;
 
-  bool is_bomb = weapon.data.type == (u16)WeaponType::Bomb || weapon.data.type == (u16)WeaponType::ProximityBomb ||
-                 weapon.data.type == (u16)WeaponType::Thor;
+  bool is_bomb = weapon.data.type == WeaponType::Bomb || weapon.data.type == WeaponType::ProximityBomb ||
+                 weapon.data.type == WeaponType::Thor;
 
-  bool is_prox = weapon.data.type == (u16)WeaponType::ProximityBomb || weapon.data.type == (u16)WeaponType::Thor;
+  bool is_prox = weapon.data.type == WeaponType::ProximityBomb || weapon.data.type == WeaponType::Thor;
 
   if (is_prox && weapon.prox_hit_player_id != 0xFFFF) {
     Player* hit_player = player_manager.GetPlayerById(weapon.prox_hit_player_id);
@@ -188,7 +188,7 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
     if (is_prox) {
       float prox = (float)(connection.settings.ProximityDistance + weapon.data.level);
 
-      if (weapon.data.type == (u16)WeaponType::Thor) {
+      if (weapon.data.type == WeaponType::Thor) {
         prox += 3;
       }
 
@@ -258,7 +258,7 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
     Weapon& other = weapons[i];
 
     if (other.frequency == weapon.frequency) continue;
-    if (other.data.type == (u16)WeaponType::Repel) continue;
+    if (other.data.type == WeaponType::Repel) continue;
 
     float dist_sq = other.position.DistanceSq(weapon.position);
 
@@ -269,7 +269,7 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
       other.last_event_time = time;
       other.last_event_position = other.position;
 
-      WeaponType type = (WeaponType)other.data.type;
+      WeaponType type = other.data.type;
 
       if (other.data.alternate && (type == WeaponType::Bomb || type == WeaponType::ProximityBomb)) {
         other.data.alternate = 0;
@@ -280,6 +280,9 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
           SetWeaponSprite(*player, other);
         }
       }
+
+      // Set end tick after turning mines into bombs so the new end tick is bomb time
+      other.end_tick = GetCurrentTick() + GetWeaponTotalAliveTime(other.data.type, other.data.alternate);
     }
   }
 
@@ -310,7 +313,7 @@ bool WeaponManager::SimulateAxis(Weapon& weapon, float dt, int axis) {
 
   weapon.position[axis] += weapon.velocity[axis] * dt;
 
-  if (weapon.data.type == (u16)WeaponType::Thor) return false;
+  if (weapon.data.type == WeaponType::Thor) return false;
 
   // TODO: Handle other special tiles here
   if (map.IsSolid((u16)weapon.position.x, (u16)weapon.position.y)) {
@@ -324,7 +327,7 @@ bool WeaponManager::SimulateAxis(Weapon& weapon, float dt, int axis) {
 }
 
 WeaponSimulateResult WeaponManager::SimulatePosition(Weapon& weapon) {
-  WeaponType type = (WeaponType)weapon.data.type;
+  WeaponType type = weapon.data.type;
 
   // This collision method deviates from Continuum when using variable update rate, so it updates by one tick at a time
   bool x_collide = SimulateAxis(weapon, 1.0f / 100.0f, 0);
@@ -393,7 +396,7 @@ void WeaponManager::AddLinkRemoval(u32 link_id, WeaponSimulateResult result) {
 }
 
 void WeaponManager::CreateExplosion(Weapon& weapon) {
-  WeaponType type = (WeaponType)weapon.data.type;
+  WeaponType type = weapon.data.type;
 
   switch (type) {
     case WeaponType::Bomb:
@@ -432,10 +435,10 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
         shrap->data = weapon.data;
         shrap->data.level = weapon.data.shraplevel;
         if (weapon.data.shrapbouncing) {
-          shrap->data.type = (u16)WeaponType::BouncingBullet;
+          shrap->data.type = WeaponType::BouncingBullet;
           shrap->animation.sprite = Graphics::anim_bounce_shrapnel + weapon.data.shraplevel;
         } else {
-          shrap->data.type = (u16)WeaponType::Bullet;
+          shrap->data.type = WeaponType::Bullet;
           shrap->animation.sprite = Graphics::anim_shrapnel + weapon.data.shraplevel;
         }
         shrap->flags = 0;
@@ -484,7 +487,7 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer, float dt) {
     Vector2f travel_ray = elapsed_seconds * weapon->velocity;
     Vector2f extrapolated_pos;
 
-    if (weapon->data.type != (u16)WeaponType::Thor) {
+    if (weapon->data.type != WeaponType::Thor) {
       // TODO: This is pretty heavy. Maybe make it an option to toggle off and just use the simulated position
       CastResult cast = connection.map.Cast(weapon->last_event_position, Normalize(travel_ray), travel_ray.Length());
       extrapolated_pos = cast.position;
@@ -506,7 +509,7 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer, float dt) {
       Vector2f position = extrapolated_pos - frame.dimensions * (0.5f / 16.0f);
 
       renderer.Draw(camera, frame, position.PixelRounded(), Layer::Weapons);
-    } else if (weapon->data.type == (u16)WeaponType::Decoy) {
+    } else if (weapon->data.type == WeaponType::Decoy) {
       Player* player = player_manager.GetPlayerById(weapon->player_id);
 
       if (player) {
@@ -586,7 +589,7 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
 void WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u32 pos_y, s32 vel_x, s32 vel_y,
                                 u32 timestamp) {
   ShipSettings& ship_settings = connection.settings.ShipSettings[player.ship];
-  WeaponType type = (WeaponType)weapon.type;
+  WeaponType type = weapon.type;
 
   u8 direction = (u8)(player.orientation * 40.0f);
   u16 pid = player.id;
@@ -680,7 +683,7 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   weapon->prox_hit_player_id = 0xFFFF;
   weapon->last_tick = local_timestamp;
 
-  WeaponType type = (WeaponType)weapon->data.type;
+  WeaponType type = weapon->data.type;
 
   Player* player = player_manager.GetPlayerById(player_id);
   assert(player);
@@ -691,34 +694,27 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   switch (type) {
     case WeaponType::Bullet:
     case WeaponType::BouncingBullet: {
-      weapon->end_tick = local_timestamp + connection.settings.BulletAliveTime;
       speed = (s16)connection.settings.ShipSettings[player->ship].BulletSpeed;
     } break;
     case WeaponType::Thor:
     case WeaponType::Bomb:
     case WeaponType::ProximityBomb: {
-      if (weapon->data.alternate) {
-        weapon->end_tick = local_timestamp + connection.settings.MineAliveTime;
-      } else {
-        weapon->end_tick = local_timestamp + connection.settings.BombAliveTime;
+      if (!weapon->data.alternate) {
         speed = (s16)connection.settings.ShipSettings[player->ship].BombSpeed;
         weapon->bounces_remaining = connection.settings.ShipSettings[player->ship].BombBounceCount;
       }
     } break;
-    case WeaponType::Repel: {
-      weapon->end_tick = local_timestamp + connection.settings.RepelTime;
-    } break;
     case WeaponType::Decoy: {
-      weapon->end_tick = local_timestamp + connection.settings.DecoyAliveTime;
       weapon->initial_orientation = player->orientation;
     } break;
     case WeaponType::Burst: {
-      weapon->end_tick = local_timestamp + connection.settings.BulletAliveTime;
       speed = (s16)connection.settings.ShipSettings[player->ship].BurstSpeed;
     } break;
     default: {
     } break;
   }
+
+  weapon->end_tick = local_timestamp + GetWeaponTotalAliveTime(weapon->data.type, weapon->data.alternate);
 
   bool is_mine = (type == WeaponType::Bomb || type == WeaponType::ProximityBomb) && weapon->data.alternate;
 
@@ -783,7 +779,7 @@ u64 WeaponManager::GetTime() {
 }
 
 void WeaponManager::SetWeaponSprite(Player& player, Weapon& weapon) {
-  WeaponType type = (WeaponType)weapon.data.type;
+  WeaponType type = weapon.data.type;
 
   switch (type) {
     case WeaponType::Bullet: {
@@ -838,6 +834,39 @@ void WeaponManager::SetWeaponSprite(Player& player, Weapon& weapon) {
   }
 
   weapon.animation.t = 0.0f;
+}
+
+int WeaponManager::GetWeaponTotalAliveTime(WeaponType type, bool alternate) {
+  int result = 0;
+
+  switch (type) {
+    case WeaponType::Bullet:
+    case WeaponType::BouncingBullet: {
+      result = connection.settings.BulletAliveTime;
+    } break;
+    case WeaponType::Thor:
+    case WeaponType::Bomb:
+    case WeaponType::ProximityBomb: {
+      if (alternate) {
+        result = connection.settings.MineAliveTime;
+      } else {
+        result = connection.settings.BombAliveTime;
+      }
+    } break;
+    case WeaponType::Repel: {
+      result = connection.settings.RepelTime;
+    } break;
+    case WeaponType::Decoy: {
+      result = connection.settings.DecoyAliveTime;
+    } break;
+    case WeaponType::Burst: {
+      result = connection.settings.BulletAliveTime;
+    } break;
+    default: {
+    } break;
+  }
+
+  return result;
 }
 
 }  // namespace null

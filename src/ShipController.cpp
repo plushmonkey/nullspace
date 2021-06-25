@@ -180,7 +180,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
   if (input.IsDown(InputAction::Repel)) {
     if (TICK_GT(tick, next_bomb_tick)) {
       if (ship.repels > 0 && !in_safe) {
-        self.weapon.type = (u16)WeaponType::Repel;
+        self.weapon.type = WeaponType::Repel;
         --ship.repels;
       }
 
@@ -190,7 +190,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
   } else if (input.IsDown(InputAction::Burst)) {
     if (TICK_GT(tick, next_bomb_tick)) {
       if (ship.bursts > 0 && !in_safe) {
-        self.weapon.type = (u16)WeaponType::Burst;
+        self.weapon.type = WeaponType::Burst;
         --ship.bursts;
       }
 
@@ -200,7 +200,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
   } else if (input.IsDown(InputAction::Thor)) {
     if (TICK_GT(tick, next_bomb_tick)) {
       if (ship.thors > 0 && !in_safe) {
-        self.weapon.type = (u16)WeaponType::Thor;
+        self.weapon.type = WeaponType::Thor;
         --ship.thors;
       }
 
@@ -210,7 +210,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
   } else if (input.IsDown(InputAction::Decoy)) {
     if (TICK_GT(tick, next_bomb_tick)) {
       if (ship.decoys > 0 && !in_safe) {
-        self.weapon.type = (u16)WeaponType::Decoy;
+        self.weapon.type = WeaponType::Decoy;
         --ship.decoys;
       }
 
@@ -222,9 +222,9 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       self.weapon.level = ship.guns - 1;
 
       if (ship.capability & ShipCapability_BouncingBullets) {
-        self.weapon.type = (u16)WeaponType::BouncingBullet;
+        self.weapon.type = WeaponType::BouncingBullet;
       } else {
-        self.weapon.type = (u16)WeaponType::Bullet;
+        self.weapon.type = WeaponType::Bullet;
       }
 
       self.weapon.alternate = ship.multifire && (ship.capability & ShipCapability_Multifire);
@@ -241,8 +241,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
   } else if (input.IsDown(InputAction::Mine) && TICK_GT(tick, next_bomb_tick)) {
     if (ship.bombs > 0) {
       self.weapon.level = ship.bombs - 1;
-      self.weapon.type =
-          (u16)((ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb);
+      self.weapon.type = (ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb;
       // TODO: Count mines
       self.weapon.alternate = 1;
 
@@ -260,8 +259,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
   } else if (input.IsDown(InputAction::Bomb) && TICK_GT(tick, next_bomb_tick)) {
     if (ship.bombs > 0) {
       self.weapon.level = ship.bombs - 1;
-      self.weapon.type =
-          (u16)((ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb);
+      self.weapon.type = (ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb;
 
       if (ship.guns > 0) {
         self.weapon.shrap = ship.shrapnel;

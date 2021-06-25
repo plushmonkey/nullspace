@@ -7,7 +7,6 @@
 
 namespace null {
 
-enum class WeaponType { None, Bullet, BouncingBullet, Bomb, ProximityBomb, Repel, Decoy, Burst, Thor };
 constexpr u32 kInvalidLink = 0xFFFFFFFF;
 
 #define WEAPON_FLAG_EMP (1 << 0)
@@ -90,6 +89,15 @@ struct WeaponManager {
 
   void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer, float dt);
+
+  int GetWeaponTotalAliveTime(WeaponType type, bool alternate);
+
+  void FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u32 pos_y, s32 vel_x, s32 vel_y, u32 timestamp);
+  void ClearWeapons(Player& player);
+
+  void OnWeaponPacket(u8* pkt, size_t size);
+
+ private:
   WeaponSimulateResult Simulate(Weapon& weapon);
   WeaponSimulateResult SimulateRepel(Weapon& weapon);
 
@@ -104,13 +112,8 @@ struct WeaponManager {
 
   u32 CalculateRngSeed(u32 x, u32 y, u32 vel_x, u32 vel_y, u16 shrap_count, u16 weapon_level, u32 frequency);
 
-  void OnWeaponPacket(u8* pkt, size_t size);
-  void FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u32 pos_y, s32 vel_x, s32 vel_y, u32 timestamp);
-
   WeaponSimulateResult GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp, u32 pos_x, u32 pos_y,
                                       s32 vel_x, s32 vel_y, const Vector2f& heading, u32 link_id);
-
-  void ClearWeapons(Player& player);
 
   u64 GetTime();
 };
