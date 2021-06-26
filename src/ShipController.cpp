@@ -60,6 +60,16 @@ void ShipController::Update(const InputState& input, float dt) {
   Connection& connection = player_manager.connection;
   ShipSettings& ship_settings = connection.settings.ShipSettings[self->ship];
 
+  // Do afterburner energy before recharge to match how Continuum sits at full energy with it enabled
+  bool afterburners = false;
+
+  float ab_cost = (ship_settings.AfterburnerEnergy / 10.0f) * dt;
+
+  if (input.IsDown(InputAction::Afterburner) && self->energy > ab_cost) {
+    afterburners = true;
+    self->energy -= ab_cost;
+  }
+
   self->energy += (ship.recharge / 10.0f) * dt;
   if (self->energy > ship.energy) {
     self->energy = (float)ship.energy;
@@ -70,11 +80,13 @@ void ShipController::Update(const InputState& input, float dt) {
   bool thrust_forward = false;
 
   if (self->attach_parent == kInvalidPlayerId) {
+    u32 thrust = afterburners ? ship_settings.MaximumThrust : ship.thrust;
+
     if (input.IsDown(InputAction::Backward)) {
-      self->velocity -= OrientationToHeading(direction) * (ship.thrust * (10.0f / 16.0f)) * dt;
+      self->velocity -= OrientationToHeading(direction) * (thrust * (10.0f / 16.0f)) * dt;
       thrust_backward = true;
     } else if (input.IsDown(InputAction::Forward)) {
-      self->velocity += OrientationToHeading(direction) * (ship.thrust * (10.0f / 16.0f)) * dt;
+      self->velocity += OrientationToHeading(direction) * (thrust * (10.0f / 16.0f)) * dt;
       thrust_forward = true;
     }
   } else {
@@ -103,7 +115,9 @@ void ShipController::Update(const InputState& input, float dt) {
     }
   }
 
-  self->velocity.Truncate(ship.speed / 10.0f / 16.0f);
+  u32 speed = afterburners ? ship_settings.MaximumSpeed : ship.speed;
+
+  self->velocity.Truncate(speed / 10.0f / 16.0f);
 
   if (player_manager.connection.map.GetTileId(self->position) == kTileSafeId) {
     self->togglables |= Status_Safety;
