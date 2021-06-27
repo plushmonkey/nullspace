@@ -98,6 +98,7 @@ static void OnArenaSettings(void* user, u8* pkt, size_t size) {
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height)
     : perm_arena(perm_arena),
       temp_arena(temp_arena),
+      notifications(),
       animation(),
       dispatcher(),
       connection(perm_arena, temp_arena, dispatcher),
@@ -110,7 +111,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
       statbox(player_manager, banner_pool, dispatcher),
       chat(dispatcher, connection, player_manager, statbox),
       specview(connection, statbox),
-      ship_controller(player_manager, weapon_manager, dispatcher),
+      ship_controller(player_manager, weapon_manager, dispatcher, notifications),
       lvz(perm_arena, temp_arena, connection.requester, sprite_renderer, dispatcher),
       radar(player_manager) {
   float zmax = (float)Layer::Count;
@@ -207,6 +208,43 @@ void Game::UpdateGreens(float dt) {
     if (tick >= green->end_tick) {
       greens[i--] = greens[--green_count];
     }
+  }
+
+  if (TICK_GT(tick, last_green_collision_tick)) {
+    Player* self = player_manager.GetSelf();
+
+    // TODO: Should probably speed this up with an acceleration structure. It's only done once a tick so it's not
+    // really important to speed up.
+    for (size_t i = 0; i < player_manager.player_count; ++i) {
+      Player* player = player_manager.players + i;
+
+      if (player->ship != 8) {
+        float radius = connection.settings.ShipSettings[player->ship].GetRadius();
+
+        Vector2f pmin = player->position - Vector2f(radius, radius);
+        Vector2f pmax = player->position + Vector2f(radius, radius);
+
+        for (size_t i = 0; i < green_count; ++i) {
+          PrizeGreen* green = greens + i;
+
+          Vector2f gmin = green->position;
+          Vector2f gmax = gmin + Vector2f(1, 1);
+
+          if (green->end_tick > 0 && BoxBoxIntersect(pmin, pmax, gmin, gmax)) {
+            if (player == self) {
+              // Pick up green
+              ship_controller.ApplyPrize(self, green->prize_id, true);
+              connection.SendTakeGreen((u16)green->position.x, (u16)green->position.y, green->prize_id);
+            }
+
+            // Set the end tick to zero so it gets automatically removed next update
+            green->end_tick = 0;
+          }
+        }
+      }
+    }
+
+    last_green_collision_tick = tick;
   }
 
   if (connection.security.prize_seed == 0) return;

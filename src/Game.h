@@ -74,6 +74,7 @@ struct Game {
   size_t green_count = 0;
   PrizeGreen greens[kMaxGreenCount];
   u32 last_green_tick = 0;
+  u32 last_green_collision_tick = 0;
 
   Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height);
 

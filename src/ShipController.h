@@ -8,6 +8,7 @@ namespace null {
 
 struct Camera;
 struct InputState;
+struct NotificationSystem;
 struct PacketDispatcher;
 struct Player;
 struct PlayerManager;
@@ -92,13 +93,15 @@ struct Ship {
 struct ShipController {
   PlayerManager& player_manager;
   WeaponManager& weapon_manager;
+  NotificationSystem& notifications_;
   Ship ship;
   u32 next_bullet_tick = 0;
   u32 next_bomb_tick = 0;
   size_t exhaust_count = 0;
   Exhaust exhausts[64];
 
-  ShipController(PlayerManager& player_manager, WeaponManager& weapon_manager, PacketDispatcher& dispatcher);
+  ShipController(PlayerManager& player_manager, WeaponManager& weapon_manager, PacketDispatcher& dispatcher,
+                 NotificationSystem& notifications);
 
   void Update(const InputState& input, float dt);
   void FireWeapons(Player& self, const InputState& input, float dt);
@@ -114,7 +117,7 @@ struct ShipController {
 
   void ResetShip();
 
-  void ApplyPrize(Player* self, s32 prize_id);
+  void ApplyPrize(Player* self, s32 prize_id, bool notify);
   s32 GeneratePrize(bool negative_allowed);
 
   void OnWeaponHit(Weapon& weapon);

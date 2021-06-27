@@ -624,6 +624,26 @@ void Connection::SendAttachRequest(u16 destination_pid) {
   packet_sequencer.SendReliableMessage(*this, (u8*)&attach_request, sizeof(attach_request));
 }
 
+void Connection::SendTakeGreen(u16 x, u16 y, s16 prize_id) {
+  u32 timestamp = GetCurrentTick();
+
+#pragma pack(push, 1)
+  struct {
+    u8 type;
+    u32 timestamp;
+    u16 x;
+    u16 y;
+    s16 prize_id;
+  } pkt = {0x07, timestamp, x, y, prize_id};
+#pragma pack(pop)
+
+  if (settings.TakePrizeReliable) {
+    packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
+  } else {
+    Send((u8*)&pkt, sizeof(pkt));
+  }
+}
+
 ConnectResult Connection::Connect(const char* ip, u16 port) {
   inet_pton(AF_INET, ip, &this->remote_addr.addr);
 

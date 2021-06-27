@@ -42,8 +42,8 @@ static void OnPlayerEnterPkt(void* user, u8* pkt, size_t size) {
 }
 
 ShipController::ShipController(PlayerManager& player_manager, WeaponManager& weapon_manager,
-                               PacketDispatcher& dispatcher)
-    : player_manager(player_manager), weapon_manager(weapon_manager) {
+                               PacketDispatcher& dispatcher, NotificationSystem& notifications)
+    : player_manager(player_manager), weapon_manager(weapon_manager), notifications_(notifications) {
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
   dispatcher.Register(ProtocolS2C::CollectedPrize, OnCollectedPrizePkt, this);
   dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
@@ -504,11 +504,11 @@ void ShipController::OnCollectedPrize(u8* pkt, size_t size) {
   if (!self) return;
 
   for (u16 i = 0; i < count; ++i) {
-    ApplyPrize(self, prize_id);
+    ApplyPrize(self, prize_id, true);
   }
 }
 
-void ShipController::ApplyPrize(Player* self, s32 prize_id) {
+void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify) {
   bool negative = (prize_id < 0);
   Prize prize = (Prize)prize_id;
 
@@ -523,292 +523,498 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id) {
 
   ShipSettings& ship_settings = player_manager.connection.settings.ShipSettings[self->ship];
 
+  const char* kPositiveNotifications[] = {
+      "",
+      "Charge rate increased.",
+      "Maximum energy level increased.",
+      "Rotation speed increased.",
+      "Stealth available.",
+      "Cloak available.",
+      "X-Radar available.",
+      "Warp!",
+      "Guns upgraded.",
+      "Bombs upgraded.",
+      "Bouncing bullets.",
+      "Thrusters upgraded.",
+      "Top speed increased.",
+      "Full charge.",
+      "Engines shut-down.",
+      "MultiFire bullets.",
+      "Proximity bombs.",
+      "Temporary SuperPower!",
+      "Temporary Shields.",
+      "Shrapnel increased.",
+      "AntiWarp available.",
+      "Repeller increased.",
+      "Burst increased.",
+      "Decoy increased.",
+      "Thor's hammer increased.",
+      "MultiPrize!",
+      "Brick increased.",
+      "Rocket Increased.",
+      "Portal increased.",
+  };
+
+  const char* kNegativeNotifications[] = {
+      "",
+      "Charge rate decreased.",
+      "Maximum energy level decreased.",
+      "Rotation speed decreased.",
+      "Stealth lost.",
+      "Cloak lost.",
+      "X-Radar lost.",
+      "Warp!",
+      "Guns downgraded.",
+      "Bombs downgraded.",
+      "Bouncing bullets lost.",
+      "Thrusters downgraded.",
+      "Top speed reduced.",
+      "Energy depleted.",
+      "Engines shut-down (severe).",
+      "MultiFire lost.",
+      "Proximity bombs lost.",
+      "",
+      "",
+      "Shrapnel reduced.",
+      "AntiWarp lost.",
+      "Repeller lost.",
+      "Burst lost.",
+      "Decoy lost.",
+      "Thor's hammer lost.",
+      "",
+      "Brick lost.",
+      "Rocket lost.",
+      "Portal lost.",
+  };
+
+  bool max_notification = false;
+  bool display_notification = false;
+
+  // TODO: Move this out into config
+  bool cfg_display_max = true;
+
   switch (prize) {
     case Prize::Recharge: {
+      display_notification = true;
+
       if (negative) {
         ship.recharge -= ship_settings.UpgradeRecharge;
 
         if (ship.recharge < ship_settings.InitialRecharge) {
           ship.recharge = ship_settings.InitialRecharge;
+          max_notification = true;
         }
       } else {
         ship.recharge += ship_settings.UpgradeRecharge;
 
         if (ship.recharge > ship_settings.MaximumRecharge) {
           ship.recharge = ship_settings.MaximumRecharge;
+          max_notification = true;
         }
       }
     } break;
     case Prize::Energy: {
+      display_notification = true;
+
       if (negative) {
         ship.energy -= ship_settings.UpgradeEnergy;
 
         if (ship.energy < ship_settings.InitialEnergy) {
           ship.energy = ship_settings.InitialEnergy;
+          max_notification = true;
         }
+
       } else {
         ship.energy += ship_settings.UpgradeEnergy;
 
         if (ship.energy > ship_settings.MaximumEnergy) {
           ship.energy = ship_settings.MaximumEnergy;
+          max_notification = true;
         }
       }
     } break;
     case Prize::Rotation: {
+      display_notification = true;
+
       if (negative) {
         ship.rotation -= ship_settings.UpgradeRotation;
 
         if (ship.rotation < ship_settings.InitialRotation) {
           ship.rotation = ship_settings.InitialRotation;
+          max_notification = true;
         }
       } else {
         ship.rotation += ship_settings.UpgradeRotation;
 
         if (ship.rotation > ship_settings.MaximumRotation) {
           ship.rotation = ship_settings.MaximumRotation;
+          max_notification = true;
         }
       }
     } break;
     case Prize::Stealth: {
       if (negative) {
+        if (ship.capability & ShipCapability_Stealth) {
+          display_notification = true;
+        }
+
         ship.capability &= ~ShipCapability_Stealth;
       } else {
         if (ship_settings.StealthStatus > 0) {
+          if (!(ship.capability & ShipCapability_Stealth)) {
+            display_notification = true;
+          }
+
           ship.capability |= ShipCapability_Stealth;
         }
       }
     } break;
     case Prize::Cloak: {
       if (negative) {
+        if (ship.capability & ShipCapability_Cloak) {
+          display_notification = true;
+        }
+
         ship.capability &= ~ShipCapability_Cloak;
       } else {
         if (ship_settings.CloakStatus > 0) {
+          if (!(ship.capability & ShipCapability_Cloak)) {
+            display_notification = true;
+          }
+
           ship.capability |= ShipCapability_Cloak;
         }
       }
     } break;
     case Prize::XRadar: {
       if (negative) {
+        if (ship.capability & ShipCapability_XRadar) {
+          display_notification = true;
+        }
+
         ship.capability &= ~ShipCapability_XRadar;
       } else {
         if (ship_settings.XRadarStatus > 0) {
+          if (!(ship.capability & ShipCapability_XRadar)) {
+            display_notification = true;
+          }
+
           ship.capability |= ShipCapability_XRadar;
         }
       }
     } break;
     case Prize::Warp: {
+      display_notification = true;
       player_manager.Spawn();
     } break;
     case Prize::Guns: {
+      display_notification = true;
+
       if (negative) {
         --ship.guns;
 
         if (ship.guns < ship_settings.InitialGuns) {
           ship.guns = ship_settings.InitialGuns;
+          max_notification = true;
         }
       } else {
         ++ship.guns;
 
         if (ship.guns > ship_settings.MaxGuns) {
           ship.guns = ship_settings.MaxGuns;
+          max_notification = true;
         }
       }
     } break;
     case Prize::Bombs: {
+      display_notification = true;
       if (negative) {
         --ship.bombs;
 
         if (ship.bombs < ship_settings.InitialBombs) {
           ship.bombs = ship_settings.InitialBombs;
+          max_notification = true;
         }
       } else {
         ++ship.bombs;
 
         if (ship.bombs > ship_settings.MaxBombs) {
           ship.bombs = ship_settings.MaxBombs;
+          max_notification = true;
         }
       }
     } break;
     case Prize::BouncingBullets: {
       if (negative) {
+        if (ship.capability & ShipCapability_BouncingBullets) {
+          display_notification = true;
+        }
+
         ship.capability &= ~ShipCapability_BouncingBullets;
       } else {
         if (ship.capability & ShipCapability_BouncingBullets) {
           --self->bounty;
+        } else {
+          display_notification = true;
         }
+
         ship.capability |= ShipCapability_BouncingBullets;
       }
     } break;
     case Prize::Thruster: {
+      display_notification = true;
       if (negative) {
         ship.thrust -= ship_settings.UpgradeThrust;
 
         if (ship.thrust < ship_settings.InitialThrust) {
           ship.thrust = ship_settings.InitialThrust;
+          max_notification = true;
         }
       } else {
         ship.thrust += ship_settings.UpgradeThrust;
 
         if (ship.thrust > ship_settings.MaximumThrust) {
           ship.thrust = ship_settings.MaximumThrust;
+          max_notification = true;
         }
       }
     } break;
     case Prize::TopSpeed: {
+      display_notification = true;
       if (negative) {
         ship.speed -= ship_settings.UpgradeSpeed;
 
         if (ship.speed < ship_settings.InitialSpeed) {
           ship.speed = ship_settings.InitialSpeed;
+          max_notification = true;
         }
       } else {
         ship.speed += ship_settings.UpgradeSpeed;
 
         if (ship.speed > ship_settings.MaximumSpeed) {
           ship.speed = ship_settings.MaximumSpeed;
+          max_notification = true;
         }
       }
     } break;
     case Prize::FullCharge: {
-      self->energy = (float)ship.energy;
+      display_notification = true;
+
+      if (negative) {
+        self->energy = 1;
+      } else {
+        self->energy = (float)ship.energy;
+      }
     } break;
     case Prize::EngineShutdown: {
       // TODO: Implement
+      display_notification = true;
     } break;
     case Prize::Multifire: {
       if (negative) {
+        if (ship.capability & ShipCapability_Multifire) {
+          display_notification = true;
+        }
+
         ship.capability &= ~ShipCapability_Multifire;
       } else {
+        if (!(ship.capability & ShipCapability_Multifire)) {
+          display_notification = true;
+        }
+
         ship.capability |= ShipCapability_Multifire;
       }
     } break;
     case Prize::Proximity: {
       if (negative) {
+        if (ship.capability & ShipCapability_Proximity) {
+          display_notification = true;
+        }
+
         ship.capability &= ~ShipCapability_Proximity;
       } else {
         if (ship.capability & ShipCapability_Proximity) {
           --self->bounty;
+        } else {
+          display_notification = true;
         }
+
         ship.capability |= ShipCapability_Proximity;
       }
     } break;
     case Prize::Super: {
       // TODO: Implement
+      display_notification = true;
     } break;
     case Prize::Shields: {
       // TODO: Implement
+      display_notification = true;
     } break;
     case Prize::Shrapnel: {
+      display_notification = true;
+
       if (negative) {
         if (ship.shrapnel >= ship_settings.ShrapnelRate) {
           ship.shrapnel -= ship_settings.ShrapnelRate;
+        } else {
+          max_notification = true;
         }
       } else {
         ship.shrapnel += ship_settings.ShrapnelRate;
 
         if (ship.shrapnel > ship_settings.ShrapnelMax) {
           ship.shrapnel = ship_settings.ShrapnelMax;
+          max_notification = true;
         }
       }
     } break;
     case Prize::Antiwarp: {
       if (negative) {
+        if (ship.capability & ShipCapability_Antiwarp) {
+          display_notification = true;
+        }
+
         ship.capability &= ~ShipCapability_Antiwarp;
       } else {
         if (ship_settings.AntiWarpStatus > 0) {
+          if (!(ship.capability & ShipCapability_Antiwarp)) {
+            display_notification = true;
+          }
+
           ship.capability |= ShipCapability_Antiwarp;
         }
       }
     } break;
     case Prize::Repel: {
+      display_notification = true;
+
       if (negative) {
         if (ship.repels > 0) {
           --ship.repels;
+        } else {
+          max_notification = true;
         }
       } else {
         ++ship.repels;
         if (ship.repels > ship_settings.RepelMax) {
           ship.repels = ship_settings.RepelMax;
+          max_notification = true;
         }
       }
     } break;
     case Prize::Burst: {
+      display_notification = true;
+
       if (negative) {
         if (ship.bursts > 0) {
           --ship.bursts;
+        } else {
+          max_notification = true;
         }
       } else {
         ++ship.bursts;
         if (ship.bursts > ship_settings.BurstMax) {
           ship.bursts = ship_settings.BurstMax;
+          max_notification = true;
         }
       }
     } break;
     case Prize::Decoy: {
+      display_notification = true;
       if (negative) {
         if (ship.decoys > 0) {
           --ship.decoys;
+        } else {
+          max_notification = true;
         }
       } else {
         ++ship.decoys;
         if (ship.decoys > ship_settings.DecoyMax) {
           ship.decoys = ship_settings.DecoyMax;
+          max_notification = true;
         }
       }
     } break;
     case Prize::Thor: {
+      display_notification = true;
       if (negative) {
         if (ship.thors > 0) {
           --ship.thors;
+        } else {
+          max_notification = true;
         }
       } else {
         ++ship.thors;
         if (ship.thors > ship_settings.ThorMax) {
           ship.thors = ship_settings.ThorMax;
+          max_notification = true;
         }
       }
     } break;
     case Prize::Multiprize: {
       // TODO: Implement
+      display_notification = true;
     } break;
     case Prize::Brick: {
+      display_notification = true;
       if (negative) {
         if (ship.bricks > 0) {
           --ship.bricks;
+        } else {
+          max_notification = true;
         }
       } else {
         ++ship.bricks;
         if (ship.bricks > ship_settings.BrickMax) {
           ship.bricks = ship_settings.BrickMax;
+          max_notification = true;
         }
       }
     } break;
     case Prize::Rocket: {
+      display_notification = true;
       if (negative) {
         if (ship.rockets > 0) {
           --ship.rockets;
+        } else {
+          max_notification = true;
         }
       } else {
         ++ship.rockets;
         if (ship.rockets > ship_settings.RocketMax) {
           ship.rockets = ship_settings.RocketMax;
+          max_notification = true;
         }
       }
     } break;
     case Prize::Portal: {
+      display_notification = true;
       if (negative) {
         if (ship.portals > 0) {
           --ship.bursts;
+        } else {
+          max_notification = true;
         }
       } else {
         ++ship.portals;
         if (ship.portals > ship_settings.PortalMax) {
           ship.portals = ship_settings.PortalMax;
+          max_notification = true;
         }
       }
     } break;
     default: {
     } break;
+  }
+
+  if (notify && display_notification) {
+    u16 real_id = (u16)prize;
+    const char* mesg = negative ? kNegativeNotifications[real_id] : kPositiveNotifications[real_id];
+    const char* max_msg = negative ? " MIN" : " MAX";
+
+    if (cfg_display_max || !max_notification) {
+      notifications_.PushFormatted(TextColor::Green, "%s%s", mesg, max_notification ? max_msg : "");
+    }
   }
 }
 
@@ -905,7 +1111,7 @@ void ShipController::ResetShip() {
         continue;
       }
 
-      ApplyPrize(self, prize_id);
+      ApplyPrize(self, prize_id, false);
     }
   }
 
