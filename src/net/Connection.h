@@ -67,6 +67,8 @@ struct Connection {
   NetworkBuffer buffer;
   std::mutex send_mutex;
 
+  Vector2f view_dim;
+
   Map map;
   Security security;
   ArenaSettings settings = {};

@@ -635,9 +635,20 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u3
   u8 direction = (u8)(player.orientation * 40.0f);
   u16 pid = player.id;
 
-  // TODO: Implement for real
-  AudioType audio_type = GetAudioType(ship_settings, weapon);
-  sound_system.Play(audio_type);
+  if (g_Settings.sound_enabled) {
+    Player* self = player_manager.GetSelf();
+
+    if (self) {
+      Vector2f view_min = self->position * 16.0f - connection.view_dim * 0.5f;
+      Vector2f view_max = self->position * 16.0f + connection.view_dim * 0.5f;
+      
+      if (BoxContainsPoint(view_min, view_max, Vector2f((float)pos_x, (float)pos_y))) {
+        AudioType audio_type = GetAudioType(ship_settings, weapon);
+
+        sound_system.Play(audio_type);
+      }
+    }
+  }
 
   if (type == WeaponType::Bullet || type == WeaponType::BouncingBullet) {
     bool dbarrel = ship_settings.DoubleBarrel;

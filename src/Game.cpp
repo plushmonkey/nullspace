@@ -155,6 +155,8 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
 
   player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications, &specview, &banner_pool);
   weapon_manager.Initialize(&ship_controller);
+
+  connection.view_dim = ui_camera.surface_dim;
 }
 
 bool Game::Initialize(InputState& input) {
