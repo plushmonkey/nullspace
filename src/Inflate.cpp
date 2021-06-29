@@ -409,7 +409,9 @@ int mz_inflateInit2(mz_streamp pStream, int window_bits) {
   return MZ_OK;
 }
 
-int mz_inflateInit(mz_streamp pStream) { return mz_inflateInit2(pStream, MZ_DEFAULT_WINDOW_BITS); }
+int mz_inflateInit(mz_streamp pStream) {
+  return mz_inflateInit2(pStream, MZ_DEFAULT_WINDOW_BITS);
+}
 
 tinfl_status tinfl_decompress(tinfl_decompressor* r, const mz_uint8* pIn_buf_next, size_t* pIn_buf_size,
                               mz_uint8* pOut_buf_start, mz_uint8* pOut_buf_next, size_t* pOut_buf_size,

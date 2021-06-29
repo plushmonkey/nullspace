@@ -42,7 +42,9 @@ void StandardLog(const char* fmt, ...) {
 
 ErrorLogger log_error = StandardLog;
 
-const char* StandardGetStoragePath(MemoryArena& temp_arena, const char* path) { return path; }
+const char* StandardGetStoragePath(MemoryArena& temp_arena, const char* path) {
+  return path;
+}
 
 StoragePathGetter GetStoragePath = StandardGetStoragePath;
 
@@ -92,9 +94,13 @@ AssetLoaderArena asset_loader_arena = StandardAssetLoaderArena;
 
 #ifdef _WIN32
 
-bool CreateFolder(const char* path) { return CreateDirectory(path, NULL); }
+bool CreateFolder(const char* path) {
+  return CreateDirectory(path, NULL);
+}
 
-inline bool IsValidCharacter(unsigned short c) { return (c >= ' ' && c <= '~') || c == 0xDF; }
+inline bool IsValidCharacter(unsigned short c) {
+  return (c >= ' ' && c <= '~') || c == 0xDF;
+}
 
 // Converts to Windows-1252 character set
 inline bool IsForeignCharacter(unsigned short c, unsigned char* out) {
@@ -161,10 +167,14 @@ void PasteClipboard(char* dest, size_t available_size) {
   }
 }
 
-int null_stricmp(const char* s1, const char* s2) { return _stricmp(s1, s2); }
+int null_stricmp(const char* s1, const char* s2) {
+  return _stricmp(s1, s2);
+}
 
 #else
-bool CreateFolder(const char* path) { return mkdir(path, 0700) == 0; }
+bool CreateFolder(const char* path) {
+  return mkdir(path, 0700) == 0;
+}
 void PasteClipboard(char* dest, size_t available_size) {
 #ifndef __ANDROID__
   const char* clipboard = glfwGetClipboardString(clipboard_window);
@@ -176,7 +186,9 @@ void PasteClipboard(char* dest, size_t available_size) {
   }
 #endif
 }
-int null_stricmp(const char* s1, const char* s2) { return strcasecmp(s1, s2); }
+int null_stricmp(const char* s1, const char* s2) {
+  return strcasecmp(s1, s2);
+}
 
 #endif
 

@@ -667,7 +667,9 @@ ConnectResult Connection::Connect(const char* ip, u16 port) {
   return ConnectResult::Success;
 }
 
-size_t Connection::Send(NetworkBuffer& buffer) { return Send(buffer.data, buffer.GetSize()); }
+size_t Connection::Send(NetworkBuffer& buffer) {
+  return Send(buffer.data, buffer.GetSize());
+}
 
 size_t Connection::Send(u8* data, size_t size) {
 #ifdef PACKET_SHEDDING

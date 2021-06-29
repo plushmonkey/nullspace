@@ -420,7 +420,9 @@ void PlayerManager::SendPositionPacket() {
   player->togglables &= ~Status_Flash;
 }
 
-Player* PlayerManager::GetSelf() { return GetPlayerById(player_id); }
+Player* PlayerManager::GetSelf() {
+  return GetPlayerById(player_id);
+}
 
 Player* PlayerManager::GetPlayerById(u16 id, size_t* index) {
   u16 player_index = player_lookup[id];

@@ -7,11 +7,17 @@
 
 namespace null {
 
-constexpr size_t Kilobytes(size_t n) { return n * 1024; }
+constexpr size_t Kilobytes(size_t n) {
+  return n * 1024;
+}
 
-constexpr size_t Megabytes(size_t n) { return n * Kilobytes(1024); }
+constexpr size_t Megabytes(size_t n) {
+  return n * Kilobytes(1024);
+}
 
-constexpr size_t Gigabytes(size_t n) { return n * Megabytes(1024); }
+constexpr size_t Gigabytes(size_t n) {
+  return n * Megabytes(1024);
+}
 
 using ArenaSnapshot = u8*;
 

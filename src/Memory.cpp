@@ -25,7 +25,7 @@ u8* MemoryArena::Allocate(size_t size, size_t alignment) {
 #if MONITOR_PERM_ALLOCATIONS
   if (this == perm_global) {
     size_t allocated = (size_t)(this->current - this->base);
-    
+
     printf("Allocating %zd with align %zd in perm arena. (allocated: %zd)\n", size, alignment, allocated);
   }
 #endif
@@ -41,7 +41,9 @@ MemoryArena MemoryArena::CreateArena(size_t size, size_t alignment) {
   return MemoryArena(base, size);
 }
 
-void MemoryArena::Reset() { this->current = this->base; }
+void MemoryArena::Reset() {
+  this->current = this->base;
+}
 
 u8* AllocateMirroredBuffer(size_t size) {
 #ifdef _WIN32

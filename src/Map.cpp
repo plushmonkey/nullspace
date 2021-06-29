@@ -226,7 +226,9 @@ TileId Map::GetTileId(u16 x, u16 y) const {
   return tiles[y * 1024 + x];
 }
 
-TileId Map::GetTileId(const Vector2f& position) const { return GetTileId((u16)position.x, (u16)position.y); }
+TileId Map::GetTileId(const Vector2f& position) const {
+  return GetTileId((u16)position.x, (u16)position.y);
+}
 
 bool Map::IsSolid(u16 x, u16 y) const {
   TileId id = GetTileId(x, y);

@@ -128,6 +128,8 @@ void BackgroundRenderer::RenderParallaxLayer(Camera& camera, SpriteRenderer& ren
   }
 }
 
-void BackgroundRenderer::Cleanup() { glDeleteTextures(NULLSPACE_ARRAY_SIZE(textures), textures); }
+void BackgroundRenderer::Cleanup() {
+  glDeleteTextures(NULLSPACE_ARRAY_SIZE(textures), textures);
+}
 
 }  // namespace null

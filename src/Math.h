@@ -21,9 +21,13 @@ inline constexpr float Degrees(float radians) {
   return radians * kRadianToDegrees;
 }
 
-inline constexpr float min(float left, float right) { return right < left ? right : left; }
+inline constexpr float min(float left, float right) {
+  return right < left ? right : left;
+}
 
-inline constexpr float max(float left, float right) { return left < right ? right : left; }
+inline constexpr float max(float left, float right) {
+  return left < right ? right : left;
+}
 
 struct Vector2f {
   union {
@@ -145,13 +149,21 @@ struct Vector2f {
   }
 };
 
-inline Vector2f Absolute(const Vector2f& v) { return Vector2f(abs(v.x), abs(v.y)); }
+inline Vector2f Absolute(const Vector2f& v) {
+  return Vector2f(abs(v.x), abs(v.y));
+}
 
-inline Vector2f operator*(float value, const Vector2f& v) { return Vector2f(v.x * value, v.y * value); }
+inline Vector2f operator*(float value, const Vector2f& v) {
+  return Vector2f(v.x * value, v.y * value);
+}
 
-inline float Dot(const Vector2f& v1, const Vector2f& v2) { return v1.x * v2.x + v1.y * v2.y; }
+inline float Dot(const Vector2f& v1, const Vector2f& v2) {
+  return v1.x * v2.x + v1.y * v2.y;
+}
 
-inline Vector2f Perpendicular(const Vector2f& v) { return Vector2f(-v.y, v.x); }
+inline Vector2f Perpendicular(const Vector2f& v) {
+  return Vector2f(-v.y, v.x);
+}
 
 inline Vector2f Normalize(const Vector2f& v) {
   float length = v.Length();
@@ -383,9 +395,13 @@ struct Vector3f {
   }
 };
 
-inline Vector3f operator*(float value, const Vector3f& v) { return Vector3f(v.x * value, v.y * value, v.z * value); }
+inline Vector3f operator*(float value, const Vector3f& v) {
+  return Vector3f(v.x * value, v.y * value, v.z * value);
+}
 
-inline float Dot(const Vector3f& v1, const Vector3f& v2) { return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z; }
+inline float Dot(const Vector3f& v1, const Vector3f& v2) {
+  return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+}
 
 inline Vector3f Cross(const Vector3f& v1, const Vector3f& v2) {
   return Vector3f(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);

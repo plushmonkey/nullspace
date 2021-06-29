@@ -187,6 +187,8 @@ unsigned char* ImageLoadFromMemory(const u8* data, size_t size, int* width, int*
   return result;
 }
 
-void ImageFree(void* data) { stbi_image_free(data); }
+void ImageFree(void* data) {
+  stbi_image_free(data);
+}
 
 }  // namespace null

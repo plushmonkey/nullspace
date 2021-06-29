@@ -73,7 +73,9 @@ void Worker::Run() {
   }
 }
 
-void Worker::Launch() { thread = std::thread(&Worker::Run, this); }
+void Worker::Launch() {
+  thread = std::thread(&Worker::Run, this);
+}
 
 Worker::Worker(WorkQueue& queue) : queue(queue) {}
 

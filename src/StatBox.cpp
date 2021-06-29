@@ -492,11 +492,17 @@ void StatBox::RecordName(Player* player, float y, bool selected, bool same_freq)
   sprintf(output->text, "%.12s", player->name);
 }
 
-void StatBox::OnPlayerEnter(u8* pkt, size_t size) { UpdateView(); }
+void StatBox::OnPlayerEnter(u8* pkt, size_t size) {
+  UpdateView();
+}
 
-void StatBox::OnPlayerLeave(u8* pkt, size_t size) { UpdateView(); }
+void StatBox::OnPlayerLeave(u8* pkt, size_t size) {
+  UpdateView();
+}
 
-void StatBox::OnPlayerFreqAndShipChange(u8* pkt, size_t size) { UpdateView(); }
+void StatBox::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
+  UpdateView();
+}
 
 Player* StatBox::GetSelectedPlayer() {
   u16 selected_id = player_view[selected_index];

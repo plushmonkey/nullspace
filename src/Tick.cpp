@@ -14,7 +14,7 @@ Tick GetCurrentTick() {
 #else
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
-  
+
   u32 ticks = ts.tv_sec & 0x7fffffff;
   ticks *= 100U;
   ticks += ts.tv_nsec / 10000000;
@@ -24,4 +24,3 @@ Tick GetCurrentTick() {
 }
 
 }  // namespace null
-

@@ -23,8 +23,9 @@ struct BackgroundRenderer {
 
   void Render(Camera& camera, SpriteRenderer& renderer, const Vector2f& surface_dim);
 
-private:
-  void RenderParallaxLayer(Camera& camera, SpriteRenderer& renderer, const Vector2f& surface_dim, float speed, int layer);
+ private:
+  void RenderParallaxLayer(Camera& camera, SpriteRenderer& renderer, const Vector2f& surface_dim, float speed,
+                           int layer);
   void GenerateTextures(MemoryArena& temp_arena, GLuint* textures, size_t texture_count, u8 color);
 };
 

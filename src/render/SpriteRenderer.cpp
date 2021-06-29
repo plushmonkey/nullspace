@@ -191,7 +191,9 @@ SpriteRenderable* SpriteRenderer::LoadSheetFromMemory(const char* name, const u8
   return result;
 }
 
-void SpriteRenderer::FreeSheet(unsigned int texture_id) { glDeleteTextures(1, &texture_id); }
+void SpriteRenderer::FreeSheet(unsigned int texture_id) {
+  glDeleteTextures(1, &texture_id);
+}
 
 void SpriteRenderer::DrawText(Camera& camera, const char* text, TextColor color, const Vector2f& position, Layer layer,
                               TextAlignment alignment) {

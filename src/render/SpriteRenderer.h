@@ -46,7 +46,8 @@ struct SpriteRenderer {
   bool Initialize(MemoryArena& perm_arena);
   SpriteRenderable* CreateSheet(TextureData* texture_data, const Vector2f& dimensions, int* count);
   SpriteRenderable* LoadSheet(const char* filename, const Vector2f& dimensions, int* count);
-  SpriteRenderable* LoadSheetFromMemory(const char* name, const u8* data, int width, int height, const Vector2f& dimensions, int* count);
+  SpriteRenderable* LoadSheetFromMemory(const char* name, const u8* data, int width, int height,
+                                        const Vector2f& dimensions, int* count);
   void FreeSheet(unsigned int texture_id);
 
   GLuint CreateTexture(const char* name, const u8* data, int width, int height);

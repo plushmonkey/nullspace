@@ -166,7 +166,9 @@ void SoundSystem::PlayClip(const AudioClip& clip) {
   }
 }
 
-SoundDatabase::SoundDatabase(MemoryArena& perm_arena) : perm_arena(perm_arena) { memset(clips, 0, sizeof(clips)); }
+SoundDatabase::SoundDatabase(MemoryArena& perm_arena) : perm_arena(perm_arena) {
+  memset(clips, 0, sizeof(clips));
+}
 
 const char* kClipFilenames[] = {
     "",
