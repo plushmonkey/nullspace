@@ -7,6 +7,7 @@
 #include "Buffer.h"
 #include "PlayerManager.h"
 #include "ShipController.h"
+#include "Sound.h"
 #include "Tick.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
@@ -18,6 +19,33 @@
 
 namespace null {
 
+AudioType GetAudioType(ShipSettings& ship_settings, WeaponData data) {
+  AudioType result = AudioType::None;
+
+  switch (data.type) {
+    case WeaponType::Bullet:
+    case WeaponType::BouncingBullet: {
+      size_t start = (size_t)AudioType::Gun1;
+
+      result = (AudioType)(start + data.level);
+    } break;
+    case WeaponType::Bomb:
+    case WeaponType::ProximityBomb: {
+      size_t start = (size_t)AudioType::Bomb1;
+
+      if (ship_settings.EmpBomb) {
+        start = (size_t)AudioType::EBomb1;
+      }
+
+      result = (AudioType)(start + data.level);
+    } break;
+    default: {
+    } break;
+  }
+
+  return result;
+}
+
 static void OnLargePositionPkt(void* user, u8* pkt, size_t size) {
   WeaponManager* manager = (WeaponManager*)user;
 
@@ -25,8 +53,8 @@ static void OnLargePositionPkt(void* user, u8* pkt, size_t size) {
 }
 
 WeaponManager::WeaponManager(Connection& connection, PlayerManager& player_manager, PacketDispatcher& dispatcher,
-                             AnimationSystem& animation)
-    : connection(connection), player_manager(player_manager), animation(animation) {
+                             AnimationSystem& animation, SoundSystem& sound_system)
+    : connection(connection), player_manager(player_manager), animation(animation), sound_system(sound_system) {
   dispatcher.Register(ProtocolS2C::LargePosition, OnLargePositionPkt, this);
 }
 
@@ -593,6 +621,10 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u3
 
   u8 direction = (u8)(player.orientation * 40.0f);
   u16 pid = player.id;
+
+  // TODO: Implement for real
+  AudioType audio_type = GetAudioType(ship_settings, weapon);
+  sound_system.Play(audio_type);
 
   if (type == WeaponType::Bullet || type == WeaponType::BouncingBullet) {
     bool dbarrel = ship_settings.DoubleBarrel;

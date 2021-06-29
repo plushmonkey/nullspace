@@ -47,6 +47,7 @@ void GLAPIENTRY OnOpenGLError(GLenum source, GLenum type, GLuint id, GLenum seve
 
 namespace null {
 
+bool kEnableSound = false;
 enum class WindowType { Windowed, Fullscreen, BorderlessFullscreen };
 
 constexpr bool kVerticalSync = true;

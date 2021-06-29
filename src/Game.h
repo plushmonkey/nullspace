@@ -10,6 +10,7 @@
 #include "PlayerManager.h"
 #include "Radar.h"
 #include "ShipController.h"
+#include "Sound.h"
 #include "SpectateView.h"
 #include "StatBox.h"
 #include "WeaponManager.h"
@@ -42,6 +43,7 @@ struct PrizeGreen {
 struct Game {
   MemoryArena& perm_arena;
   MemoryArena& temp_arena;
+  SoundSystem sound_system;
   NotificationSystem notifications;
   AnimationSystem animation;
   PacketDispatcher dispatcher;

@@ -59,6 +59,7 @@ struct Connection;
 struct PacketDispatcher;
 struct PlayerManager;
 struct ShipController;
+struct SoundSystem;
 struct SpriteRenderer;
 
 enum class WeaponSimulateResult { Continue, WallExplosion, PlayerExplosion, TimedOut };
@@ -73,6 +74,7 @@ struct WeaponManager {
   Connection& connection;
   PlayerManager& player_manager;
   AnimationSystem& animation;
+  SoundSystem& sound_system;
   ShipController* ship_controller = nullptr;
   u32 next_link_id = 0;
 
@@ -83,7 +85,7 @@ struct WeaponManager {
   WeaponLinkRemoval link_removals[2048];
 
   WeaponManager(Connection& connection, PlayerManager& player_manager, PacketDispatcher& dispatcher,
-                AnimationSystem& animation);
+                AnimationSystem& animation, SoundSystem& sound_system);
 
   void Initialize(ShipController* ship_controller) { this->ship_controller = ship_controller; }
 

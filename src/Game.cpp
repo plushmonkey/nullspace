@@ -12,6 +12,8 @@
 
 namespace null {
 
+extern bool kEnableSound;
+
 static void OnCharacterPress(void* user, int codepoint, int mods) {
   Game* game = (Game*)user;
 
@@ -98,12 +100,13 @@ static void OnArenaSettings(void* user, u8* pkt, size_t size) {
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height)
     : perm_arena(perm_arena),
       temp_arena(temp_arena),
+      sound_system(perm_arena),
       notifications(),
       animation(),
       dispatcher(),
       connection(perm_arena, temp_arena, dispatcher),
       player_manager(perm_arena, connection, dispatcher),
-      weapon_manager(connection, player_manager, dispatcher, animation),
+      weapon_manager(connection, player_manager, dispatcher, animation, sound_system),
       banner_pool(temp_arena, player_manager, dispatcher),
       camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f / 16.0f),
       ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),
@@ -126,6 +129,10 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
 }
 
 bool Game::Initialize(InputState& input) {
+  if (kEnableSound && !sound_system.Initialize()) {
+    log_error("Failed to initialize sound system.\n");
+  }
+
   if (!sprite_renderer.Initialize(perm_arena)) {
     log_error("Failed to initialize sprite renderer.\n");
     return false;
@@ -541,6 +548,10 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
 
   lvz.Reset();
 
+  if (kEnableSound && !sound_system.Initialize()) {
+    log_error("Failed to initialize sound system.\n");
+  }
+
   if (!sprite_renderer.Initialize(perm_arena)) {
     fprintf(stderr, "Failed to initialize sprite renderer.\n");
     exit(1);
@@ -565,6 +576,7 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
 }
 
 void Game::Cleanup() {
+  sound_system.Cleanup();
   banner_pool.Cleanup();
   background_renderer.Cleanup();
   sprite_renderer.Cleanup();
