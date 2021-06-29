@@ -204,6 +204,7 @@
     <ClCompile Include="src\StatBox.cpp" />
     <ClCompile Include="src\Tick.cpp" />
     <ClCompile Include="src\WeaponManager.cpp" />
+    <ClCompile Include="src\WorkQueue.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lib\imgui\backends\imgui_impl_glfw.h" />
@@ -260,6 +261,7 @@
     <ClInclude Include="src\Types.h" />
     <ClInclude Include="src\Math.h" />
     <ClInclude Include="src\WeaponManager.h" />
+    <ClInclude Include="src\WorkQueue.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "Platform.h"
 #include "Settings.h"
 
 #define SOUND_SAMPLE_FORMAT ma_format_f32
@@ -125,6 +126,8 @@ void SoundSystem::Cleanup() {
 }
 
 void SoundSystem::Play(AudioType type) {
+  if (!initialized) return;
+
   AudioClip clip = database.GetClip(type);
 
   if (clip.IsLoaded()) {
@@ -133,6 +136,8 @@ void SoundSystem::Play(AudioType type) {
 }
 
 void SoundSystem::PlayClip(const AudioClip& clip) {
+  if (!initialized) return;
+
   // TODO: Evict old playing sounds if it ever reaches cap
   std::lock_guard<std::mutex> guard(clip_mutex);
 
@@ -153,7 +158,7 @@ void SoundSystem::PlayClip(const AudioClip& clip) {
   ma_result result = ma_decoder_init_memory(clip.data, clip.size, &cfg_decoder, decoder);
 
   if (result != MA_SUCCESS) {
-    fprintf(stderr, "Failed to play audio clip.\n");
+    log_error("Failed to play audio clip.\n");
     database.perm_arena.Revert(snapshot);
   } else {
     playing_clips[playing_count++] = playing_clip;
@@ -190,6 +195,8 @@ const char* kClipFilenames[] = {
     "sound/xradar.wa2",
     "sound/antiwarp.wa2",
     "sound/off.wa2",
+
+    "sound/prize.wa2",
 };
 
 // TODO: Rework this entire thing. This is just the minimal implementation. It should be threaded so it doesn't cause
@@ -211,33 +218,13 @@ AudioClip SoundDatabase::GetClip(AudioType type) {
 AudioClip SoundDatabase::LoadClip(const char* filename) {
   AudioClip result = {};
 
-  FILE* file = fopen(filename, "rb");
+  result.data = asset_loader_arena(perm_arena, filename, &result.size);
 
-  if (file) {
-    fseek(file, 0, SEEK_END);
-    result.size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    ArenaSnapshot snapshot = perm_arena.GetSnapshot();
-
-    result.data = perm_arena.Allocate(result.size);
-
-    if (fread(result.data, 1, result.size, file) != result.size) {
-      result.data = nullptr;
-      result.size = 0;
-
-      fprintf(stderr, "Failed to read %s\n", filename);
-
-      perm_arena.Revert(snapshot);
-    } else {
-      printf("Loaded audio file %s\n", filename);
-    }
-
+  if (result.data) {
     result.flags |= AudioClipFlag_Loaded;
-
-    fclose(file);
+    printf("Loaded audio file %s\n", filename);
   } else {
-    fprintf(stderr, "Failed to load %s\n", filename);
+    log_error("Failed to read audio file %s\n", filename);
   }
 
   return result;

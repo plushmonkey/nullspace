@@ -51,15 +51,15 @@ namespace null {
 GameSettings g_Settings;
 
 void InitializeSettings() {
-  g_Settings.vsync = false;
+  g_Settings.vsync = true;
   g_Settings.window_type = WindowType::Windowed;
 
   g_Settings.encrypt_method = EncryptMethod::Continuum;
 
   g_Settings.sound_enabled = true;
-  g_Settings.sound_volume = 0.1f;
+  g_Settings.sound_volume = 0.25f;
 
-  g_Settings.notify_max_prizes = true;
+  g_Settings.notify_max_prizes = false;
 }
 
 const char* kPlayerName = "null space";
@@ -152,6 +152,8 @@ MemoryArena* perm_global = nullptr;
 struct nullspace {
   MemoryArena perm_arena;
   MemoryArena trans_arena;
+  MemoryArena work_arena;
+  WorkQueue* work_queue;
   Game* game = nullptr;
   GLFWwindow* window = nullptr;
   WindowState window_state;
@@ -168,22 +170,28 @@ struct nullspace {
   bool Initialize() {
     constexpr size_t kPermanentSize = Megabytes(64);
     constexpr size_t kTransientSize = Megabytes(32);
+    constexpr size_t kWorkSize = Megabytes(4);
 
 #ifdef _WIN32
     u8* perm_memory = (u8*)VirtualAlloc(NULL, kPermanentSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     u8* trans_memory = (u8*)VirtualAlloc(NULL, kTransientSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    u8* work_memory = (u8*)VirtualAlloc(NULL, kWorkSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 #else
     u8* perm_memory = (u8*)malloc(kPermanentSize);
     u8* trans_memory = (u8*)malloc(kTransientSize);
+    u8* work_memory = (u8*)malloc(kWorkSize);
 #endif
 
-    if (!perm_memory || !trans_memory) {
+    if (!perm_memory || !trans_memory || !work_memory) {
       fprintf(stderr, "Failed to allocate memory.\n");
       return false;
     }
 
     perm_arena = MemoryArena(perm_memory, kPermanentSize);
     trans_arena = MemoryArena(trans_memory, kTransientSize);
+    work_arena = MemoryArena(work_memory, kWorkSize);
+
+    work_queue = new WorkQueue(work_arena);
 
     perm_global = &perm_arena;
 
@@ -216,7 +224,8 @@ struct nullspace {
       return false;
     }
 
-    game = memory_arena_construct_type(&perm_arena, Game, perm_arena, trans_arena, surface_width, surface_height);
+    game = memory_arena_construct_type(&perm_arena, Game, perm_arena, trans_arena, *work_queue, surface_width,
+                                       surface_height);
 
     if (!game->Initialize(window_state.input)) {
       // TODO: Error pop up

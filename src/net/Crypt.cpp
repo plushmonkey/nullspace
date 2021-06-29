@@ -364,7 +364,30 @@ bool generate(u32 key) {
 #endif
 }
 
-// Loads the first two steps for key expansion requests
+void GeneratorWorkRun(Work* work) {
+  GeneratorWork* data = (GeneratorWork*)work->user;
+
+  data->success = data->crypt->LoadTable(data->table, data->key);
+}
+
+void GeneratorWorkComplete(Work* work) {
+  GeneratorWork* data = (GeneratorWork*)work->user;
+
+  data->callback(data->key, data->table, data->success, data->user);
+}
+
+const WorkDefinition kGeneratorDefinition = {GeneratorWorkRun, GeneratorWorkComplete};
+
+void ContinuumEncrypt::LoadTable(u32 key, void* user, LoadTableCallback callback) {
+  work.key = key;
+  work.user = user;
+  work.callback = callback;
+  work.success = false;
+  work.crypt = this;
+
+  work_queue.Submit(kGeneratorDefinition, &work);
+}
+
 bool ContinuumEncrypt::LoadTable(u32* table, u32 key) {
   // TODO: Probably use some network service as oracle instead of generator.exe
   bool find_key = false;

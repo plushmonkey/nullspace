@@ -1,8 +1,8 @@
 #include "Image.h"
 
 #include "../Memory.h"
-#include "../Types.h"
 #include "../Platform.h"
+#include "../Types.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <memory.h>
@@ -12,26 +12,6 @@
 #include <cstdio>
 
 namespace null {
-
-u8* StandardImageLoader(const char* filename, size_t* size) {
-  FILE* f = fopen(filename, "rb");
-
-  if (!f) return nullptr;
-
-  fseek(f, 0, SEEK_END);
-  *size = (size_t)ftell(f);
-  fseek(f, 0, SEEK_SET);
-
-  u8* buffer = (u8*)malloc(*size);
-
-  fread(buffer, 1, *size, f);
-
-  fclose(f);
-
-  return buffer;
-}
-
-ImageLoader image_loader = StandardImageLoader;
 
 #pragma pack(push, 1)
 struct BitmapFileHeader {
@@ -162,7 +142,7 @@ unsigned char* ImageLoad(const char* filename, int* width, int* height, bool ass
   u8* data = nullptr;
 
   if (asset) {
-    data = image_loader(filename, &size);
+    data = asset_loader(filename, &size);
   } else {
     FILE* f = fopen(filename, "rb");
 

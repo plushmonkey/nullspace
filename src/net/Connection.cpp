@@ -77,11 +77,13 @@ static void OnDownloadComplete(void* user, struct FileRequest* request, u8* data
   connection->OnDownloadComplete(request, data);
 }
 
-Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, PacketDispatcher& dispatcher)
+Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_queue,
+                       PacketDispatcher& dispatcher)
     : perm_arena(perm_arena),
       temp_arena(temp_arena),
       dispatcher(dispatcher),
       remote_addr(),
+      encrypt(work_queue),
       requester(perm_arena, temp_arena, *this, dispatcher),
       packet_sequencer(perm_arena, temp_arena),
       buffer(perm_arena, kMaxPacketSize),
@@ -315,26 +317,29 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         }
       } break;
       case ProtocolCore::ContinuumKeyExpansionRequest: {
-        u32 table[20];
         u32 seed = buffer.ReadU32();
 
         printf("Sending key expansion response for key %08X\n", seed);
-        if (encrypt.LoadTable(table, seed)) {
-          u8 data[kMaxPacketSize];
-          NetworkBuffer buffer(data, kMaxPacketSize);
 
-          buffer.WriteU8(0x00);
-          buffer.WriteU8(0x13);
-          buffer.WriteU32(seed);
+        encrypt.LoadTable(seed, this, [](u32 key, u32* table, bool success, void* user) {
+          if (success) {
+            u8 data[kMaxPacketSize];
+            NetworkBuffer buffer(data, kMaxPacketSize);
 
-          for (size_t i = 0; i < 20; ++i) {
-            buffer.WriteU32(table[i]);
+            buffer.WriteU8(0x00);
+            buffer.WriteU8(0x13);
+            buffer.WriteU32(key);
+
+            for (size_t i = 0; i < 20; ++i) {
+              buffer.WriteU32(table[i]);
+            }
+
+            Connection* conn = (Connection*)user;
+            conn->Send(buffer);
+          } else {
+            fprintf(stderr, "Failed to load table for key expansion request.\n");
           }
-
-          Send(buffer);
-        } else {
-          fprintf(stderr, "Failed to load table for key expansion request.\n");
-        }
+        });
       } break;
       default: {
         printf("Received unhandled core packet of type 0x%02X\n", (int)type);
@@ -698,6 +703,8 @@ size_t Connection::Send(u8* data, size_t size) {
 
     return size;
   }
+
+  std::lock_guard<std::mutex> lock(send_mutex);
 
   sockaddr_in addr;
   addr.sin_family = remote_addr.family;

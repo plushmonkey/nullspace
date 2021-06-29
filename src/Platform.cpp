@@ -1,8 +1,9 @@
 #include "Platform.h"
 
-#include "render/Graphics.h"
-
 #include <stdarg.h>
+
+#include "Memory.h"
+#include "render/Graphics.h"
 
 #ifdef _WIN32
 #ifdef APIENTRY
@@ -15,9 +16,9 @@
 #include <Windows.h>
 
 #else
+#include <stdio.h>
 #include <strings.h>
 #include <sys/stat.h>
-#include <stdio.h>
 
 #ifndef __ANDROID__
 #include <GLFW/glfw3.h>
@@ -41,11 +42,53 @@ void StandardLog(const char* fmt, ...) {
 
 ErrorLogger log_error = StandardLog;
 
-const char* StandardGetStoragePath(MemoryArena& temp_arena, const char* path) {
-  return path;
-}
+const char* StandardGetStoragePath(MemoryArena& temp_arena, const char* path) { return path; }
 
 StoragePathGetter GetStoragePath = StandardGetStoragePath;
+
+u8* StandardAssetLoader(const char* filename, size_t* size) {
+  FILE* f = fopen(filename, "rb");
+
+  if (!f) return nullptr;
+
+  fseek(f, 0, SEEK_END);
+  *size = (size_t)ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  u8* buffer = (u8*)malloc(*size);
+
+  fread(buffer, 1, *size, f);
+
+  fclose(f);
+
+  return buffer;
+}
+AssetLoader asset_loader = StandardAssetLoader;
+
+u8* StandardAssetLoaderArena(MemoryArena& arena, const char* filename, size_t* size) {
+  FILE* f = fopen(filename, "rb");
+
+  if (!f) {
+    *size = 0;
+    return nullptr;
+  }
+
+  fseek(f, 0, SEEK_END);
+  *size = (size_t)ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  ArenaSnapshot snapshot = arena.GetSnapshot();
+  u8* buffer = arena.Allocate(*size);
+
+  if (fread(buffer, 1, *size, f) != *size) {
+    arena.Revert(snapshot);
+  }
+
+  fclose(f);
+
+  return buffer;
+}
+AssetLoaderArena asset_loader_arena = StandardAssetLoaderArena;
 
 #ifdef _WIN32
 
@@ -121,9 +164,7 @@ void PasteClipboard(char* dest, size_t available_size) {
 int null_stricmp(const char* s1, const char* s2) { return _stricmp(s1, s2); }
 
 #else
-bool CreateFolder(const char* path) { 
-  return mkdir(path, 0700) == 0;
-}
+bool CreateFolder(const char* path) { return mkdir(path, 0700) == 0; }
 void PasteClipboard(char* dest, size_t available_size) {
 #ifndef __ANDROID__
   const char* clipboard = glfwGetClipboardString(clipboard_window);

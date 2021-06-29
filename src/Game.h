@@ -44,6 +44,7 @@ struct PrizeGreen {
 struct Game {
   MemoryArena& perm_arena;
   MemoryArena& temp_arena;
+  WorkQueue& work_queue;
   SoundSystem sound_system;
   NotificationSystem notifications;
   AnimationSystem animation;
@@ -79,7 +80,7 @@ struct Game {
   u32 last_green_tick = 0;
   u32 last_green_collision_tick = 0;
 
-  Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height);
+  Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_queue, int width, int height);
 
   bool Initialize(InputState& input);
   void Cleanup();

@@ -15,8 +15,6 @@ namespace null {
 static void OnCharacterPress(void* user, int codepoint, int mods) {
   Game* game = (Game*)user;
 
-  // TODO: Clean up all of this with key-action indirection.
-
   if (codepoint == NULLSPACE_KEY_ESCAPE) {
     if (game->connection.login_state <= Connection::LoginState::MapDownload) {
       game->menu_quit = true;
@@ -127,14 +125,15 @@ static void OnArenaSettings(void* user, u8* pkt, size_t size) {
   game->RecreateRadar();
 }
 
-Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int height)
+Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_queue, int width, int height)
     : perm_arena(perm_arena),
       temp_arena(temp_arena),
+      work_queue(work_queue),
       sound_system(perm_arena),
       notifications(),
       animation(),
       dispatcher(),
-      connection(perm_arena, temp_arena, dispatcher),
+      connection(perm_arena, temp_arena, work_queue, dispatcher),
       player_manager(perm_arena, connection, dispatcher),
       weapon_manager(connection, player_manager, dispatcher, animation, sound_system),
       banner_pool(temp_arena, player_manager, dispatcher),
@@ -270,6 +269,7 @@ void Game::UpdateGreens(float dt) {
           if (green->end_tick > 0 && BoxBoxIntersect(pmin, pmax, gmin, gmax)) {
             if (player == self) {
               // Pick up green
+              sound_system.Play(AudioType::Prize);
               ship_controller.ApplyPrize(self, green->prize_id, true);
               connection.SendTakeGreen((u16)green->position.x, (u16)green->position.y, green->prize_id);
             }
@@ -606,6 +606,7 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
 }
 
 void Game::Cleanup() {
+  work_queue.Clear();
   sound_system.Cleanup();
   banner_pool.Cleanup();
   background_renderer.Cleanup();

@@ -5,9 +5,6 @@
 
 namespace null {
 
-typedef unsigned char* (*ImageLoader)(const char* filename, size_t* size);
-extern ImageLoader image_loader;
-
 // Image loading function that typically passes to stb_image.
 // It also implements RLE BMP loading if that fails.
 unsigned char* ImageLoad(const char* filename, int* width, int* height, bool asset = true);

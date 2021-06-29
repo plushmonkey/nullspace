@@ -1,6 +1,8 @@
 #ifndef NULLSPACE_CONNECTION_H_
 #define NULLSPACE_CONNECTION_H_
 
+#include <mutex>
+
 #include "../ArenaSettings.h"
 #include "../Buffer.h"
 #include "../FileRequester.h"
@@ -63,6 +65,7 @@ struct Connection {
   FileRequester requester;
   PacketSequencer packet_sequencer;
   NetworkBuffer buffer;
+  std::mutex send_mutex;
 
   Map map;
   Security security;
@@ -82,7 +85,7 @@ struct Connection {
 
   u32 prize_weight_total = 0;
 
-  Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, PacketDispatcher& dispatcher);
+  Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_queue, PacketDispatcher& dispatcher);
 
   ConnectResult Connect(const char* ip, u16 port);
   void Disconnect();

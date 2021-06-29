@@ -38,14 +38,27 @@ const int32_t DOUBLE_TAP_SLOP = 100;
 // Forward declarations of helper functions
 static int ShowSoftKeyboardInput();
 static int PollUnicodeChars();
-static unsigned char* LoadImage(const char* filename, size_t* size);
+static unsigned char* LoadAsset(const char* filename, size_t* size);
+static unsigned char* LoadAssetArena(null::MemoryArena& arena, const char* filename, size_t* size);
 static void AndroidErrorLogger(const char* fmt, ...);
 static const char* AndroidGetStoragePath(null::MemoryArena& arena, const char* path);
 void shutdown();
 
 namespace null {
 
-constexpr EncryptMethod kEncryptMethod = EncryptMethod::Subspace;
+GameSettings g_Settings;
+
+void InitializeSettings() {
+    g_Settings.vsync = true;
+    g_Settings.window_type = WindowType::Windowed;
+
+    g_Settings.encrypt_method = EncryptMethod::Subspace;
+
+    g_Settings.sound_enabled = true;
+    g_Settings.sound_volume = 0.25f;
+
+    g_Settings.notify_max_prizes = false;
+}
 
 const char* kPlayerName = "null space";
 const char* kPlayerPassword = "none";
@@ -82,6 +95,8 @@ MemoryArena* perm_global = nullptr;
 struct nullspace {
     MemoryArena perm_arena;
     MemoryArena trans_arena;
+    MemoryArena work_arena;
+    WorkQueue* work_queue;
     Game* game = nullptr;
     int surface_width = 0;
     int surface_height = 0;
@@ -96,24 +111,32 @@ struct nullspace {
     bool Initialize() {
         constexpr size_t kPermanentSize = Megabytes(64);
         constexpr size_t kTransientSize = Megabytes(32);
+        constexpr size_t kWorkSize = Megabytes(4);
+
+        InitializeSettings();
 
         u8* perm_memory = (u8*)malloc(kPermanentSize);
         u8* trans_memory = (u8*)malloc(kTransientSize);
+        u8* work_memory = (u8*)malloc(kWorkSize);
 
-        if (!perm_memory || !trans_memory) {
+        if (!perm_memory || !trans_memory || !work_memory) {
             fprintf(stderr, "Failed to allocate memory.\n");
             return false;
         }
 
         perm_arena = MemoryArena(perm_memory, kPermanentSize);
         trans_arena = MemoryArena(trans_memory, kTransientSize);
+        work_arena = MemoryArena(work_memory, kWorkSize);
+
+        work_queue = new WorkQueue(work_arena);
 
         perm_global = &perm_arena;
 
         strcpy(name, kPlayerName);
         strcpy(password, kPlayerPassword);
 
-        null::image_loader = LoadImage;
+        null::asset_loader = LoadAsset;
+        null::asset_loader_arena = LoadAssetArena;
         null::log_error = AndroidErrorLogger;
         null::GetStoragePath = AndroidGetStoragePath;
 
@@ -130,7 +153,7 @@ struct nullspace {
         kPlayerName = name;
         kPlayerPassword = password;
 
-        game = memory_arena_construct_type(&perm_arena, Game, perm_arena, trans_arena, surface_width, surface_height);
+        game = memory_arena_construct_type(&perm_arena, Game, perm_arena, trans_arena, *work_queue, surface_width, surface_height);
 
         if (!game->Initialize(g_InputState)) {
             // TODO: Error pop up
@@ -148,7 +171,7 @@ struct nullspace {
 
         screen = GameScreen::Playing;
 
-        game->connection.SendEncryptionRequest(EncryptMethod::Subspace);
+        game->connection.SendEncryptionRequest(g_Settings.encrypt_method);
 
         return true;
     }
@@ -690,7 +713,7 @@ static int PollUnicodeChars()
     return 0;
 }
 
-static unsigned char* LoadImage(const char* filename, size_t* size) {
+static unsigned char* LoadAsset(const char* filename, size_t* size) {
     unsigned char* data = nullptr;
     *size = 0;
 
@@ -698,6 +721,22 @@ static unsigned char* LoadImage(const char* filename, size_t* size) {
     if (asset_descriptor) {
         *size = AAsset_getLength(asset_descriptor);
         data = (unsigned char*)malloc(*size);
+        int64_t num_bytes_read = AAsset_read(asset_descriptor, data, *size);
+        AAsset_close(asset_descriptor);
+        IM_ASSERT(num_bytes_read == *size);
+    }
+
+    return data;
+}
+
+static unsigned char* LoadAssetArena(null::MemoryArena& arena, const char* filename, size_t* size) {
+    unsigned char* data = nullptr;
+    *size = 0;
+
+    AAsset* asset_descriptor = AAssetManager_open(g_App->activity->assetManager, filename, AASSET_MODE_BUFFER);
+    if (asset_descriptor) {
+        *size = AAsset_getLength(asset_descriptor);
+        data = arena.Allocate(*size);
         int64_t num_bytes_read = AAsset_read(asset_descriptor, data, *size);
         AAsset_close(asset_descriptor);
         IM_ASSERT(num_bytes_read == *size);

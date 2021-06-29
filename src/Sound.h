@@ -53,6 +53,8 @@ enum class AudioType {
   Antiwarp,
   ToggleOff,
 
+  Prize,
+
   Count
 };
 constexpr size_t kAudioTypeCount = (size_t)AudioType::Count;
