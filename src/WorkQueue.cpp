@@ -12,6 +12,7 @@ void WorkQueue::Submit(WorkDefinition definition, void* user) {
 
     if (!work) {
       work = free = memory_arena_push_type(&arena, Work);
+      work->next = nullptr;
     }
 
     free = free->next;

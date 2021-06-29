@@ -150,6 +150,7 @@ void SoundSystem::PlayClip(const AudioClip& clip) {
   if (!playing_clip) {
     // Allocate new playing clip if none available in free list.
     playing_clip = free_clips = memory_arena_push_type(&database.perm_arena, PlayingAudioClip);
+    playing_clip->next = nullptr;
   }
 
   free_clips = free_clips->next;
