@@ -54,7 +54,7 @@ if(WIN32)
 target_link_libraries(nullspace ws2_32)
 else()
 find_package(glfw3 3.3 REQUIRED)
-target_link_libraries(nullspace glfw dl)
+target_link_libraries(nullspace glfw dl -pthread)
 endif()
 
 set(CPACK_PACKAGE_NAME "nullspace")
