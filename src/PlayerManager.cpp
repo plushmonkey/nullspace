@@ -626,6 +626,8 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
   Player* player = GetPlayerById(pid);
 
   if (player) {
+    DetachAllChildren(*player);
+
     player->ship = ship;
     player->frequency = freq;
 
@@ -1011,6 +1013,17 @@ void PlayerManager::DetachAllChildren(Player& player) {
   while (current) {
     AttachInfo* remove = current;
     current = current->next;
+
+    Player* child = GetPlayerById(remove->player_id);
+    if (child && child->attach_parent == player.id) {
+      child->attach_parent = kInvalidPlayerId;
+
+      Player* self = GetSelf();
+
+      if (child == self) {
+        connection.SendAttachRequest(0xFFFF);
+      }
+    }
 
     remove->player_id = kInvalidPlayerId;
     remove->next = attach_free;

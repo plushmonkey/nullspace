@@ -31,7 +31,7 @@ struct WeaponData {
   u16 shrap : 5;
   u16 alternate : 1;
 };
-static_assert(sizeof(WeaponData) == 2);
+static_assert(sizeof(WeaponData) == 2, "WeaponData must be 2 bytes");
 
 struct AttachInfo {
   u16 player_id;

@@ -288,7 +288,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
   }
 
   if (used_weapon) {
-    if (self.togglables & Status_Cloak) {
+    if (!in_safe && (self.togglables & Status_Cloak)) {
       self.togglables &= ~Status_Cloak;
       self.togglables |= Status_Flash;
     }

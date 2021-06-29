@@ -40,6 +40,19 @@ enum class AudioType {
   EBomb3,
   EBomb4,
 
+  Repel,
+  Decoy,
+  Burst,
+  Thor,
+
+  MultifireOn,
+  MultifireOff,
+  Stealth,
+  Cloak,
+  XRadar,
+  Antiwarp,
+  ToggleOff,
+
   Count
 };
 constexpr size_t kAudioTypeCount = (size_t)AudioType::Count;

@@ -39,6 +39,18 @@ AudioType GetAudioType(ShipSettings& ship_settings, WeaponData data) {
 
       result = (AudioType)(start + data.level);
     } break;
+    case WeaponType::Repel: {
+      result = AudioType::Repel;
+    } break;
+    case WeaponType::Decoy: {
+      result = AudioType::Decoy;
+    } break;
+    case WeaponType::Burst: {
+      result = AudioType::Burst;
+    } break;
+    case WeaponType::Thor: {
+      result = AudioType::Thor;
+    } break;
     default: {
     } break;
   }
@@ -328,6 +340,7 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
         Vector2f direction = Normalize(player.position - weapon.position);
 
         player.velocity = direction * speed;
+        player.lerp_time = 0.0f;
       }
     }
   }

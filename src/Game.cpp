@@ -35,6 +35,19 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
   game->chat.OnCharacterPress(codepoint, mods);
 }
 
+inline void ToggleStatus(Game* game, Player* self, ShipCapabilityFlags capability, StatusFlag status,
+                         AudioType audio_on) {
+  if (game->ship_controller.ship.capability & capability) {
+    if (self->togglables & status) {
+      game->sound_system.Play(AudioType::ToggleOff);
+    } else {
+      game->sound_system.Play(audio_on);
+    }
+
+    self->togglables ^= status;
+  }
+}
+
 static void OnAction(void* user, InputAction action) {
   Game* game = (Game*)user;
   Player* self = game->player_manager.GetSelf();
@@ -42,24 +55,43 @@ static void OnAction(void* user, InputAction action) {
   if (!self) return;
 
   switch (action) {
-    case InputAction::XRadar: {
-      self->togglables ^= Status_XRadar;
-    } break;
-    case InputAction::Antiwarp: {
-      self->togglables ^= Status_Antiwarp;
-    } break;
     case InputAction::Multifire: {
-      game->ship_controller.ship.multifire = !game->ship_controller.ship.multifire;
+      if (game->ship_controller.ship.capability & ShipCapability_Multifire) {
+        if (game->ship_controller.ship.multifire) {
+          game->sound_system.Play(AudioType::MultifireOff);
+        } else {
+          game->sound_system.Play(AudioType::MultifireOn);
+        }
+
+        game->ship_controller.ship.multifire = !game->ship_controller.ship.multifire;
+      }
+
     } break;
     case InputAction::Stealth: {
-      self->togglables ^= Status_Stealth;
+      ToggleStatus(game, self, ShipCapability_Stealth, Status_Stealth, AudioType::Stealth);
     } break;
     case InputAction::Cloak: {
-      self->togglables ^= Status_Cloak;
+      ToggleStatus(game, self, ShipCapability_Cloak, Status_Cloak, AudioType::Cloak);
 
-      if (!(self->togglables & Status_Cloak)) {
+      if ((game->ship_controller.ship.capability & ShipCapability_Cloak) && !(self->togglables & Status_Cloak)) {
         self->togglables |= Status_Flash;
       }
+    } break;
+    case InputAction::XRadar: {
+      ToggleStatus(game, self, ShipCapability_XRadar, Status_XRadar, AudioType::XRadar);
+
+      if (self->ship == 8 && !game->connection.settings.NoXRadar) {
+        if (self->togglables & Status_XRadar) {
+          game->sound_system.Play(AudioType::ToggleOff);
+        } else {
+          game->sound_system.Play(AudioType::XRadar);
+        }
+
+        self->togglables ^= Status_XRadar;
+      }
+    } break;
+    case InputAction::Antiwarp: {
+      ToggleStatus(game, self, ShipCapability_Antiwarp, Status_Antiwarp, AudioType::Antiwarp);
     } break;
     case InputAction::Attach: {
       Player* selected = game->statbox.GetSelectedPlayer();

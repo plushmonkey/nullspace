@@ -166,6 +166,7 @@ const char* kClipFilenames[] = {
     "sound/gun2.wa2",
     "sound/gun3.wa2",
     "sound/gun4.wa2",
+
     "sound/bomb1.wa2",
     "sound/bomb2.wa2",
     "sound/bomb3.wa2",
@@ -174,6 +175,19 @@ const char* kClipFilenames[] = {
     "sound/ebomb2.wa2",
     "sound/ebomb3.wa2",
     "sound/ebomb4.wa2",
+
+    "sound/repel.wa2",
+    "sound/decoy.wa2",
+    "sound/burst.wa2",
+    "sound/thor.wa2",
+
+    "sound/multion.wa2",
+    "sound/multioff.wa2",
+    "sound/stealth.wa2",
+    "sound/cloak.wa2",
+    "sound/xradar.wa2",
+    "sound/antiwarp.wa2",
+    "sound/off.wa2",
 };
 
 // TODO: Rework this entire thing. This is just the minimal implementation. It should be threaded so it doesn't cause
