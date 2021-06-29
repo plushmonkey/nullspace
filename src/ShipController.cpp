@@ -7,6 +7,7 @@
 #include "InputState.h"
 #include "PlayerManager.h"
 #include "Random.h"
+#include "Settings.h"
 #include "Tick.h"
 #include "WeaponManager.h"
 #include "net/Connection.h"
@@ -590,9 +591,6 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify) {
   bool max_notification = false;
   bool display_notification = false;
 
-  // TODO: Move this out into config
-  bool cfg_display_max = true;
-
   switch (prize) {
     case Prize::Recharge: {
       display_notification = true;
@@ -1012,7 +1010,7 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify) {
     const char* mesg = negative ? kNegativeNotifications[real_id] : kPositiveNotifications[real_id];
     const char* max_msg = negative ? " MIN" : " MAX";
 
-    if (cfg_display_max || !max_notification) {
+    if (g_Settings.notify_max_prizes || !max_notification) {
       notifications_.PushFormatted(TextColor::Green, "%s%s", mesg, max_notification ? max_msg : "");
     }
   }

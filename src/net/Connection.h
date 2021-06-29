@@ -6,14 +6,15 @@
 #include "../FileRequester.h"
 #include "../Map.h"
 #include "../Memory.h"
+#include "../Settings.h"
 #include "../Types.h"
 #include "Crypt.h"
 #include "PacketDispatcher.h"
 #include "PacketSequencer.h"
 
 namespace null {
+
 enum class ConnectResult { Success, ErrorSocket, ErrorAddrInfo, ErrorConnect };
-enum class EncryptMethod { Subspace, Continuum };
 
 struct RemoteAddress {
   long addr;
@@ -42,7 +43,7 @@ struct Connection {
     EncryptionRequested,  // Sent encryption request
     Authentication,       // Sent password packet
     Registering,
-    ArenaLogin,           // Requested to join arena
+    ArenaLogin,  // Requested to join arena
     MapDownload,
     Complete,
     Quit

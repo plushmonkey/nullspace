@@ -251,6 +251,7 @@
     <ClInclude Include="src\render\SpriteRenderer.h" />
     <ClInclude Include="src\render\TextureMap.h" />
     <ClInclude Include="src\render\TileRenderer.h" />
+    <ClInclude Include="src\Settings.h" />
     <ClInclude Include="src\ShipController.h" />
     <ClInclude Include="src\Sound.h" />
     <ClInclude Include="src\SpectateView.h" />

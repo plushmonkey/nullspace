@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include "Settings.h"
+
 #define SOUND_SAMPLE_FORMAT ma_format_f32
 #define SOUND_CHANNEL_COUNT 2
 #define SOUND_SAMPLE_RATE 44100
@@ -30,7 +32,7 @@ ma_uint32 read_and_mix_pcm_frames_f32(ma_decoder* decoder, float* output, ma_uin
 
     // Perform add mix
     for (ma_uint32 sample_index = 0; sample_index < frames_read_count * SOUND_CHANNEL_COUNT; ++sample_index) {
-      output[total_frames_read * SOUND_CHANNEL_COUNT + sample_index] += buffer[sample_index];
+      output[total_frames_read * SOUND_CHANNEL_COUNT + sample_index] += buffer[sample_index] * g_Settings.sound_volume;
     }
 
     total_frames_read += frames_read_count;

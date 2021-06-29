@@ -5,6 +5,7 @@
 
 #include "Buffer.h"
 #include "Memory.h"
+#include "Settings.h"
 #include "Tick.h"
 #include "net/Checksum.h"
 
@@ -47,12 +48,19 @@ void GLAPIENTRY OnOpenGLError(GLenum source, GLenum type, GLuint id, GLenum seve
 
 namespace null {
 
-bool kEnableSound = false;
-enum class WindowType { Windowed, Fullscreen, BorderlessFullscreen };
+GameSettings g_Settings;
 
-constexpr bool kVerticalSync = true;
-constexpr WindowType kWindowType = WindowType::Windowed;
-constexpr EncryptMethod kEncryptMethod = EncryptMethod::Continuum;
+void InitializeSettings() {
+  g_Settings.vsync = false;
+  g_Settings.window_type = WindowType::Windowed;
+
+  g_Settings.encrypt_method = EncryptMethod::Continuum;
+
+  g_Settings.sound_enabled = true;
+  g_Settings.sound_volume = 0.1f;
+
+  g_Settings.notify_max_prizes = true;
+}
 
 const char* kPlayerName = "null space";
 const char* kPlayerPassword = "none";
@@ -202,7 +210,7 @@ struct nullspace {
     kPlayerName = name;
     kPlayerPassword = password;
 
-    if (kEncryptMethod == EncryptMethod::Continuum &&
+    if (g_Settings.encrypt_method == EncryptMethod::Continuum &&
         !MemoryChecksumGenerator::Initialize(perm_arena, "cont_mem_text", "cont_mem_data")) {
       // TODO: Error pop up
       return false;
@@ -233,7 +241,7 @@ struct nullspace {
     window_state.screen = GameScreen::Playing;
     window_state.game = game;
 
-    game->connection.SendEncryptionRequest(kEncryptMethod);
+    game->connection.SendEncryptionRequest(g_Settings.encrypt_method);
     return true;
   }
 
@@ -412,7 +420,7 @@ struct nullspace {
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
-    if (kWindowType == WindowType::Fullscreen) {
+    if (g_Settings.window_type == WindowType::Fullscreen) {
       glfwWindowHint(GLFW_RED_BITS, mode->redBits);
       glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
       glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
@@ -423,7 +431,7 @@ struct nullspace {
       height = mode->height;
 
       window = glfwCreateWindow(width, height, "nullspace", monitor, NULL);
-    } else if (kWindowType == WindowType::BorderlessFullscreen) {
+    } else if (g_Settings.window_type == WindowType::BorderlessFullscreen) {
       glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 
       width = mode->width;
@@ -469,8 +477,8 @@ struct nullspace {
 
     // Don't enable vsync with borderless fullscreen because glfw does dwm flushes instead.
     // There seems to be a bug with glfw that causes screen tearing if this is set.
-    if (!(kVerticalSync && kWindowType == WindowType::BorderlessFullscreen)) {
-      glfwSwapInterval(kVerticalSync);
+    if (!(g_Settings.vsync && g_Settings.window_type == WindowType::BorderlessFullscreen)) {
+      glfwSwapInterval(g_Settings.vsync);
     }
 
     glfwSetWindowUserPointer(window, &window_state);
@@ -581,6 +589,8 @@ void GLAPIENTRY OnOpenGLError(GLenum source, GLenum type, GLuint id, GLenum seve
 
 int main(void) {
   null::nullspace nullspace;
+
+  null::InitializeSettings();
 
   if (!nullspace.Initialize()) {
     return 1;

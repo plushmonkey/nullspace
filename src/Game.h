@@ -9,6 +9,7 @@
 #include "Notification.h"
 #include "PlayerManager.h"
 #include "Radar.h"
+#include "Settings.h"
 #include "ShipController.h"
 #include "Sound.h"
 #include "SpectateView.h"

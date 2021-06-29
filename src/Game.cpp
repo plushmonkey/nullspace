@@ -12,8 +12,6 @@
 
 namespace null {
 
-extern bool kEnableSound;
-
 static void OnCharacterPress(void* user, int codepoint, int mods) {
   Game* game = (Game*)user;
 
@@ -161,7 +159,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, int width, int heig
 }
 
 bool Game::Initialize(InputState& input) {
-  if (kEnableSound && !sound_system.Initialize()) {
+  if (g_Settings.sound_enabled && !sound_system.Initialize()) {
     log_error("Failed to initialize sound system.\n");
   }
 
@@ -580,7 +578,7 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
 
   lvz.Reset();
 
-  if (kEnableSound && !sound_system.Initialize()) {
+  if (g_Settings.sound_enabled && !sound_system.Initialize()) {
     log_error("Failed to initialize sound system.\n");
   }
 
