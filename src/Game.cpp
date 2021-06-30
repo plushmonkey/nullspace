@@ -16,7 +16,8 @@ static void OnCharacterPress(void* user, int codepoint, int mods) {
   Game* game = (Game*)user;
 
   if (codepoint == NULLSPACE_KEY_ESCAPE) {
-    if (game->connection.login_state <= Connection::LoginState::MapDownload) {
+    if (game->connection.login_state <= Connection::LoginState::MapDownload ||
+        game->connection.login_state >= Connection::LoginState::Quit) {
       game->menu_quit = true;
     }
 
@@ -211,7 +212,8 @@ bool Game::Update(const InputState& input, float dt) {
     animated_tile_renderer.InitializeDoors(tile_renderer);
 
     if (me) {
-      me->position = Vector2f(512, 512);
+      // TODO: Loop through statbox to find first player and spectate them.
+      me->position = Vector2f(0, 0);
     }
   }
 
@@ -222,8 +224,8 @@ bool Game::Update(const InputState& input, float dt) {
   if (me) {
     if (me->position.x < 0) me->position.x = 0;
     if (me->position.y < 0) me->position.y = 0;
-    if (me->position.x > 1023) me->position.x = 1023;
-    if (me->position.y > 1023) me->position.y = 1023;
+    if (me->position.x >= 1024) me->position.x = 1023.9f;
+    if (me->position.y >= 1024) me->position.y = 1023.9f;
 
     camera.position = me->position.PixelRounded();
   }
@@ -413,26 +415,49 @@ void Game::RenderJoin(float dt) {
   sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
                        ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f, Layer::TopMost);
 
-  if (connection.login_state < Connection::LoginState::MapDownload) {
-    sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
-                         ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f, Layer::TopMost);
+  switch (connection.login_state) {
+    case Connection::LoginState::EncryptionRequested:
+    case Connection::LoginState::Authentication:
+    case Connection::LoginState::Registering:
+    case Connection::LoginState::ArenaLogin: {
+      sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
+                           ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f, Layer::TopMost);
 
-    Vector2f position(ui_camera.surface_dim.x * 0.5f, (float)(u32)(ui_camera.surface_dim.y * 0.8f));
+      Vector2f position(ui_camera.surface_dim.x * 0.5f, (float)(u32)(ui_camera.surface_dim.y * 0.8f));
 
-    sprite_renderer.DrawText(ui_camera, "Entering arena", TextColor::Blue, position, Layer::TopMost,
-                             TextAlignment::Center);
-  } else {
-    int percent = (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map.compressed_size);
-    char downloading[64];
+      if (connection.packets_received > 0) {
+        sprite_renderer.DrawText(ui_camera, "Entering arena", TextColor::Blue, position, Layer::TopMost,
+                                 TextAlignment::Center);
+      } else {
+        sprite_renderer.DrawText(ui_camera, "Connecting to server", TextColor::Blue, position, Layer::TopMost,
+                                 TextAlignment::Center);
+      }
+    } break;
+    case Connection::LoginState::MapDownload: {
+      int percent = (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map.compressed_size);
+      char downloading[64];
 
-    sprintf(downloading, "Downloading level: %d%%", percent);
+      sprintf(downloading, "Downloading level: %d%%", percent);
 
-    Vector2f download_pos(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
+      Vector2f download_pos(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
 
-    sprite_renderer.DrawText(ui_camera, downloading, TextColor::Blue, download_pos, Layer::TopMost,
-                             TextAlignment::Center);
-    statbox.Render(ui_camera, sprite_renderer);
-    sprite_renderer.Render(ui_camera);
+      sprite_renderer.DrawText(ui_camera, downloading, TextColor::Blue, download_pos, Layer::TopMost,
+                               TextAlignment::Center);
+      statbox.Render(ui_camera, sprite_renderer);
+      sprite_renderer.Render(ui_camera);
+    } break;
+    case Connection::LoginState::Quit:
+    case Connection::LoginState::ConnectTimeout: {
+      sprite_renderer.Draw(ui_camera, Graphics::ship_sprites[0],
+                           ui_camera.surface_dim * 0.5f - Graphics::ship_sprites[0].dimensions * 0.5f, Layer::TopMost);
+
+      Vector2f position(ui_camera.surface_dim.x * 0.5f, (float)(u32)(ui_camera.surface_dim.y * 0.8f));
+
+      sprite_renderer.DrawText(ui_camera, "Failed to connect to server", TextColor::DarkRed, position, Layer::TopMost,
+                               TextAlignment::Center);
+    } break;
+    default: {
+    } break;
   }
 }
 

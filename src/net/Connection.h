@@ -48,7 +48,11 @@ struct Connection {
     ArenaLogin,  // Requested to join arena
     MapDownload,
     Complete,
-    Quit
+
+    GameTimeout,
+
+    Quit,
+    ConnectTimeout,
   };
 
   MemoryArena& perm_arena;
@@ -73,6 +77,7 @@ struct Connection {
   Security security;
   ArenaSettings settings = {};
 
+  u32 connect_tick = 0;
   u32 packets_sent = 0;
   u32 packets_received = 0;
   u32 weapons_received = 0;

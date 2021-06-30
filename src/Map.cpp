@@ -221,7 +221,7 @@ void Map::SeedDoors(u32 seed) {
 
 TileId Map::GetTileId(u16 x, u16 y) const {
   if (!tiles) return 0;
-  if (x >= 1024 || y >= 1024) return 0;
+  if (x >= 1024 || y >= 1024) return 20;
 
   return tiles[y * 1024 + x];
 }
@@ -299,12 +299,10 @@ CastResult Map::Cast(const Vector2f& from, const Vector2f& direction, float max_
       travel.y += unit_step.y;
     }
 
-    if (check.x >= 0 && check.x < 1024 && check.y >= 0 && check.y < 1024) {
-      if (IsSolid((unsigned short)check.x, (unsigned short)check.y)) {
-        result.hit = true;
-        result.distance = clear_distance;
-        break;
-      }
+    if (IsSolid((unsigned short)std::floor(check.x), (unsigned short)std::floor(check.y))) {
+      result.hit = true;
+      result.distance = clear_distance;
+      break;
     }
   }
 

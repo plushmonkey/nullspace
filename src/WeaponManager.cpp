@@ -357,7 +357,7 @@ bool WeaponManager::SimulateAxis(Weapon& weapon, float dt, int axis) {
   if (weapon.data.type == WeaponType::Thor) return false;
 
   // TODO: Handle other special tiles here
-  if (map.IsSolid((u16)weapon.position.x, (u16)weapon.position.y)) {
+  if (map.IsSolid((u16)std::floor(weapon.position.x), (u16)std::floor(weapon.position.y))) {
     weapon.position[axis] = previous;
     weapon.velocity[axis] = -weapon.velocity[axis];
 
@@ -641,7 +641,7 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u3
     if (self) {
       Vector2f view_min = self->position * 16.0f - connection.view_dim * 0.5f;
       Vector2f view_max = self->position * 16.0f + connection.view_dim * 0.5f;
-      
+
       if (BoxContainsPoint(view_min, view_max, Vector2f((float)pos_x, (float)pos_y))) {
         AudioType audio_type = GetAudioType(ship_settings, weapon);
 

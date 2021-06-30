@@ -102,6 +102,13 @@ Connection::TickResult Connection::Tick() {
 
   null::Tick current_tick = GetCurrentTick();
 
+  constexpr u32 kConnectTimeout = 500;
+  if (login_state == Connection::LoginState::EncryptionRequested &&
+      TICK_DIFF(current_tick, connect_tick) >= kConnectTimeout) {
+    login_state = Connection::LoginState::ConnectTimeout;
+    return TickResult::ConnectionError;
+  }
+
   // Continuum client seems to send sync request every 5 seconds
   if (TICK_DIFF(current_tick, last_sync_tick) >= kSyncDelay) {
     SendSyncTimeRequestPacket(false);
@@ -127,7 +134,13 @@ Connection::TickResult Connection::Tick() {
 
       if (login_state != LoginState::Quit) {
         fprintf(stderr, "Unexpected socket error: %d\n", err);
+        bool in_game = login_state == LoginState::Complete;
+
         this->Disconnect();
+
+        if (in_game) {
+          login_state = LoginState::GameTimeout;
+        }
       }
       return TickResult::ConnectionError;
     } else if (bytes_recv > 0) {
@@ -663,6 +676,8 @@ ConnectResult Connection::Connect(const char* ip, u16 port) {
 
   this->connected = true;
   this->SetBlocking(false);
+
+  this->connect_tick = GetCurrentTick();
 
   return ConnectResult::Success;
 }

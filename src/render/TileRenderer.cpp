@@ -12,7 +12,7 @@
 namespace null {
 
 const Vector2f kGridVertices[] = {
-    Vector2f(0, 0), Vector2f(0, 1024), Vector2f(1024, 0), Vector2f(1024, 0), Vector2f(0, 1024), Vector2f(1024, 1024),
+    Vector2f(-1, -1), Vector2f(-1, 1025), Vector2f(1025, -1), Vector2f(1025, -1), Vector2f(-1, 1025), Vector2f(1025, 1025),
 };
 
 const char* kGridVertexShaderCode = R"(#version 300 es
@@ -45,8 +45,17 @@ uniform usampler2D tiledata;
 out vec4 color;
 
 void main() {
-  ivec2 fetchp = ivec2(varying_position);
-  uint tile_id = texelFetch(tiledata, fetchp, 0).r;
+  uint tile_id;
+
+  float x = varying_position.x;
+  float y = varying_position.y;
+
+  if (x < 0.0 || y < 0.0 || x > 1024.0 || y > 1024.0) {
+    tile_id = 20u;
+  } else {
+    ivec2 fetchp = ivec2(varying_position);
+    tile_id = texelFetch(tiledata, fetchp, 0).r;
+  }
 
   if (tile_id == 0u || tile_id == 170u || tile_id == 172u || tile_id > 190u || (tile_id >= 162u && tile_id <= 169u)) {
     discard;

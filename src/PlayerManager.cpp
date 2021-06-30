@@ -694,28 +694,31 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
       ++connection.weapons_received;
     }
 
-    if (size >= 23) {
-      player->energy = (float)buffer.ReadU16();
-    } else {
-      player->energy = 0;
-    }
+    // Don't force set own energy/latency
+    if (player->id != player_id) {
+      if (size >= 23) {
+        player->energy = (float)buffer.ReadU16();
+      } else {
+        player->energy = 0;
+      }
 
-    if (size >= 25) {
-      player->s2c_latency = buffer.ReadU16();
-    } else {
-      player->s2c_latency = 0;
-    }
+      if (size >= 25) {
+        player->s2c_latency = buffer.ReadU16();
+      } else {
+        player->s2c_latency = 0;
+      }
 
-    if (size >= 27) {
-      player->timers = buffer.ReadU16();
-    } else {
-      player->timers = 0;
-    }
+      if (size >= 27) {
+        player->timers = buffer.ReadU16();
+      } else {
+        player->timers = 0;
+      }
 
-    if (size >= 31) {
-      player->items = buffer.ReadU32();
-    } else {
-      player->items = 0;
+      if (size >= 31) {
+        player->items = buffer.ReadU32();
+      } else {
+        player->items = 0;
+      }
     }
 
     OnPositionPacket(*player, pkt_position);
@@ -749,28 +752,31 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
       player->warp_anim_t = 0.0f;
     }
 
-    if (size >= 18) {
-      player->energy = (float)buffer.ReadU16();
-    } else {
-      player->energy = 0.0f;
-    }
+    // Don't force set own energy/latency
+    if (player->id != player_id) {
+      if (size >= 18) {
+        player->energy = (float)buffer.ReadU16();
+      } else {
+        player->energy = 0.0f;
+      }
 
-    if (size >= 20) {
-      player->s2c_latency = buffer.ReadU16();
-    } else {
-      player->s2c_latency = 0;
-    }
+      if (size >= 20) {
+        player->s2c_latency = buffer.ReadU16();
+      } else {
+        player->s2c_latency = 0;
+      }
 
-    if (size >= 22) {
-      player->timers = buffer.ReadU16();
-    } else {
-      player->timers = 0;
-    }
+      if (size >= 22) {
+        player->timers = buffer.ReadU16();
+      } else {
+        player->timers = 0;
+      }
 
-    if (size >= 26) {
-      player->items = buffer.ReadU32();
-    } else {
-      player->items = 0;
+      if (size >= 26) {
+        player->items = buffer.ReadU32();
+      } else {
+        player->items = 0;
+      }
     }
 
     Vector2f pkt_position(x / 16.0f, y / 16.0f);
@@ -1071,7 +1077,7 @@ bool PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
   u16 check = (u16)(player.position.values[axis] + radius);
 
   if (delta < 0) {
-    check = (u16)(player.position.values[axis] - radius);
+    check = (u16)std::floor(player.position.values[axis] - radius);
   }
 
   s16 start = (s16)(player.position.values[axis_flip] - radius - 1);
