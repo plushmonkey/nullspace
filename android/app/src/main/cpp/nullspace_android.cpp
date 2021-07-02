@@ -389,6 +389,9 @@ void init(struct android_app* app)
         if (!gladLoadGLES2Loader((GLADloadproc)eglGetProcAddress)) {
             __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s", "Failed to initialize glad loader.");
         }
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LEQUAL);
     }
 
     int surface_width, surface_height;

@@ -212,8 +212,16 @@ bool Game::Update(const InputState& input, float dt) {
     animated_tile_renderer.InitializeDoors(tile_renderer);
 
     if (me) {
-      // TODO: Loop through statbox to find first player and spectate them.
       me->position = Vector2f(0, 0);
+      
+      for (size_t i = 0; i < player_manager.player_count; ++i) {
+        Player* player = player_manager.GetPlayerById(statbox.player_view[i]);
+
+        if (player->ship != 8) {
+          specview.SpectatePlayer(*player);
+          break;
+        }
+      }
     }
   }
 

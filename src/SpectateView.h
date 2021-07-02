@@ -32,6 +32,7 @@ struct SpectateView {
   void OnAction(InputAction action);
 
   void SpectateSelected();
+  void SpectatePlayer(Player& player);
 };
 
 }  // namespace null

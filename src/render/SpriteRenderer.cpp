@@ -25,8 +25,8 @@ struct SpritePushElement {
 constexpr size_t kPushBufferSize = Megabytes(16);
 constexpr size_t kTextureBufferSize = kPushBufferSize / sizeof(SpriteVertex);
 
-const char* kSpriteVertexShaderCode = R"(#version 300 es
-
+const char kSpriteVertexShaderCode[] = NULL_SHADER_VERSION
+    R"(
 in vec3 position;
 in vec2 uv;
 
@@ -40,7 +40,8 @@ void main() {
 }
 )";
 
-const char* kSpriteFragmentShaderCode = R"(#version 300 es
+const char kSpriteFragmentShaderCode[] = NULL_SHADER_VERSION
+    R"(
 precision mediump float;
 
 in vec2 varying_uv;

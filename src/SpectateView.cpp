@@ -114,13 +114,20 @@ void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
 
 void SpectateView::SpectateSelected() {
   Player* selected = statbox.GetSelectedPlayer();
+
+  if (selected) {
+    SpectatePlayer(*selected);
+  }
+}
+
+void SpectateView::SpectatePlayer(Player& player) {
   u32 tick = GetCurrentTick();
 
   if (TICK_DIFF(tick, last_spectate_packet) < 10) return;
 
-  if (selected && selected->ship != 8 && selected->id != spectate_id) {
-    spectate_id = selected->id;
-    spectate_frequency = selected->frequency;
+  if (player.ship != 8 && player.id != spectate_id) {
+    spectate_id = player.id;
+    spectate_frequency = player.frequency;
     last_spectate_packet = tick;
 
     connection.SendSpectateRequest(spectate_id);

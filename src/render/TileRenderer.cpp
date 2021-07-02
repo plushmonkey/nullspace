@@ -12,11 +12,12 @@
 namespace null {
 
 const Vector2f kGridVertices[] = {
-    Vector2f(-1, -1), Vector2f(-1, 1025), Vector2f(1025, -1), Vector2f(1025, -1), Vector2f(-1, 1025), Vector2f(1025, 1025),
+    Vector2f(-1, -1),   Vector2f(-1, 1025), Vector2f(1025, -1),
+    Vector2f(1025, -1), Vector2f(-1, 1025), Vector2f(1025, 1025),
 };
 
-const char* kGridVertexShaderCode = R"(#version 300 es
-
+const char kGridVertexShaderCode[] = NULL_SHADER_VERSION
+    R"(
 in vec2 position;
 
 uniform mat4 mvp;
@@ -29,11 +30,18 @@ void main() {
 }
 )";
 
-const char* kGridFragmentShaderCode = R"(#version 300 es
+const char kGridFragmentShaderCode[] = NULL_SHADER_VERSION
+    R"(
 precision mediump float;
-precision mediump int;
+precision mediump int;)"
+
+// Don't define precision for these types since it doesn't work on older desktop opengl versions.
+#ifdef __ANDROID__
+    R"(
 precision mediump sampler2DArray;
-precision mediump usampler2D;
+precision mediump usampler2D;)"
+#endif
+    R"(
 
 in vec2 varying_position;
 
