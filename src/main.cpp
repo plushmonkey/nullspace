@@ -51,13 +51,14 @@ namespace null {
 GameSettings g_Settings;
 
 void InitializeSettings() {
-  g_Settings.vsync = false;
+  g_Settings.vsync = true;
   g_Settings.window_type = WindowType::Windowed;
 
   g_Settings.encrypt_method = EncryptMethod::Continuum;
 
   g_Settings.sound_enabled = true;
-  g_Settings.sound_volume = 0.25f;
+  g_Settings.sound_volume = 0.15f;
+  g_Settings.sound_radius_increase = 10.0f;
 
   g_Settings.notify_max_prizes = false;
 }

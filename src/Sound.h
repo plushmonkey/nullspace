@@ -40,6 +40,11 @@ enum class AudioType {
   EBomb3,
   EBomb4,
 
+  Mine1,
+  Mine2,
+  Mine3,
+  Mine4,
+
   Repel,
   Decoy,
   Burst,
@@ -54,6 +59,11 @@ enum class AudioType {
   ToggleOff,
 
   Prize,
+
+  Explode0,
+  Explode1,
+  Explode2,
+  EBombExplode,
 
   Count
 };
@@ -76,6 +86,7 @@ struct SoundDatabase {
 
 struct PlayingAudioClip {
   ma_decoder decoder;
+  float volume;
 
   PlayingAudioClip* next;
 };
@@ -100,10 +111,10 @@ struct SoundSystem {
   bool Initialize();
   void Cleanup();
 
-  void Play(AudioType type);
+  void Play(AudioType type, float volume = 1.0f);
 
  private:
-  void PlayClip(const AudioClip& clip);
+  void PlayClip(const AudioClip& clip, float volume);
 };
 
 }  // namespace null

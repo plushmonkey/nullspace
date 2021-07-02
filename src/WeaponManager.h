@@ -2,6 +2,7 @@
 #define NULLSPACE_WEAPONMANAGER_H_
 
 #include "Player.h"
+#include "Sound.h"
 #include "Types.h"
 #include "render/Animation.h"
 
@@ -118,6 +119,10 @@ struct WeaponManager {
                                       s32 vel_x, s32 vel_y, const Vector2f& heading, u32 link_id);
 
   u64 GetTime();
+
+  // Adjusts the clip according to the position of the player and the sound's position.
+  // Currently only does volume fall-off, but it could do 3d sound effects in the future. (Continuum supports it)
+  void PlayPositionalSound(AudioType type, const Vector2f& position);
 };
 
 }  // namespace null

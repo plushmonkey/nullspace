@@ -14,6 +14,8 @@ struct GameSettings {
 
   bool sound_enabled;
   float sound_volume;
+  // How many tiles outside of the screen that you can still hear sounds.
+  float sound_radius_increase;
 
   bool notify_max_prizes;
 };

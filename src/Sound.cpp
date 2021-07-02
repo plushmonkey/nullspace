@@ -31,9 +31,12 @@ ma_uint32 read_and_mix_pcm_frames_f32(ma_decoder* decoder, float* output, ma_uin
       break;
     }
 
+    PlayingAudioClip* clip = (PlayingAudioClip*)decoder->pUserData;
+
     // Perform add mix
     for (ma_uint32 sample_index = 0; sample_index < frames_read_count * SOUND_CHANNEL_COUNT; ++sample_index) {
-      output[total_frames_read * SOUND_CHANNEL_COUNT + sample_index] += buffer[sample_index] * g_Settings.sound_volume;
+      output[total_frames_read * SOUND_CHANNEL_COUNT + sample_index] +=
+          buffer[sample_index] * g_Settings.sound_volume * clip->volume;
     }
 
     total_frames_read += frames_read_count;
@@ -125,17 +128,17 @@ void SoundSystem::Cleanup() {
   initialized = false;
 }
 
-void SoundSystem::Play(AudioType type) {
+void SoundSystem::Play(AudioType type, float volume) {
   if (!initialized) return;
 
   AudioClip clip = database.GetClip(type);
 
   if (clip.IsLoaded()) {
-    PlayClip(clip);
+    PlayClip(clip, volume);
   }
 }
 
-void SoundSystem::PlayClip(const AudioClip& clip) {
+void SoundSystem::PlayClip(const AudioClip& clip, float volume) {
   if (!initialized) return;
 
   // TODO: Evict old playing sounds if it ever reaches cap
@@ -162,6 +165,8 @@ void SoundSystem::PlayClip(const AudioClip& clip) {
     log_error("Failed to play audio clip.\n");
     database.perm_arena.Revert(snapshot);
   } else {
+    playing_clip->volume = volume;
+    playing_clip->decoder.pUserData = playing_clip;
     playing_clips[playing_count++] = playing_clip;
   }
 }
@@ -186,6 +191,11 @@ const char* kClipFilenames[] = {
     "sound/ebomb3.wa2",
     "sound/ebomb4.wa2",
 
+    "sound/mine1.wa2",
+    "sound/mine2.wa2",
+    "sound/mine3.wa2",
+    "sound/mine4.wa2",
+
     "sound/repel.wa2",
     "sound/decoy.wa2",
     "sound/burst.wa2",
@@ -200,6 +210,11 @@ const char* kClipFilenames[] = {
     "sound/off.wa2",
 
     "sound/prize.wa2",
+
+    "sound/explode0.wa2",
+    "sound/explode1.wa2",
+    "sound/explode2.wa2",
+    "sound/ebombex.wa2",
 };
 
 // TODO: Rework this entire thing. This is just the minimal implementation. It should be threaded so it doesn't cause

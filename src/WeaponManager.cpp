@@ -35,6 +35,8 @@ AudioType GetAudioType(ShipSettings& ship_settings, WeaponData data) {
 
       if (ship_settings.EmpBomb) {
         start = (size_t)AudioType::EBomb1;
+      } else if (data.alternate) {
+        start = (size_t)AudioType::Mine1;
       }
 
       result = (AudioType)(start + data.level);
@@ -446,9 +448,13 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
       if (weapon.flags & WEAPON_FLAG_EMP) {
         Vector2f offset = Graphics::anim_emp_explode.frames[0].dimensions * (0.5f / 16.0f);
         animation.AddAnimation(Graphics::anim_emp_explode, weapon.position - offset)->layer = Layer::Explosions;
+
+        PlayPositionalSound(AudioType::EBombExplode, weapon.position);
       } else {
         Vector2f offset = Graphics::anim_bomb_explode.frames[0].dimensions * (0.5f / 16.0f);
         animation.AddAnimation(Graphics::anim_bomb_explode, weapon.position - offset)->layer = Layer::Explosions;
+
+        PlayPositionalSound(AudioType::Explode2, weapon.position);
       }
 
       s32 count = weapon.data.shrap;
@@ -636,18 +642,9 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u3
   u16 pid = player.id;
 
   if (g_Settings.sound_enabled) {
-    Player* self = player_manager.GetSelf();
+    AudioType audio_type = GetAudioType(ship_settings, weapon);
 
-    if (self) {
-      Vector2f view_min = self->position * 16.0f - connection.view_dim * 0.5f;
-      Vector2f view_max = self->position * 16.0f + connection.view_dim * 0.5f;
-
-      if (BoxContainsPoint(view_min, view_max, Vector2f((float)pos_x, (float)pos_y))) {
-        AudioType audio_type = GetAudioType(ship_settings, weapon);
-
-        sound_system.Play(audio_type);
-      }
-    }
+    PlayPositionalSound(audio_type, player.position);
   }
 
   if (type == WeaponType::Bullet || type == WeaponType::BouncingBullet) {
@@ -821,7 +818,8 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   SetWeaponSprite(*player, *weapon);
 
   if (player->id == player_manager.player_id &&
-      (type == WeaponType::Bomb || type == WeaponType::ProximityBomb || type == WeaponType::Thor)) {
+      (type == WeaponType::Bomb || type == WeaponType::ProximityBomb || type == WeaponType::Thor) &&
+      !weapon->data.alternate) {
     player->bombflash_anim_t = 0.0f;
   }
 
@@ -923,6 +921,32 @@ int WeaponManager::GetWeaponTotalAliveTime(WeaponType type, bool alternate) {
   }
 
   return result;
+}
+
+void WeaponManager::PlayPositionalSound(AudioType type, const Vector2f& position) {
+  Player* self = player_manager.GetSelf();
+
+  if (self) {
+    Vector2f view_half_extent_tiles = connection.view_dim * (0.5f / 16.0f);
+    float sound_radius = view_half_extent_tiles.x;
+
+    if (view_half_extent_tiles.y > sound_radius) {
+      sound_radius = view_half_extent_tiles.y;
+    }
+
+    sound_radius += g_Settings.sound_radius_increase;
+
+    if (self->position.DistanceSq(position) <= sound_radius * sound_radius) {
+      float distance = self->position.Distance(position);
+      float volume = 1.0f - (distance / sound_radius);
+
+      if (volume < 0.0f) {
+        volume = 0.0f;
+      }
+
+      sound_system.Play(type, volume);
+    }
+  }
 }
 
 }  // namespace null
