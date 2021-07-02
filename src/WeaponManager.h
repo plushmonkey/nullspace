@@ -59,6 +59,7 @@ struct Camera;
 struct Connection;
 struct PacketDispatcher;
 struct PlayerManager;
+struct Radar;
 struct ShipController;
 struct SoundSystem;
 struct SpriteRenderer;
@@ -91,7 +92,7 @@ struct WeaponManager {
   void Initialize(ShipController* ship_controller) { this->ship_controller = ship_controller; }
 
   void Update(float dt);
-  void Render(Camera& camera, SpriteRenderer& renderer, float dt);
+  void Render(Camera& camera, Camera& ui_camera, SpriteRenderer& renderer, float dt, Radar& radar);
 
   int GetWeaponTotalAliveTime(WeaponType type, bool alternate);
 

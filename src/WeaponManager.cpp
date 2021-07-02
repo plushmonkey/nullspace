@@ -6,6 +6,7 @@
 
 #include "Buffer.h"
 #include "PlayerManager.h"
+#include "Radar.h"
 #include "ShipController.h"
 #include "Sound.h"
 #include "Tick.h"
@@ -517,7 +518,7 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
   }
 }
 
-void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer, float dt) {
+void WeaponManager::Render(Camera& camera, Camera& ui_camera, SpriteRenderer& renderer, float dt, Radar& radar) {
   for (size_t i = 0; i < weapon_count; ++i) {
     Weapon* weapon = weapons + i;
 
@@ -581,6 +582,12 @@ void WeaponManager::Render(Camera& camera, SpriteRenderer& renderer, float dt) {
 
         if (self && player->id != self->id) {
           player_manager.RenderPlayerName(camera, renderer, *self, *player, extrapolated_pos, true);
+        }
+
+        if (self) {
+          renderer.Render(camera);
+          radar.RenderDecoy(ui_camera, renderer, *self, *player, weapon->position);
+          renderer.Render(ui_camera);
         }
       }
     }

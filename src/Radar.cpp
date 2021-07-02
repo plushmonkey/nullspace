@@ -14,24 +14,13 @@
 
 namespace null {
 
-void Radar::Render(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer& tile_renderer, u16 map_zoom,
-                   u16 team_freq, u16 spec_id, PrizeGreen* greens, size_t green_count) {
-  if (tile_renderer.radar_texture == -1 || tile_renderer.full_radar_texture == -1) return;
+constexpr float kRadarBorder = 6.0f;
 
+void Radar::Update(Camera& ui_camera, short map_zoom, u16 team_freq, u16 spec_id) {
   Player* self = player_manager.GetSelf();
-
   if (!self) return;
 
-  float border = 6.0f;
-
-  if (map_zoom < 1) {
-    map_zoom = 1;
-  }
-
-  // calculate uvs for displayable map
-  SpriteRenderable visible;
-
-  visible.texture = tile_renderer.full_radar_renderable.texture;
+  if (map_zoom < 1) map_zoom = 1;
 
   s16 dim = ((((u16)ui_camera.surface_dim.x / 6) / 4) * 8) / 2;
   u32 full_dim = ((u32)ui_camera.surface_dim.x * 8) / map_zoom;
@@ -65,91 +54,121 @@ void Radar::Render(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer& ti
   s32 texture_max_x = texture_min_x + ivar8;
   s32 texture_max_y = texture_min_y + ivar8;
 
-  float uv_x_1 = texture_min_x / (float)full_dim;
-  float uv_y_1 = texture_min_y / (float)full_dim;
-
-  float uv_x_2 = texture_max_x / (float)full_dim;
-  float uv_y_2 = texture_max_y / (float)full_dim;
-
-  Vector2f min_uv(uv_x_1, uv_y_1);
-  Vector2f max_uv(uv_x_2, uv_y_2);
-
-  visible.dimensions = Vector2f(dim, dim);
-  visible.uvs[0] = Vector2f(min_uv.x, min_uv.y);
-  visible.uvs[1] = Vector2f(max_uv.x, min_uv.y);
-  visible.uvs[2] = Vector2f(min_uv.x, max_uv.y);
-  visible.uvs[3] = Vector2f(max_uv.x, max_uv.y);
-
-  Vector2f position = ui_camera.surface_dim - Vector2f(dim, dim) - Vector2f(border, border);
-
-  renderer.Draw(ui_camera, visible, position, Layer::TopMost);
-
-  IndicatorContext ctx;
-
   ctx.radar_dim = Vector2f(dim, dim);
-  ctx.radar_position = position;
+  ctx.radar_position = ui_camera.surface_dim - Vector2f(dim, dim) - Vector2f(kRadarBorder, kRadarBorder);
+  ctx.min_uv = Vector2f(texture_min_x / (float)full_dim, texture_min_y / (float)full_dim);
+  ctx.max_uv = Vector2f(texture_max_x / (float)full_dim, texture_max_y / (float)full_dim);
 
-  ctx.world_min = Vector2f(uv_x_1 * 1024.0f, uv_y_1 * 1024.0f);
-  ctx.world_max = Vector2f(uv_x_2 * 1024.0f, uv_y_2 * 1024.0f);
+  ctx.world_min = Vector2f(ctx.min_uv.x * 1024.0f, ctx.min_uv.y * 1024.0f);
+  ctx.world_max = Vector2f(ctx.max_uv.x * 1024.0f, ctx.max_uv.y * 1024.0f);
   ctx.world_dim = ctx.world_max - ctx.world_min;
+  ctx.team_freq = team_freq;
+  ctx.spec_id = spec_id;
+}
+
+void Radar::Render(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer& tile_renderer, u16 map_zoom,
+                   PrizeGreen* greens, size_t green_count) {
+  if (tile_renderer.radar_texture == -1 || tile_renderer.full_radar_texture == -1) return;
+
+  Player* self = player_manager.GetSelf();
+  if (!self) return;
+
+  SpriteRenderable visible;
+
+  // Calculate uvs for displayable map
+  visible.texture = tile_renderer.full_radar_renderable.texture;
+  visible.dimensions = ctx.radar_dim;
+  visible.uvs[0] = Vector2f(ctx.min_uv.x, ctx.min_uv.y);
+  visible.uvs[1] = Vector2f(ctx.max_uv.x, ctx.min_uv.y);
+  visible.uvs[2] = Vector2f(ctx.min_uv.x, ctx.max_uv.y);
+  visible.uvs[3] = Vector2f(ctx.max_uv.x, ctx.max_uv.y);
+
+  renderer.Draw(ui_camera, visible, ctx.radar_position, Layer::AfterChat);
 
   for (size_t i = 0; i < green_count; ++i) {
     PrizeGreen* green = greens + i;
 
-    RenderIndicator(ui_camera, renderer, ctx, green->position, Vector2f(2, 2), 23);
+    RenderIndicator(ui_camera, renderer, green->position, Vector2f(2, 2), 23);
   }
 
-  RenderPlayers(ui_camera, renderer, ctx, self, team_freq, spec_id);
+  RenderPlayers(ui_camera, renderer, *self);
 
-  Graphics::DrawBorder(renderer, ui_camera, position + ctx.radar_dim * 0.5f, ctx.radar_dim * 0.5f);
+  Graphics::DrawBorder(renderer, ui_camera, ctx.radar_position + ctx.radar_dim * 0.5f, ctx.radar_dim * 0.5f);
 
-  RenderTime(ui_camera, renderer, position, *self);
+  RenderTime(ui_camera, renderer, ctx.radar_position, *self);
 }
 
-void Radar::RenderPlayers(Camera& ui_camera, SpriteRenderer& renderer, IndicatorContext& ctx, Player* self,
-                          u16 team_freq, u16 spec_id) {
+void Radar::RenderDecoy(Camera& ui_camera, SpriteRenderer& renderer, Player& self, Player& player,
+                        const Vector2f& position) {
+  IndicatorRenderable renderable = GetIndicator(self, player);
+
+  if (ctx.team_freq == player.frequency) {
+    renderable.sprite_index = 36;
+  }
+
+  RenderIndicator(ui_camera, renderer, position, renderable.dim, renderable.sprite_index);
+}
+
+void Radar::RenderPlayer(Camera& ui_camera, SpriteRenderer& renderer, Player& self, Player& player) {
+  if (player.ship >= 8) return;
+
+  bool visible =
+      !(player.togglables & Status_Stealth) || self.togglables & Status_XRadar || player.frequency == ctx.team_freq;
+
+  if (!visible) {
+    return;
+  }
+
+  IndicatorRenderable renderable = GetIndicator(self, player);
+
+  if (renderable.render) {
+    RenderIndicator(ui_camera, renderer, player.position, renderable.dim, renderable.sprite_index);
+  }
+}
+
+void Radar::RenderPlayers(Camera& ui_camera, SpriteRenderer& renderer, Player& self) {
   for (size_t i = 0; i < player_manager.player_count; ++i) {
     Player* player = player_manager.players + i;
 
-    if (player->ship >= 8) continue;
-
-    if ((player->togglables & Status_Stealth) && !(self->togglables & Status_XRadar) &&
-        player->frequency != team_freq) {
-      continue;
-    }
-
-    bool is_me = player->id == spec_id || (player == self && self->ship != 8);
-
-    size_t sprite_index = 34;
-    bool render = true;
-
-    if (player->frequency == team_freq) {
-      sprite_index = 29;
-    } else {
-      if (player->bounty > 100) {
-        sprite_index = 33;
-      }
-
-      if (player->flags > 0) {
-        sprite_index = 31;
-      }
-    }
-
-    if (is_me) {
-      sprite_index = 29;
-
-      render = sin(GetCurrentTick() / 5) < 0;
-    }
-
-    if (render) {
-      Vector2f dim = player->flags > 0 ? Vector2f(3, 3) : Vector2f(2, 2);
-      RenderIndicator(ui_camera, renderer, ctx, player->position, dim, sprite_index);
-    }
+    RenderPlayer(ui_camera, renderer, self, *player);
   }
 }
 
-void Radar::RenderIndicator(Camera& ui_camera, SpriteRenderer& renderer, IndicatorContext& ctx,
-                            const Vector2f& position, const Vector2f& dim, size_t sprite_index) {
+Radar::IndicatorRenderable Radar::GetIndicator(Player& self, Player& player) {
+  IndicatorRenderable renderable;
+
+  bool is_me = player.id == ctx.spec_id || (player.id == self.id && self.ship != 8);
+
+  size_t sprite_index = 34;
+  bool render = true;
+
+  if (player.frequency == ctx.team_freq) {
+    sprite_index = 29;
+  } else {
+    if (player.bounty > 100) {
+      sprite_index = 33;
+    }
+
+    if (player.flags > 0) {
+      sprite_index = 31;
+    }
+  }
+
+  if (is_me) {
+    sprite_index = 29;
+
+    render = sin(GetCurrentTick() / 5) < 0;
+  }
+
+  renderable.sprite_index = sprite_index;
+  renderable.dim = player.flags > 0 ? Vector2f(3, 3) : Vector2f(2, 2);
+  renderable.render = render;
+
+  return renderable;
+}
+
+void Radar::RenderIndicator(Camera& ui_camera, SpriteRenderer& renderer, const Vector2f& position, const Vector2f& dim,
+                            size_t sprite_index) {
   Vector2f& min = ctx.world_min;
   Vector2f& max = ctx.world_max;
   Vector2f& world_dim = ctx.world_dim;
@@ -198,15 +217,14 @@ void Radar::RenderFull(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer
 
   if (!self) return;
 
-  float border = 6.0f;
-
   SpriteRenderable& radar_renderable = tile_renderer.radar_renderable;
-  Vector2f position = ui_camera.surface_dim - radar_renderable.dimensions - Vector2f(border, border);
+  Vector2f position = ui_camera.surface_dim - radar_renderable.dimensions - Vector2f(kRadarBorder, kRadarBorder);
   renderer.Draw(ui_camera, radar_renderable, position, Layer::TopMost);
 
   Vector2f half_extents = radar_renderable.dimensions * 0.5f;
   Graphics::DrawBorder(renderer, ui_camera, position + half_extents, half_extents);
 
+  // TODO: Use the actual animation in the color file instead of manually blinking
   if (sin(GetCurrentTick() / 5) < 0) {
     Vector2f percent = self->position * (1.0f / 1024.0f);
     Vector2f start =

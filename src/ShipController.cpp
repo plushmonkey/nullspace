@@ -61,19 +61,11 @@ void ShipController::Update(const InputState& input, float dt) {
   Connection& connection = player_manager.connection;
   ShipSettings& ship_settings = connection.settings.ShipSettings[self->ship];
 
-  // Do afterburner energy before recharge to match how Continuum sits at full energy with it enabled
   bool afterburners = false;
-
   float ab_cost = (ship_settings.AfterburnerEnergy / 10.0f) * dt;
 
   if (input.IsDown(InputAction::Afterburner) && self->energy > ab_cost) {
     afterburners = true;
-    self->energy -= ab_cost;
-  }
-
-  self->energy += (ship.recharge / 10.0f) * dt;
-  if (self->energy > ship.energy) {
-    self->energy = (float)ship.energy;
   }
 
   u8 direction = (u8)(self->orientation * 40.0f);
@@ -114,6 +106,19 @@ void ShipController::Update(const InputState& input, float dt) {
     if (self->orientation >= 1.0f) {
       self->orientation -= 1.0f;
     }
+  }
+
+  // Only modify max speed and apply energy cost if thrusting with it enabled.
+  afterburners = afterburners && (thrust_forward || thrust_backward);
+
+  // Do afterburner energy before recharge to match how Continuum sits at full energy with enough recharge
+  if (afterburners) {
+    self->energy -= ab_cost;
+  }
+
+  self->energy += (ship.recharge / 10.0f) * dt;
+  if (self->energy > ship.energy) {
+    self->energy = (float)ship.energy;
   }
 
   u32 speed = afterburners ? ship_settings.MaximumSpeed : ship.speed;

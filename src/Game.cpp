@@ -236,6 +236,8 @@ bool Game::Update(const InputState& input, float dt) {
 
   UpdateGreens(dt);
 
+  radar.Update(ui_camera, connection.settings.MapZoomFactor, specview.GetFrequency(), specview.spectate_id);
+
   return !menu_quit;
 }
 
@@ -380,7 +382,7 @@ void Game::RenderGame(float dt) {
 
   if (self) {
     animation.Render(camera, sprite_renderer);
-    weapon_manager.Render(camera, sprite_renderer, dt);
+    weapon_manager.Render(camera, ui_camera, sprite_renderer, dt, radar);
     player_manager.Render(camera, sprite_renderer);
 
     sprite_renderer.Render(camera);
@@ -392,8 +394,7 @@ void Game::RenderGame(float dt) {
     if (render_radar) {
       radar.RenderFull(ui_camera, sprite_renderer, tile_renderer);
     } else {
-      radar.Render(ui_camera, sprite_renderer, tile_renderer, connection.settings.MapZoomFactor, self_freq,
-                   specview.spectate_id, greens, green_count);
+      radar.Render(ui_camera, sprite_renderer, tile_renderer, connection.settings.MapZoomFactor, greens, green_count);
     }
 
     chat.Render(ui_camera, sprite_renderer);
