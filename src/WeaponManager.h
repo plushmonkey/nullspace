@@ -73,6 +73,8 @@ struct WeaponLinkRemoval {
 };
 
 struct WeaponManager {
+  MemoryArena& temp_arena;
+
   Connection& connection;
   PlayerManager& player_manager;
   AnimationSystem& animation;
@@ -86,8 +88,8 @@ struct WeaponManager {
   size_t link_removal_count = 0;
   WeaponLinkRemoval link_removals[2048];
 
-  WeaponManager(Connection& connection, PlayerManager& player_manager, PacketDispatcher& dispatcher,
-                AnimationSystem& animation, SoundSystem& sound_system);
+  WeaponManager(MemoryArena& temp_arena, Connection& connection, PlayerManager& player_manager,
+                PacketDispatcher& dispatcher, AnimationSystem& animation, SoundSystem& sound_system);
 
   void Initialize(ShipController* ship_controller) { this->ship_controller = ship_controller; }
 

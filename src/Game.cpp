@@ -136,7 +136,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
       dispatcher(),
       connection(perm_arena, temp_arena, work_queue, dispatcher),
       player_manager(perm_arena, connection, dispatcher),
-      weapon_manager(connection, player_manager, dispatcher, animation, sound_system),
+      weapon_manager(temp_arena, connection, player_manager, dispatcher, animation, sound_system),
       banner_pool(temp_arena, player_manager, dispatcher),
       camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f / 16.0f),
       ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),

@@ -67,9 +67,13 @@ static void OnLargePositionPkt(void* user, u8* pkt, size_t size) {
   manager->OnWeaponPacket(pkt, size);
 }
 
-WeaponManager::WeaponManager(Connection& connection, PlayerManager& player_manager, PacketDispatcher& dispatcher,
-                             AnimationSystem& animation, SoundSystem& sound_system)
-    : connection(connection), player_manager(player_manager), animation(animation), sound_system(sound_system) {
+WeaponManager::WeaponManager(MemoryArena& temp_arena, Connection& connection, PlayerManager& player_manager,
+                             PacketDispatcher& dispatcher, AnimationSystem& animation, SoundSystem& sound_system)
+    : temp_arena(temp_arena),
+      connection(connection),
+      player_manager(player_manager),
+      animation(animation),
+      sound_system(sound_system) {
   dispatcher.Register(ProtocolS2C::LargePosition, OnLargePositionPkt, this);
 }
 
@@ -519,6 +523,22 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
 }
 
 void WeaponManager::Render(Camera& camera, Camera& ui_camera, SpriteRenderer& renderer, float dt, Radar& radar) {
+#pragma pack(push, 1)
+  struct DecoyRenderRequest {
+    Player* player;
+    Vector2f position;
+  };
+#pragma pack(pop)
+
+  ArenaSnapshot snapshot = temp_arena.GetSnapshot();
+
+  // WARNING: temp_arena must not be used for anything else here or in any calls made here.
+  // All of the decoys are allocated contiguously so the base decoys array can access all of them
+  DecoyRenderRequest* decoys = (DecoyRenderRequest*)temp_arena.Allocate(0);
+  size_t decoy_count = 0;
+
+  Player* self = player_manager.GetSelf();
+
   for (size_t i = 0; i < weapon_count; ++i) {
     Weapon* weapon = weapons + i;
 
@@ -578,20 +598,33 @@ void WeaponManager::Render(Camera& camera, Camera& ui_camera, SpriteRenderer& re
 
         renderer.Draw(camera, frame, position.PixelRounded(), Layer::Ships);
 
-        Player* self = player_manager.GetSelf();
-
         if (self && player->id != self->id) {
           player_manager.RenderPlayerName(camera, renderer, *self, *player, extrapolated_pos, true);
         }
 
-        if (self) {
-          renderer.Render(camera);
-          radar.RenderDecoy(ui_camera, renderer, *self, *player, weapon->position);
-          renderer.Render(ui_camera);
-        }
+        // Push them on here to minimize draw calls
+        DecoyRenderRequest* request = memory_arena_push_type(&temp_arena, DecoyRenderRequest);
+        request->player = player;
+        request->position = weapon->position;
+
+        ++decoy_count;
       }
     }
   }
+
+  renderer.Render(camera);
+
+  if (self) {
+    for (size_t i = 0; i < decoy_count; ++i) {
+      DecoyRenderRequest* request = decoys + i;
+
+      radar.RenderDecoy(ui_camera, renderer, *self, *request->player, request->position);
+    }
+
+    renderer.Render(ui_camera);
+  }
+
+  temp_arena.Revert(snapshot);
 }
 
 u32 WeaponManager::CalculateRngSeed(u32 x, u32 y, u32 vel_x, u32 vel_y, u16 shrap_count, u16 weapon_level,
