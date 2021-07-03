@@ -361,6 +361,8 @@ struct nullspace {
   }
 
   void Run() {
+    constexpr float kMaxDelta = 1.0f / 20.0f;
+
     // TODO: better timer
     using ms_float = std::chrono::duration<float, std::milli>;
     float frame_time = 0.0f;
@@ -369,6 +371,11 @@ struct nullspace {
       auto start = std::chrono::high_resolution_clock::now();
 
       float dt = frame_time / 1000.0f;
+
+      // Cap dt so window movement doesn't cause large updates
+      if (dt > kMaxDelta) {
+        dt = kMaxDelta;
+      }
 
       glfwPollEvents();
 

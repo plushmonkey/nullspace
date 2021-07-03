@@ -681,6 +681,27 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u3
   u8 direction = (u8)(player.orientation * 40.0f);
   u16 pid = player.id;
 
+  if ((type == WeaponType::Bomb || type == WeaponType::ProximityBomb) && weapon.alternate) {
+    Player* self = player_manager.GetSelf();
+
+    if (self && self->id == player.id) {
+      size_t self_count = 0;
+      size_t team_count = 0;
+
+      GetMineCounts(player, &self_count, &team_count);
+
+      if (self_count >= ship_settings.MaxMines) {
+        player_manager.notifications->PushFormatted(TextColor::Yellow, "You have too many mines");
+        return;
+      }
+
+      if (team_count >= connection.settings.TeamMaxMines) {
+        player_manager.notifications->PushFormatted(TextColor::Yellow, "Team has too many mines");
+        return;
+      }
+    }
+  }
+
   if (g_Settings.sound_enabled) {
     AudioType audio_type = GetAudioType(ship_settings, weapon);
 
@@ -985,6 +1006,26 @@ void WeaponManager::PlayPositionalSound(AudioType type, const Vector2f& position
       }
 
       sound_system.Play(type, volume);
+    }
+  }
+}
+
+void WeaponManager::GetMineCounts(Player& player, size_t* player_count, size_t* team_count) {
+  *player_count = 0;
+  *team_count = 0;
+
+  for (size_t i = 0; i < weapon_count; ++i) {
+    Weapon* weapon = weapons + i;
+    WeaponType type = weapon->data.type;
+
+    if (weapon->data.alternate && (type == WeaponType::Bomb || type == WeaponType::ProximityBomb)) {
+      if (weapon->player_id == player.id) {
+        (*player_count)++;
+      }
+
+      if (weapon->frequency == player.frequency) {
+        (*team_count)++;
+      }
     }
   }
 }

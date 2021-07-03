@@ -126,6 +126,8 @@ struct WeaponManager {
   // Adjusts the clip according to the position of the player and the sound's position.
   // Currently only does volume fall-off, but it could do 3d sound effects in the future. (Continuum supports it)
   void PlayPositionalSound(AudioType type, const Vector2f& position);
+
+  void GetMineCounts(Player& player, size_t* player_count, size_t* team_count);
 };
 
 }  // namespace null
