@@ -189,6 +189,8 @@ bool Game::Initialize(InputState& input) {
 bool Game::Update(const InputState& input, float dt) {
   chat.display_full = menu_open;
 
+  Graphics::colors.Update(dt);
+
   connection.map.UpdateDoors(connection.settings);
 
   player_manager.Update(dt);
@@ -213,7 +215,7 @@ bool Game::Update(const InputState& input, float dt) {
 
     if (me) {
       me->position = Vector2f(0, 0);
-      
+
       for (size_t i = 0; i < player_manager.player_count; ++i) {
         Player* player = player_manager.GetPlayerById(statbox.player_view[i]);
 
@@ -530,13 +532,10 @@ void Game::RenderMenu() {
   Vector2f half_dimensions = dimensions * 0.5f;
   Vector2f topleft((ui_camera.surface_dim.x - dimensions.x) * 0.5f, 3);
 
-  SpriteRenderable background = Graphics::color_sprites[kBackgroundColorIndex];
-  background.dimensions = dimensions;
-
+  SpriteRenderable background = Graphics::GetColor(ColorType::Background, dimensions);
   sprite_renderer.Draw(ui_camera, background, topleft, Layer::TopMost);
 
-  SpriteRenderable separator = Graphics::color_sprites[kSeparatorColorIndex];
-  separator.dimensions = Vector2f(dimensions.x, 1);
+  SpriteRenderable separator = Graphics::GetColor(ColorType::Border1, Vector2f(dimensions.x, 1));
 
   sprite_renderer.Draw(ui_camera, separator, topleft + Vector2f(0, 13), Layer::TopMost);
   Graphics::DrawBorder(sprite_renderer, ui_camera, topleft + half_dimensions, half_dimensions);

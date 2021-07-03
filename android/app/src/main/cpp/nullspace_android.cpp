@@ -59,6 +59,7 @@ void InitializeSettings() {
     g_Settings.sound_radius_increase = 10.0f;
 
     g_Settings.notify_max_prizes = false;
+    g_Settings.target_bounty = 20;
 }
 
 const char* kPlayerName = "null space";

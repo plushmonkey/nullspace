@@ -178,6 +178,7 @@
     <ClCompile Include="src\Radar.cpp" />
     <ClCompile Include="src\render\AnimatedTileRenderer.cpp" />
     <ClCompile Include="src\render\BackgroundRenderer.cpp" />
+    <ClCompile Include="src\render\Colors.cpp" />
     <ClCompile Include="src\render\Graphics.cpp" />
     <ClCompile Include="src\render\Image.cpp" />
     <ClCompile Include="src\net\Checksum.cpp" />
@@ -226,6 +227,7 @@
     <ClInclude Include="src\Random.h" />
     <ClInclude Include="src\render\AnimatedTileRenderer.h" />
     <ClInclude Include="src\render\BackgroundRenderer.h" />
+    <ClInclude Include="src\render\Colors.h" />
     <ClInclude Include="src\render\Graphics.h" />
     <ClInclude Include="src\render\Image.h" />
     <ClInclude Include="src\InputState.h" />

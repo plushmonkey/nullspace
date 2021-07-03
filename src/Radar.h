@@ -3,6 +3,7 @@
 
 #include "Math.h"
 #include "Types.h"
+#include "render/Colors.h"
 
 namespace null {
 
@@ -42,9 +43,8 @@ struct Radar {
   };
 
   struct IndicatorRenderable {
-    bool render;
     Vector2f dim;
-    size_t sprite_index;
+    ColorType color;
   };
 
   Context ctx;
@@ -52,8 +52,8 @@ struct Radar {
   void RenderPlayer(Camera& ui_camera, SpriteRenderer& renderer, Player& self, Player& player);
   void RenderPlayers(Camera& ui_camera, SpriteRenderer& renderer, Player& self);
 
-  void RenderIndicator(Camera& ui_camera, SpriteRenderer& renderer, const Vector2f& position, const Vector2f& dim,
-                       size_t sprite_index);
+  void RenderIndicator(Camera& ui_camera, SpriteRenderer& renderer, const Vector2f& position,
+                       const IndicatorRenderable& indicator);
 
   void RenderTime(Camera& ui_camera, SpriteRenderer& renderer, const Vector2f& radar_position, Player& self);
 

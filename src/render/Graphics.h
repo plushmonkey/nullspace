@@ -3,16 +3,17 @@
 
 #include "../Math.h"
 #include "Animation.h"
+#include "Colors.h"
 #include "Sprite.h"
 
 namespace null {
 
+struct Colors;
 struct SpriteRenderer;
 
-constexpr size_t kSeparatorColorIndex = 1;
-constexpr size_t kBackgroundColorIndex = 16;
-
 struct Graphics {
+  static Colors colors;
+
   static SpriteRenderable* character_set[256];
 
   static SpriteRenderable* text_sprites;
@@ -41,7 +42,6 @@ struct Graphics {
 
   static SpriteRenderable* repel_sprites;
 
-  static SpriteRenderable* color_sprites;
   static SpriteRenderable* icon_sprites;
   static SpriteRenderable empty_icon_sprites[2];
   static SpriteRenderable* icon_count_sprites;
@@ -111,6 +111,16 @@ struct Graphics {
   static void CreatePrizeAnimations(SpriteRenderable* renderables, int count);
   static void CreateFlagAnimations(SpriteRenderable* renderables, int count);
   static void CreateExhaustAnimations(SpriteRenderable* renderables, int count);
+
+  static inline SpriteRenderable GetColor(ColorType type) { return colors.GetRenderable(type); }
+  static inline SpriteRenderable GetColor(ColorType type, const Vector2f& dimensions) {
+    return colors.GetRenderable(type, dimensions);
+  }
+
+  static inline SpriteRenderable GetColor(size_t index) { return colors.GetRenderable((ColorType)index); }
+  static inline SpriteRenderable GetColor(size_t index, const Vector2f& dimensions) {
+    return colors.GetRenderable((ColorType)index, dimensions);
+  }
 
  private:
   Graphics() {}

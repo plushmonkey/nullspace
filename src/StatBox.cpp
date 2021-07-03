@@ -95,8 +95,7 @@ void StatBox::Render(Camera& camera, SpriteRenderer& renderer) {
   if (!me || view_type == StatViewType::None) return;
 
   // Render background
-  SpriteRenderable background = Graphics::color_sprites[kBackgroundColorIndex];
-  background.dimensions = view_dimensions;
+  SpriteRenderable background = Graphics::GetColor(ColorType::Background, view_dimensions);
 
   renderer.Draw(camera, background, Vector2f(3, 3), Layer::TopMost);
 
@@ -124,8 +123,8 @@ void StatBox::RecordNamesView(const Player& me) {
   StatTextOutput* count_output = AddTextOutput(Vector2f(49, kBorder + 1), TextColor::Green, TextAlignment::Center);
   sprintf(count_output->text, "%zd", player_manager.player_count);
 
-  StatRenderableOutput* separator_outout = AddRenderableOutput(Graphics::color_sprites[kSeparatorColorIndex],
-                                                               Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+  StatRenderableOutput* separator_outout =
+      AddRenderableOutput(GetSeparatorRenderable(), Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
 
   for (size_t i = 0; i < player_manager.player_count; ++i) {
     Player* player = player_manager.GetPlayerById(player_view[i]);
@@ -153,8 +152,8 @@ void StatBox::RecordPointsView(const Player& me) {
     sprintf(header_points_output->text, "Points");
   }
 
-  StatRenderableOutput* separator_outout = AddRenderableOutput(Graphics::color_sprites[kSeparatorColorIndex],
-                                                               Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+  StatRenderableOutput* separator_outout =
+      AddRenderableOutput(GetSeparatorRenderable(), Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
 
   for (size_t i = 0; i < player_manager.player_count; ++i) {
     Player* player = player_manager.GetPlayerById(player_view[i]);
@@ -169,7 +168,7 @@ void StatBox::RecordPointsView(const Player& me) {
 
       float x = kBorder + kSpectateWidth + 3.0f + 12 * 8;
 
-      AddRenderableOutput(reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
+      AddRenderableOutput(&reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
     }
 
     TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;
@@ -192,8 +191,8 @@ void StatBox::RecordTeamSortView(const Player& me) {
       AddTextOutput(Vector2f(width, kBorder + 1), TextColor::Green, TextAlignment::Right);
   sprintf(header_sort_output->text, "Team Sort");
 
-  StatRenderableOutput* separator_outout = AddRenderableOutput(Graphics::color_sprites[kSeparatorColorIndex],
-                                                               Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+  StatRenderableOutput* separator_outout =
+      AddRenderableOutput(GetSeparatorRenderable(), Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
 
   float y = kBorder + kHeaderHeight + 1.0f;
   s32 previous_freq = player_manager.GetPlayerById(player_view[0])->frequency;
@@ -232,7 +231,7 @@ void StatBox::RecordTeamSortView(const Player& me) {
 
       float x = kBorder + kSpectateWidth + 3.0f + 12 * 8;
 
-      AddRenderableOutput(reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
+      AddRenderableOutput(&reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
     }
 
     TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;
@@ -284,8 +283,8 @@ void StatBox::RecordFullView(const Player& me) {
       AddTextOutput(Vector2f(width, kBorder + 1), TextColor::Green, TextAlignment::Right);
   sprintf(header_ave_output->text, "Ave");
 
-  StatRenderableOutput* separator_outout = AddRenderableOutput(Graphics::color_sprites[kSeparatorColorIndex],
-                                                               Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+  StatRenderableOutput* separator_outout =
+      AddRenderableOutput(GetSeparatorRenderable(), Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
 
   for (size_t i = 0; i < player_manager.player_count; ++i) {
     Player* player = player_manager.GetPlayerById(player_view[i]);
@@ -300,7 +299,7 @@ void StatBox::RecordFullView(const Player& me) {
 
       float x = kBorder + kSpectateWidth + 3.0f + 12 * 8;
 
-      AddRenderableOutput(reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
+      AddRenderableOutput(&reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
     }
 
     TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;
@@ -366,8 +365,8 @@ void StatBox::RecordFrequencyView(const Player& me) {
       AddTextOutput(Vector2f(width, kBorder + 1), TextColor::Green, TextAlignment::Right);
   sprintf(header_flag_output->text, "Flag");
 
-  StatRenderableOutput* separator_outout = AddRenderableOutput(Graphics::color_sprites[kSeparatorColorIndex],
-                                                               Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+  StatRenderableOutput* separator_outout =
+      AddRenderableOutput(GetSeparatorRenderable(), Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
 
   Player* selected_player = GetSelectedPlayer();
   int selected_freq = 0;
@@ -417,7 +416,7 @@ void StatBox::RecordFrequencyView(const Player& me) {
     sprintf(flag_output->text, "%d", flag_count);
 
     if (last_freq == selected_freq) {
-      AddRenderableOutput(Graphics::spectate_sprites[0], Vector2f(kBorder, y + 3),
+      AddRenderableOutput(&Graphics::spectate_sprites[0], Vector2f(kBorder, y + 3),
                           Graphics::spectate_sprites[0].dimensions);
     }
 
@@ -460,7 +459,7 @@ void StatBox::RecordFrequencyView(const Player& me) {
     sprintf(flag_output->text, "%d", flag_count);
 
     if (last_freq == selected_freq) {
-      AddRenderableOutput(Graphics::spectate_sprites[0], Vector2f(kBorder, y + 3),
+      AddRenderableOutput(&Graphics::spectate_sprites[0], Vector2f(kBorder, y + 3),
                           Graphics::spectate_sprites[0].dimensions);
     }
   }
@@ -482,7 +481,7 @@ void StatBox::RecordName(Player* player, float y, bool selected, bool same_freq)
   }
 
   if (spec_index != -1) {
-    AddRenderableOutput(Graphics::spectate_sprites[spec_index], Vector2f(kBorder, y + 3.0f),
+    AddRenderableOutput(&Graphics::spectate_sprites[spec_index], Vector2f(kBorder, y + 3.0f),
                         Graphics::spectate_sprites[spec_index].dimensions);
   }
 
@@ -757,15 +756,22 @@ StatTextOutput* StatBox::AddTextOutput(const Vector2f& position, TextColor color
   return output;
 }
 
-StatRenderableOutput* StatBox::AddRenderableOutput(SpriteRenderable& renderable, const Vector2f& position,
+StatRenderableOutput* StatBox::AddRenderableOutput(SpriteRenderable* renderable, const Vector2f& position,
                                                    const Vector2f& dimensions) {
   StatRenderableOutput* output = renderable_outputs + renderable_count++;
 
-  output->renderable = &renderable;
+  output->renderable = renderable;
   output->position = position;
   output->dimensions = dimensions;
 
   return output;
+}
+
+SpriteRenderable* StatBox::GetSeparatorRenderable() {
+  // Store the renderable in the object so it has a static address for StatRenderableOutput iteration.
+  separator_renderable = Graphics::colors.GetRenderable(ColorType::Border1);
+
+  return &separator_renderable;
 }
 
 }  // namespace null

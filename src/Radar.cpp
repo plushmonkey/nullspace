@@ -88,7 +88,11 @@ void Radar::Render(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer& ti
   for (size_t i = 0; i < green_count; ++i) {
     PrizeGreen* green = greens + i;
 
-    RenderIndicator(ui_camera, renderer, green->position, Vector2f(2, 2), 23);
+    IndicatorRenderable indicator;
+    indicator.dim = Vector2f(2, 2);
+    indicator.color = ColorType::RadarPrize;
+
+    RenderIndicator(ui_camera, renderer, green->position, indicator);
   }
 
   RenderPlayers(ui_camera, renderer, *self);
@@ -103,10 +107,10 @@ void Radar::RenderDecoy(Camera& ui_camera, SpriteRenderer& renderer, Player& sel
   IndicatorRenderable renderable = GetIndicator(self, player);
 
   if (ctx.team_freq == player.frequency) {
-    renderable.sprite_index = 36;
+    renderable.color = ColorType::RadarTeamDecoy;
   }
 
-  RenderIndicator(ui_camera, renderer, position, renderable.dim, renderable.sprite_index);
+  RenderIndicator(ui_camera, renderer, position, renderable);
 }
 
 void Radar::RenderPlayer(Camera& ui_camera, SpriteRenderer& renderer, Player& self, Player& player) {
@@ -121,9 +125,7 @@ void Radar::RenderPlayer(Camera& ui_camera, SpriteRenderer& renderer, Player& se
 
   IndicatorRenderable renderable = GetIndicator(self, player);
 
-  if (renderable.render) {
-    RenderIndicator(ui_camera, renderer, player.position, renderable.dim, renderable.sprite_index);
-  }
+  RenderIndicator(ui_camera, renderer, player.position, renderable);
 }
 
 void Radar::RenderPlayers(Camera& ui_camera, SpriteRenderer& renderer, Player& self) {
@@ -139,36 +141,32 @@ Radar::IndicatorRenderable Radar::GetIndicator(Player& self, Player& player) {
 
   bool is_me = player.id == ctx.spec_id || (player.id == self.id && self.ship != 8);
 
-  size_t sprite_index = 34;
-  bool render = true;
+  ColorType color = ColorType::RadarEnemy;
 
   if (player.frequency == ctx.team_freq) {
-    sprite_index = 29;
+    color = ColorType::RadarTeam;
   } else {
-    if (player.bounty > 100) {
-      sprite_index = 33;
+    if (player.bounty >= g_Settings.target_bounty) {
+      color = ColorType::RadarEnemyTarget;
     }
 
     if (player.flags > 0) {
-      sprite_index = 31;
+      color = ColorType::RadarEnemyFlag;
     }
   }
 
   if (is_me) {
-    sprite_index = 29;
-
-    render = sin(GetCurrentTick() / 5) < 0;
+    color = ColorType::RadarSelf;
   }
 
-  renderable.sprite_index = sprite_index;
+  renderable.color = color;
   renderable.dim = player.flags > 0 ? Vector2f(3, 3) : Vector2f(2, 2);
-  renderable.render = render;
 
   return renderable;
 }
 
-void Radar::RenderIndicator(Camera& ui_camera, SpriteRenderer& renderer, const Vector2f& position, const Vector2f& dim,
-                            size_t sprite_index) {
+void Radar::RenderIndicator(Camera& ui_camera, SpriteRenderer& renderer, const Vector2f& position,
+                            const IndicatorRenderable& indicator) {
   Vector2f& min = ctx.world_min;
   Vector2f& max = ctx.world_max;
   Vector2f& world_dim = ctx.world_dim;
@@ -177,8 +175,7 @@ void Radar::RenderIndicator(Camera& ui_camera, SpriteRenderer& renderer, const V
     float u = (position.x - max.x) / world_dim.x + 1.0f;
     float v = (position.y - max.y) / world_dim.y + 1.0f;
 
-    SpriteRenderable renderable = Graphics::color_sprites[sprite_index];
-    renderable.dimensions = dim;
+    SpriteRenderable renderable = Graphics::GetColor(indicator.color, indicator.dim);
 
     Vector2f offset = Vector2f(ctx.radar_dim.x * u, ctx.radar_dim.y * v);
     renderer.Draw(ui_camera, renderable, ctx.radar_position + offset, Layer::TopMost);
@@ -224,17 +221,13 @@ void Radar::RenderFull(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer
   Vector2f half_extents = radar_renderable.dimensions * 0.5f;
   Graphics::DrawBorder(renderer, ui_camera, position + half_extents, half_extents);
 
-  // TODO: Use the actual animation in the color file instead of manually blinking
-  if (sin(GetCurrentTick() / 5) < 0) {
-    Vector2f percent = self->position * (1.0f / 1024.0f);
-    Vector2f start =
-        position + Vector2f(percent.x * radar_renderable.dimensions.x, percent.y * radar_renderable.dimensions.y);
+  Vector2f percent = self->position * (1.0f / 1024.0f);
+  Vector2f start =
+      position + Vector2f(percent.x * radar_renderable.dimensions.x, percent.y * radar_renderable.dimensions.y);
 
-    SpriteRenderable self_renderable = Graphics::color_sprites[25];
-    self_renderable.dimensions = Vector2f(2, 2);
+  SpriteRenderable self_renderable = Graphics::GetColor(ColorType::RadarSelf, Vector2f(2, 2));
 
-    renderer.Draw(ui_camera, self_renderable, start, Layer::TopMost);
-  }
+  renderer.Draw(ui_camera, self_renderable, start, Layer::TopMost);
 }
 
 }  // namespace null

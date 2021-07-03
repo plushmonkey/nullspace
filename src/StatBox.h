@@ -36,6 +36,8 @@ struct StatBox {
 
   size_t selected_index = -1;
 
+  SpriteRenderable separator_renderable;
+
   // PlayerId view into the player list
   u16 player_view[1024];
 
@@ -75,11 +77,12 @@ struct StatBox {
   void OnPlayerFreqAndShipChange(u8* pkt, size_t size);
 
   StatTextOutput* AddTextOutput(const Vector2f& position, TextColor color, TextAlignment alignment);
-  StatRenderableOutput* AddRenderableOutput(SpriteRenderable& renderable, const Vector2f& position,
+  StatRenderableOutput* AddRenderableOutput(SpriteRenderable* renderable, const Vector2f& position,
                                             const Vector2f& dimensions);
 
  private:
   void RecordName(Player* player, float y, bool selected, bool same_freq);
+  SpriteRenderable* GetSeparatorRenderable();
 };
 
 }  // namespace null

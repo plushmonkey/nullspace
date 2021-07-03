@@ -2,6 +2,7 @@
 
 #include <cstdio>
 
+#include "Colors.h"
 #include "SpriteRenderer.h"
 
 namespace null {
@@ -10,6 +11,7 @@ constexpr float kBombAnimDuration = 1.0f;
 constexpr float kMineAnimDuration = 1.0f;
 constexpr float kShrapnelAnimDuration = 0.6f;
 
+Colors Graphics::colors;
 SpriteRenderable* Graphics::text_sprites = nullptr;
 SpriteRenderable* Graphics::textf_sprites = nullptr;
 SpriteRenderable* Graphics::energyfont_sprites = nullptr;
@@ -36,7 +38,6 @@ SpriteRenderable* Graphics::bullet_trail_sprites = nullptr;
 
 SpriteRenderable* Graphics::repel_sprites = nullptr;
 
-SpriteRenderable* Graphics::color_sprites = nullptr;
 SpriteRenderable* Graphics::icon_sprites = nullptr;
 SpriteRenderable Graphics::empty_icon_sprites[2];
 SpriteRenderable* Graphics::icon_count_sprites = nullptr;
@@ -132,8 +133,11 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
     return false;
   }
 
-  color_sprites = LoadTileSheet(renderer, "colors", Vector2f(128, 1), &count);
+  SpriteRenderable* color_sprites =
+      LoadTileSheet(renderer, "colors", Vector2f(kColorTextureWidth, kColorTextureHeight), &count);
   if (!color_sprites) return false;
+
+  colors.texture_id = color_sprites->texture;
 
   icon_sprites = LoadTileSheet(renderer, "Icons", Vector2f(26, 24), &count);
   if (!icon_sprites) return false;
@@ -491,14 +495,7 @@ bool Graphics::InitializeTiles(SpriteRenderer& renderer) {
 
 void Graphics::DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector2f& center,
                           const Vector2f& half_extents) {
-  SpriteRenderable renderable;
-
-  renderable.texture = Graphics::color_sprites[1].texture;
-  renderable.dimensions = Vector2f(1, half_extents.y * 2 + 2);
-
-  for (size_t i = 0; i < 4; ++i) {
-    renderable.uvs[i] = Graphics::color_sprites[1].uvs[i];
-  }
+  SpriteRenderable renderable = colors.GetRenderable(ColorType::Border1, Vector2f(1, half_extents.y * 2 + 2));
 
   renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, -half_extents.y - 1), Layer::TopMost);
   renderer.Draw(camera, renderable, center + Vector2f(half_extents.x, -half_extents.y - 1), Layer::TopMost);
@@ -508,11 +505,7 @@ void Graphics::DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector
   renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, -half_extents.y - 1), Layer::TopMost);
   renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 1, half_extents.y), Layer::TopMost);
 
-  renderable.texture = Graphics::color_sprites[2].texture;
-  for (size_t i = 0; i < 4; ++i) {
-    renderable.uvs[i] = Graphics::color_sprites[2].uvs[i];
-  }
-  renderable.dimensions = Vector2f(1, half_extents.y * 2 + 4);
+  renderable = colors.GetRenderable(ColorType::Border2, Vector2f(1, half_extents.y * 2 + 4));
 
   renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, -half_extents.y - 2), Layer::TopMost);
   renderer.Draw(camera, renderable, center + Vector2f(half_extents.x + 1, -half_extents.y - 2), Layer::TopMost);
@@ -522,11 +515,7 @@ void Graphics::DrawBorder(SpriteRenderer& renderer, Camera& camera, const Vector
   renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, -half_extents.y - 2), Layer::TopMost);
   renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 2, half_extents.y + 1), Layer::TopMost);
 
-  renderable.texture = Graphics::color_sprites[3].texture;
-  for (size_t i = 0; i < 4; ++i) {
-    renderable.uvs[i] = Graphics::color_sprites[3].uvs[i];
-  }
-  renderable.dimensions = Vector2f(1, half_extents.y * 2 + 2);
+  renderable = colors.GetRenderable(ColorType::Border3, Vector2f(1, half_extents.y * 2 + 2));
 
   renderer.Draw(camera, renderable, center + Vector2f(-half_extents.x - 3, -half_extents.y - 1), Layer::TopMost);
   renderer.Draw(camera, renderable, center + Vector2f(half_extents.x + 2, -half_extents.y - 1), Layer::TopMost);

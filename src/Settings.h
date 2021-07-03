@@ -1,6 +1,8 @@
 #ifndef NULLSPACE_SETTINGS_H_
 #define NULLSPACE_SETTINGS_H_
 
+#include "Types.h"
+
 namespace null {
 
 enum class EncryptMethod { Subspace, Continuum };
@@ -18,6 +20,7 @@ struct GameSettings {
   float sound_radius_increase;
 
   bool notify_max_prizes;
+  u16 target_bounty;
 };
 
 extern GameSettings g_Settings;
