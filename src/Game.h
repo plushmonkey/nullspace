@@ -29,6 +29,7 @@ namespace null {
 struct GameFlag {
   u16 id = 0xFFFF;
   u16 owner = 0xFFFF;
+  u32 hidden_end_tick = 0;
   Vector2f position;
   bool dropped = false;
 };

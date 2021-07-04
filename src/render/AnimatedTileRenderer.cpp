@@ -5,6 +5,7 @@
 #include "../Game.h"
 #include "../Map.h"
 #include "../Math.h"
+#include "../Tick.h"
 #include "Camera.h"
 #include "Graphics.h"
 #include "SpriteRenderer.h"
@@ -44,11 +45,13 @@ void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& ca
     renderer.Draw(camera, *renderable, green->position, Layer::AfterTiles);
   }
 
+  u32 tick = GetCurrentTick();
+
   for (size_t i = 0; i < flag_count; ++i) {
     SpriteRenderable* renderable = &anim_flag.GetFrame();
     GameFlag* flag = flags + i;
 
-    if (flag->id == 0xFFFF || !flag->dropped) continue;
+    if (flag->id == 0xFFFF || !flag->dropped || TICK_GT(flag->hidden_end_tick, tick)) continue;
 
     if (flag->owner == freq) {
       renderable = &anim_flag_team.GetFrame();

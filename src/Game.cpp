@@ -246,6 +246,38 @@ bool Game::Update(const InputState& input, float dt) {
 
   UpdateGreens(dt);
 
+  u32 tick = GetCurrentTick();
+
+  // TODO: Spatial partition queries
+  for (size_t i = 0; i < flag_count; ++i) {
+    GameFlag* flag = flags + i;
+
+    if (TICK_GT(flag->hidden_end_tick, tick)) continue;
+
+    Vector2f flag_min = flag->position;
+    Vector2f flag_max = flag->position + Vector2f(1, 1);
+
+    for (size_t i = 0; i < player_manager.player_count; ++i) {
+      Player* player = player_manager.players + i;
+
+      if (player->ship == 8) continue;
+
+      float radius = connection.settings.ShipSettings[player->ship].GetRadius();
+      Vector2f player_min = player->position - Vector2f(radius, radius);
+      Vector2f player_max = player->position + Vector2f(radius, radius);
+
+      if (player->ship != 8 && BoxBoxIntersect(flag_min, flag_max, player_min, player_max)) {
+        constexpr u32 kHideFlagDelay = 300;
+        flag->hidden_end_tick = tick + kHideFlagDelay;
+
+        if (player->id == player_manager.player_id) {
+          // Send flag pickup
+          connection.SendFlagRequest(flag->id);
+        }
+      }
+    }
+  }
+
   radar.Update(ui_camera, connection.settings.MapZoomFactor, specview.GetFrequency(), specview.spectate_id);
 
   return !menu_quit;
@@ -614,6 +646,7 @@ void Game::OnFlagPosition(u8* pkt, size_t size) {
   flags[id].owner = owner;
   flags[id].position = Vector2f((float)x, (float)y);
   flags[id].dropped = true;
+  flags[id].hidden_end_tick = 0;
 }
 
 void Game::OnPlayerId(u8* pkt, size_t size) {

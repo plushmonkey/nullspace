@@ -119,6 +119,7 @@ struct Connection {
   void SendPassword(bool registration);
   void SendAttachRequest(u16 destination_pid);
   void SendTakeGreen(u16 x, u16 y, s16 prize_id);
+  void SendFlagRequest(u16 flag_id);
 };
 
 }  // namespace null
