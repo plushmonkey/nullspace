@@ -97,6 +97,7 @@ struct ShipController {
   Ship ship;
   u32 next_bullet_tick = 0;
   u32 next_bomb_tick = 0;
+  u32 next_repel_tick = 0;
   size_t exhaust_count = 0;
   Exhaust exhausts[64];
 

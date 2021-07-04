@@ -581,32 +581,60 @@ void PlayerManager::Spawn() {
   if (!self) return;
 
   u8 ship = self->ship;
+  u32 spawn_count = 1;
 
-  // TODO: read correct frequency
-  float x_center = abs((float)connection.settings.SpawnSettings[0].X);
-  float y_center = abs((float)connection.settings.SpawnSettings[0].Y);
-  int radius = connection.settings.SpawnSettings[0].Radius;
+  for (size_t i = 1; i < NULLSPACE_ARRAY_SIZE(connection.settings.SpawnSettings); ++i) {
+    if (connection.settings.SpawnSettings[i].X != 0 || connection.settings.SpawnSettings[i].Y != 0) {
+      ++spawn_count;
+    }
+  }
+
+  u32 spawn_index = self->frequency % spawn_count;
+
+  float x_center = (float)connection.settings.SpawnSettings[spawn_index].X;
+  float y_center = (float)connection.settings.SpawnSettings[spawn_index].Y;
+  int radius = connection.settings.SpawnSettings[spawn_index].Radius;
 
   if (x_center == 0) {
     x_center = 512;
+  } else if (x_center < 0) {
+    x_center += 1024;
   }
   if (y_center == 0) {
     y_center = 512;
+  } else if (y_center < 0) {
+    y_center += 1024;
   }
 
-  if (radius == 0) {
-    self->position = Vector2f(x_center, y_center);
-  } else {
+  // Default to exact center in the case that a random position wasn't found
+  self->position = Vector2f(x_center, y_center);
+
+  if (radius > 0) {
+    float ship_radius = connection.settings.ShipSettings[ship].GetRadius();
+
+    bool found = false;
+
     // Try 100 times to spawn in a random spot. TODO: Improve this to find open space better
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 100 && !found; ++i) {
       float x_offset = (float)((rand() % (radius * 2)) - radius);
       float y_offset = (float)((rand() % (radius * 2)) - radius);
 
       Vector2f spawn(x_center + x_offset, y_center + y_offset);
 
-      if (!connection.map.IsSolid((u16)spawn.x, (u16)spawn.y) || i == 99) {
+      bool acceptable = true;
+
+      // Loop over entire ship to find empty space
+      for (float y_offset_check = -ship_radius; y_offset_check < ship_radius && acceptable; ++y_offset_check) {
+        for (float x_offset_check = -ship_radius; x_offset_check < ship_radius && acceptable; ++x_offset_check) {
+          if (connection.map.IsSolid((u16)(spawn.x + x_offset_check), (u16)(spawn.y + y_offset_check))) {
+            acceptable = false;
+          }
+        }
+      }
+
+      if (acceptable) {
         self->position = spawn;
-        break;
+        found = true;
       }
     }
   }
