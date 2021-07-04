@@ -266,7 +266,8 @@ bool Game::Update(const InputState& input, float dt) {
       Vector2f player_min = player->position - Vector2f(radius, radius);
       Vector2f player_max = player->position + Vector2f(radius, radius);
 
-      if (player->ship != 8 && BoxBoxIntersect(flag_min, flag_max, player_min, player_max)) {
+      if (player->ship != 8 && player->frequency != flag->owner &&
+          BoxBoxIntersect(flag_min, flag_max, player_min, player_max)) {
         constexpr u32 kHideFlagDelay = 300;
         flag->hidden_end_tick = tick + kHideFlagDelay;
 
@@ -444,6 +445,14 @@ void Game::RenderGame(float dt) {
     ship_controller.Render(ui_camera, camera, sprite_renderer);
 
     sprite_renderer.Render(camera);
+
+    for (size_t i = 0; i < flag_count; ++i) {
+      GameFlag* flag = flags + i;
+
+      if (flag->owner == specview.GetFrequency()) {
+        radar.AddTemporaryIndicator(flag->position, 0, Vector2f(2, 2), ColorType::RadarTeamFlag);
+      }
+    }
 
     if (render_radar) {
       radar.RenderFull(ui_camera, sprite_renderer, tile_renderer);
