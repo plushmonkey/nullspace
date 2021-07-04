@@ -462,6 +462,10 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
         PlayPositionalSound(AudioType::Explode2, weapon.position);
       }
 
+      constexpr u32 kExplosionIndicatorTicks = 125;
+      radar->AddTemporaryIndicator(weapon.position, GetCurrentTick() + kExplosionIndicatorTicks, Vector2f(2, 2),
+                                   ColorType::RadarExplosion);
+
       s32 count = weapon.data.shrap;
 
       VieRNG rng = {(s32)weapon.rng_seed};
@@ -522,7 +526,8 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
   }
 }
 
-void WeaponManager::Render(Camera& camera, Camera& ui_camera, SpriteRenderer& renderer, float dt, Radar& radar) {
+void WeaponManager::Render(Camera& camera, Camera& ui_camera, SpriteRenderer& renderer, float dt,
+                           const RadarVisibility& radar_visibility) {
 #pragma pack(push, 1)
   struct DecoyRenderRequest {
     Player* player;
@@ -550,10 +555,27 @@ void WeaponManager::Render(Camera& camera, Camera& ui_camera, SpriteRenderer& re
       }
     }
 
+    u32 tick = GetCurrentTick();
     u64 time = GetTime();
     float elapsed_seconds = (time - weapon->last_event_time) / 1000000.0f;
     Vector2f travel_ray = elapsed_seconds * weapon->velocity;
     Vector2f extrapolated_pos;
+
+    u16 see_bomb_level = radar_visibility.see_bomb_level;
+
+    if (weapon->data.type == WeaponType::Bomb || weapon->data.type == WeaponType::ProximityBomb) {
+      bool add_indicator = false;
+
+      if (!weapon->data.alternate && see_bomb_level > 0 && (weapon->data.level + 1) >= see_bomb_level) {
+        add_indicator = true;
+      } else if (weapon->data.alternate && radar_visibility.see_mines) {
+        add_indicator = true;
+      }
+
+      if (add_indicator) {
+        radar->AddTemporaryIndicator(weapon->position, 0, Vector2f(2, 2), ColorType::RadarBomb);
+      }
+    }
 
     if (weapon->data.type != WeaponType::Thor) {
       // TODO: This is pretty heavy. Maybe make it an option to toggle off and just use the simulated position
@@ -614,11 +636,11 @@ void WeaponManager::Render(Camera& camera, Camera& ui_camera, SpriteRenderer& re
 
   renderer.Render(camera);
 
-  if (self) {
+  if (self && radar) {
     for (size_t i = 0; i < decoy_count; ++i) {
       DecoyRenderRequest* request = decoys + i;
 
-      radar.RenderDecoy(ui_camera, renderer, *self, *request->player, request->position);
+      radar->RenderDecoy(ui_camera, renderer, *self, *request->player, request->position);
     }
 
     renderer.Render(ui_camera);
@@ -673,7 +695,7 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
   FireWeapons(*player, data, x, y, vel_x, vel_y, local_timestamp);
 }
 
-void WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u32 pos_y, s32 vel_x, s32 vel_y,
+bool WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u32 pos_y, s32 vel_x, s32 vel_y,
                                 u32 timestamp) {
   ShipSettings& ship_settings = connection.settings.ShipSettings[player.ship];
   WeaponType type = weapon.type;
@@ -692,12 +714,12 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u3
 
       if (self_count >= ship_settings.MaxMines) {
         player_manager.notifications->PushFormatted(TextColor::Yellow, "You have too many mines");
-        return;
+        return false;
       }
 
       if (team_count >= connection.settings.TeamMaxMines) {
         player_manager.notifications->PushFormatted(TextColor::Yellow, "Team has too many mines");
-        return;
+        return false;
       }
     }
   }
@@ -781,6 +803,8 @@ void WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u3
   } else {
     GenerateWeapon(pid, weapon, timestamp, pos_x, pos_y, vel_x, vel_y, OrientationToHeading(direction), kInvalidLink);
   }
+
+  return true;
 }
 
 WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp,

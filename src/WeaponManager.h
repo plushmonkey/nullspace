@@ -72,6 +72,11 @@ struct WeaponLinkRemoval {
   WeaponSimulateResult result;
 };
 
+struct RadarVisibility {
+  u16 see_bomb_level;
+  bool see_mines;
+};
+
 struct WeaponManager {
   MemoryArena& temp_arena;
 
@@ -80,6 +85,7 @@ struct WeaponManager {
   AnimationSystem& animation;
   SoundSystem& sound_system;
   ShipController* ship_controller = nullptr;
+  Radar* radar = nullptr;
   u32 next_link_id = 0;
 
   size_t weapon_count = 0;
@@ -91,14 +97,18 @@ struct WeaponManager {
   WeaponManager(MemoryArena& temp_arena, Connection& connection, PlayerManager& player_manager,
                 PacketDispatcher& dispatcher, AnimationSystem& animation, SoundSystem& sound_system);
 
-  void Initialize(ShipController* ship_controller) { this->ship_controller = ship_controller; }
+  void Initialize(ShipController* ship_controller, Radar* radar) {
+    this->ship_controller = ship_controller;
+    this->radar = radar;
+  }
 
   void Update(float dt);
-  void Render(Camera& camera, Camera& ui_camera, SpriteRenderer& renderer, float dt, Radar& radar);
+  void Render(Camera& camera, Camera& ui_camera, SpriteRenderer& renderer, float dt,
+              const RadarVisibility& radar_visibility);
 
   int GetWeaponTotalAliveTime(WeaponType type, bool alternate);
 
-  void FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u32 pos_y, s32 vel_x, s32 vel_y, u32 timestamp);
+  bool FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u32 pos_y, s32 vel_x, s32 vel_y, u32 timestamp);
   void ClearWeapons(Player& player);
 
   void OnWeaponPacket(u8* pkt, size_t size);

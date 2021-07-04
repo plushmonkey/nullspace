@@ -14,6 +14,18 @@ struct PrizeGreen;
 struct SpriteRenderer;
 struct TileRenderer;
 
+struct IndicatorRenderable {
+  Vector2f dim;
+  ColorType color;
+};
+
+struct TemporaryRadarIndicator {
+  IndicatorRenderable indicator;
+  Vector2f world_position;
+  u32 end_tick;
+};
+constexpr size_t kMaxTemporaryRadarIndicators = 256;
+
 struct Radar {
   PlayerManager& player_manager;
 
@@ -26,6 +38,8 @@ struct Radar {
   void RenderFull(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer& tile_renderer);
 
   void RenderDecoy(Camera& ui_camera, SpriteRenderer& renderer, Player& self, Player& player, const Vector2f& position);
+
+  void AddTemporaryIndicator(const Vector2f& world_position, u32 end_tick, const Vector2f& dimensions, ColorType color);
 
  private:
   struct Context {
@@ -42,12 +56,10 @@ struct Radar {
     u16 spec_id;
   };
 
-  struct IndicatorRenderable {
-    Vector2f dim;
-    ColorType color;
-  };
-
   Context ctx;
+
+  size_t temporary_indicator_count = 0;
+  TemporaryRadarIndicator temporary_indicators[kMaxTemporaryRadarIndicators];
 
   void RenderPlayer(Camera& ui_camera, SpriteRenderer& renderer, Player& self, Player& player);
   void RenderPlayers(Camera& ui_camera, SpriteRenderer& renderer, Player& self);

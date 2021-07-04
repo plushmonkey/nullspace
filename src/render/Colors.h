@@ -25,7 +25,9 @@ enum class ColorType {
   RadarEnemyFlag = 31,
   RadarEnemyTarget = 33,
   RadarEnemy = 34,
+  RadarBomb = 35,
   RadarTeamDecoy = 36,
+  RadarExplosion = 37,
 };
 
 struct Colors {

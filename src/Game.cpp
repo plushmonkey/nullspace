@@ -155,7 +155,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
   dispatcher.Register(ProtocolS2C::ArenaSettings, OnArenaSettings, this);
 
   player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications, &specview, &banner_pool);
-  weapon_manager.Initialize(&ship_controller);
+  weapon_manager.Initialize(&ship_controller, &radar);
 
   connection.view_dim = ui_camera.surface_dim;
 }
@@ -392,7 +392,19 @@ void Game::RenderGame(float dt) {
 
   if (self) {
     animation.Render(camera, sprite_renderer);
-    weapon_manager.Render(camera, ui_camera, sprite_renderer, dt, radar);
+
+    u8 visibility_ship = specview.GetVisibilityShip();
+
+    RadarVisibility radar_visibility;
+    if (visibility_ship != 8) {
+      radar_visibility.see_mines = connection.settings.ShipSettings[visibility_ship].SeeMines;
+      radar_visibility.see_bomb_level = connection.settings.ShipSettings[visibility_ship].SeeBombLevel;
+    } else {
+      radar_visibility.see_mines = false;
+      radar_visibility.see_bomb_level = 0;
+    }
+
+    weapon_manager.Render(camera, ui_camera, sprite_renderer, dt, radar_visibility);
     player_manager.Render(camera, sprite_renderer);
 
     sprite_renderer.Render(camera);

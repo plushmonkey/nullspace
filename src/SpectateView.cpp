@@ -23,6 +23,23 @@ u32 SpectateView::GetFrequency() {
   return self->ship < 8 ? self->frequency : spectate_frequency;
 }
 
+u8 SpectateView::GetVisibilityShip() {
+  Player* self = statbox.player_manager.GetSelf();
+
+  if (!self) return 0;
+
+  u32 visibility_ship = self->ship;
+  if (visibility_ship == 8 && spectate_id != kInvalidSpectateId) {
+    Player* spectate_player = statbox.player_manager.GetPlayerById(spectate_id);
+
+    if (spectate_player) {
+      visibility_ship = spectate_player->ship;
+    }
+  }
+
+  return visibility_ship;
+}
+
 void SpectateView::Update(const InputState& input, float dt) {
   Player* self = statbox.player_manager.GetSelf();
 

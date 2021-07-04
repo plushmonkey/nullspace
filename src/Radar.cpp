@@ -64,6 +64,16 @@ void Radar::Update(Camera& ui_camera, short map_zoom, u16 team_freq, u16 spec_id
   ctx.world_dim = ctx.world_max - ctx.world_min;
   ctx.team_freq = team_freq;
   ctx.spec_id = spec_id;
+
+  u32 tick = GetCurrentTick();
+
+  for (size_t i = 0; i < temporary_indicator_count; ++i) {
+    TemporaryRadarIndicator* temp_indicator = temporary_indicators + i;
+
+    if (TICK_GT(tick, temp_indicator->end_tick)) {
+      temporary_indicators[i--] = temporary_indicators[--temporary_indicator_count];
+    }
+  }
 }
 
 void Radar::Render(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer& tile_renderer, u16 map_zoom,
@@ -96,6 +106,12 @@ void Radar::Render(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer& ti
   }
 
   RenderPlayers(ui_camera, renderer, *self);
+
+  for (size_t i = 0; i < temporary_indicator_count; ++i) {
+    TemporaryRadarIndicator* temp_indicator = temporary_indicators + i;
+
+    RenderIndicator(ui_camera, renderer, temp_indicator->world_position, temp_indicator->indicator);
+  }
 
   Graphics::DrawBorder(renderer, ui_camera, ctx.radar_position + ctx.radar_dim * 0.5f, ctx.radar_dim * 0.5f);
 
@@ -136,7 +152,18 @@ void Radar::RenderPlayers(Camera& ui_camera, SpriteRenderer& renderer, Player& s
   }
 }
 
-Radar::IndicatorRenderable Radar::GetIndicator(Player& self, Player& player) {
+void Radar::AddTemporaryIndicator(const Vector2f& world_position, u32 end_tick, const Vector2f& dimensions,
+                                  ColorType color) {
+  if (temporary_indicator_count < NULLSPACE_ARRAY_SIZE(temporary_indicators)) {
+    TemporaryRadarIndicator* temp_indicator = temporary_indicators + temporary_indicator_count++;
+    temp_indicator->indicator.dim = dimensions;
+    temp_indicator->indicator.color = color;
+    temp_indicator->world_position = world_position;
+    temp_indicator->end_tick = end_tick;
+  }
+}
+
+IndicatorRenderable Radar::GetIndicator(Player& self, Player& player) {
   IndicatorRenderable renderable;
 
   bool is_me = player.id == ctx.spec_id || (player.id == self.id && self.ship != 8);

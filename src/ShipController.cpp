@@ -307,9 +307,10 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       s32 vel_x = (s32)(self.velocity.x * 16.0f * 10.0f);
       s32 vel_y = (s32)(self.velocity.y * 16.0f * 10.0f);
 
-      weapon_manager.FireWeapons(self, self.weapon, x, y, vel_x, vel_y, GetCurrentTick());
-      self.energy -= energy_cost;
-      player_manager.SendPositionPacket();
+      if (weapon_manager.FireWeapons(self, self.weapon, x, y, vel_x, vel_y, GetCurrentTick())) {
+        self.energy -= energy_cost;
+        player_manager.SendPositionPacket();
+      }
     }
   }
 
