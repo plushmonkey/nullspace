@@ -77,7 +77,7 @@ void data_callback(ma_device* device, void* output, const void* input, ma_uint32
       // Remove clip from playing list and send it to free list
       system->playing_clips[i--] = system->playing_clips[--system->playing_count];
       clip->next = system->free_clips;
-      system->free_clips = clip->next;
+      system->free_clips = clip;
     }
   }
 
