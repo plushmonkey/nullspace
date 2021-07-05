@@ -135,7 +135,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
       animation(),
       dispatcher(),
       connection(perm_arena, temp_arena, work_queue, dispatcher),
-      player_manager(perm_arena, connection, dispatcher),
+      player_manager(perm_arena, connection, dispatcher, sound_system),
       weapon_manager(temp_arena, connection, player_manager, dispatcher, animation, sound_system),
       banner_pool(temp_arena, player_manager, dispatcher),
       camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f / 16.0f),
@@ -257,8 +257,8 @@ bool Game::Update(const InputState& input, float dt) {
     Vector2f flag_min = flag->position;
     Vector2f flag_max = flag->position + Vector2f(1, 1);
 
-    for (size_t i = 0; i < player_manager.player_count; ++i) {
-      Player* player = player_manager.players + i;
+    for (size_t j = 0; j < player_manager.player_count; ++j) {
+      Player* player = player_manager.players + j;
 
       if (player->ship == 8) continue;
       if (player->enter_delay > 0.0f) continue;
@@ -310,8 +310,8 @@ void Game::UpdateGreens(float dt) {
         Vector2f pmin = player->position - Vector2f(radius, radius);
         Vector2f pmax = player->position + Vector2f(radius, radius);
 
-        for (size_t i = 0; i < green_count; ++i) {
-          PrizeGreen* green = greens + i;
+        for (size_t j = 0; j < green_count; ++j) {
+          PrizeGreen* green = greens + j;
 
           Vector2f gmin = green->position;
           Vector2f gmax = gmin + Vector2f(1, 1);

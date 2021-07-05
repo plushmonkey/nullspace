@@ -550,6 +550,8 @@ void ShipController::OnCollectedPrize(u8* pkt, size_t size) {
 
   if (!self) return;
 
+  player_manager.sound_system.Play(AudioType::Prize);
+
   for (u16 i = 0; i < count; ++i) {
     ApplyPrize(self, prize_id, true);
   }

@@ -65,6 +65,9 @@ enum class AudioType {
   Explode2,
   EBombExplode,
 
+  Flag,
+  Bounce,
+
   Count
 };
 constexpr size_t kAudioTypeCount = (size_t)AudioType::Count;

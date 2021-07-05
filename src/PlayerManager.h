@@ -17,12 +17,14 @@ struct InputState;
 struct PacketDispatcher;
 struct ShipController;
 struct SpectateView;
+struct SoundSystem;
 struct SpriteRenderer;
 struct WeaponManager;
 
 struct PlayerManager {
   MemoryArena& perm_arena;
   Connection& connection;
+  SoundSystem& sound_system;
   WeaponManager* weapon_manager = nullptr;
   ShipController* ship_controller = nullptr;
   ChatController* chat_controller = nullptr;
@@ -46,7 +48,8 @@ struct PlayerManager {
   // Indirection table to look up player by id quickly
   u16 player_lookup[65536];
 
-  PlayerManager(MemoryArena& perm_arena, Connection& connection, PacketDispatcher& dispatcher);
+  PlayerManager(MemoryArena& perm_arena, Connection& connection, PacketDispatcher& dispatcher,
+                SoundSystem& sound_system);
 
   inline void Initialize(WeaponManager* weapon_manager, ShipController* ship_controller,
                          ChatController* chat_controller, NotificationSystem* notifications, SpectateView* specview,

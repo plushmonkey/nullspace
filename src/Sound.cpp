@@ -215,6 +215,9 @@ const char* kClipFilenames[] = {
     "sound/explode1.wa2",
     "sound/explode2.wa2",
     "sound/ebombex.wa2",
+
+    "sound/flag.wa2",
+    "sound/bounce.wa2",
 };
 
 // TODO: Rework this entire thing. This is just the minimal implementation. It should be threaded so it doesn't cause

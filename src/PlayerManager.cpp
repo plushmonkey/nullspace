@@ -8,6 +8,7 @@
 #include "ChatController.h"
 #include "InputState.h"
 #include "ShipController.h"
+#include "Sound.h"
 #include "SpectateView.h"
 #include "Tick.h"
 #include "WeaponManager.h"
@@ -105,8 +106,9 @@ inline bool IsPlayerVisible(Player& self, u32 self_freq, Player& player) {
   return (!(player.togglables & Status_Cloak)) || (self.togglables & Status_XRadar);
 }
 
-PlayerManager::PlayerManager(MemoryArena& perm_arena, Connection& connection, PacketDispatcher& dispatcher)
-    : perm_arena(perm_arena), connection(connection) {
+PlayerManager::PlayerManager(MemoryArena& perm_arena, Connection& connection, PacketDispatcher& dispatcher,
+                             SoundSystem& sound_system)
+    : perm_arena(perm_arena), connection(connection), sound_system(sound_system) {
   dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerLeaving, OnPlayerLeavePkt, this);
@@ -864,6 +866,10 @@ void PlayerManager::OnFlagClaim(u8* pkt, size_t size) {
 
   if (player) {
     player->flags++;
+
+    if (player->id == player_id) {
+      sound_system.Play(AudioType::Flag);
+    }
   }
 }
 
@@ -1159,6 +1165,13 @@ void PlayerManager::SimulatePlayer(Player& player, float dt) {
 
   if (x_bounce || y_bounce) {
     player.last_bounce_tick = GetCurrentTick();
+
+    constexpr float kBounceSoundThreshold = 3.0f;
+    constexpr float kBounceSoundThresholdSq = kBounceSoundThreshold * kBounceSoundThreshold;
+
+    if (player.id == player_id && player.velocity.LengthSq() >= kBounceSoundThresholdSq) {
+      sound_system.Play(AudioType::Bounce);
+    }
   }
 
   player.lerp_time -= dt;
