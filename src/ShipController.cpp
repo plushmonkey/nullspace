@@ -263,17 +263,22 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
       self.weapon.alternate = ship.multifire && (ship.capability & ShipCapability_Multifire);
 
-      used_weapon = true;
+      u32 delay = 0;
       if (self.weapon.alternate) {
-        SetNextTick(&next_bullet_tick, tick + ship_settings.MultiFireDelay);
+        delay = ship_settings.MultiFireDelay;
         energy_cost = ship_settings.MultiFireEnergy * (self.weapon.level + 1);
       } else {
-        SetNextTick(&next_bullet_tick, tick + ship_settings.BulletFireDelay);
+        delay = ship_settings.BulletFireDelay;
         energy_cost = ship_settings.BulletFireEnergy * (self.weapon.level + 1);
       }
 
-      SetNextTick(&next_bomb_tick, next_bullet_tick);
-      next_repel_tick = tick + kRepelDelayTicks;
+      used_weapon = energy_cost < ship.energy;
+
+      if (used_weapon) {
+        SetNextTick(&next_bullet_tick, tick + delay);
+        SetNextTick(&next_bomb_tick, next_bullet_tick);
+        next_repel_tick = tick + kRepelDelayTicks;
+      }
     }
   } else if (input.IsDown(InputAction::Mine) && TICK_GT(tick, next_bomb_tick)) {
     if (ship.bombs > 0) {
@@ -287,14 +292,20 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         self.weapon.shrapbouncing = (ship.capability & ShipCapability_BouncingBullets) > 0;
       }
 
-      used_weapon = true;
-      SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
-      if (!ship_settings.EmpBomb) {
-        SetNextTick(&next_bullet_tick, next_bomb_tick);
-      }
-      next_repel_tick = tick + kRepelDelayTicks;
       energy_cost =
           ship_settings.LandmineFireEnergy + ship_settings.LandmineFireEnergyUpgrade * (self.weapon.level + 1);
+
+      used_weapon = energy_cost < ship.energy;
+
+      if (used_weapon) {
+        SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
+
+        if (!ship_settings.EmpBomb) {
+          SetNextTick(&next_bullet_tick, next_bomb_tick);
+        }
+
+        next_repel_tick = tick + kRepelDelayTicks;
+      }
     }
   } else if (input.IsDown(InputAction::Bomb) && TICK_GT(tick, next_bomb_tick)) {
     if (ship.bombs > 0) {
@@ -307,13 +318,18 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         self.weapon.shrapbouncing = (ship.capability & ShipCapability_BouncingBullets) > 0;
       }
 
-      used_weapon = true;
-      SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
-      if (!ship_settings.EmpBomb) {
-        SetNextTick(&next_bullet_tick, next_bomb_tick);
-      }
-      next_repel_tick = tick + kRepelDelayTicks;
       energy_cost = ship_settings.BombFireEnergy + ship_settings.BombFireEnergyUpgrade * (self.weapon.level + 1);
+      used_weapon = energy_cost < ship.energy;
+
+      if (used_weapon) {
+        SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
+
+        if (!ship_settings.EmpBomb) {
+          SetNextTick(&next_bullet_tick, next_bomb_tick);
+        }
+
+        next_repel_tick = tick + kRepelDelayTicks;
+      }
     }
   }
 
@@ -1103,6 +1119,8 @@ void ShipController::ResetShip() {
   ship.capability = 0;
   ship.emped_time = 0.0f;
   ship.multifire = false;
+
+  this->next_bomb_tick = this->next_bullet_tick = this->next_repel_tick = 0;
 
   self->togglables = 0;
 

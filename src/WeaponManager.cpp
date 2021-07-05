@@ -717,7 +717,7 @@ bool WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u3
         return false;
       }
 
-      if (team_count >= connection.settings.TeamMaxMines) {
+      if (team_count >= (size_t)connection.settings.TeamMaxMines) {
         player_manager.notifications->PushFormatted(TextColor::Yellow, "Team has too many mines");
         return false;
       }
@@ -744,14 +744,14 @@ bool WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u3
       Vector2f perp = Perpendicular(heading);
       Vector2f offset = perp * (ship_settings.GetRadius() * 0.75f);
 
-      result = GenerateWeapon(pid, weapon, timestamp, pos_x - (u32)(offset.x * 16.0f), pos_y - (u32)(offset.y * 16.0f),
+      result = GenerateWeapon(pid, weapon, timestamp, pos_x - (s32)(offset.x * 16.0f), pos_y - (s32)(offset.y * 16.0f),
                               vel_x, vel_y, heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         AddLinkRemoval(link_id, result);
         destroy_link = true;
       }
 
-      result = GenerateWeapon(pid, weapon, timestamp, pos_x + (u32)(offset.x * 16.0f), pos_y + (u32)(offset.y * 16.0f),
+      result = GenerateWeapon(pid, weapon, timestamp, pos_x + (s32)(offset.x * 16.0f), pos_y + (s32)(offset.y * 16.0f),
                               vel_x, vel_y, heading, link_id);
       if (result == WeaponSimulateResult::PlayerExplosion) {
         AddLinkRemoval(link_id, result);

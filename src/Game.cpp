@@ -261,13 +261,14 @@ bool Game::Update(const InputState& input, float dt) {
       Player* player = player_manager.players + i;
 
       if (player->ship == 8) continue;
+      if (player->enter_delay > 0.0f) continue;
+      if (player->frequency == flag->owner) continue;
 
       float radius = connection.settings.ShipSettings[player->ship].GetRadius();
       Vector2f player_min = player->position - Vector2f(radius, radius);
       Vector2f player_max = player->position + Vector2f(radius, radius);
 
-      if (player->ship != 8 && player->frequency != flag->owner &&
-          BoxBoxIntersect(flag_min, flag_max, player_min, player_max)) {
+      if (BoxBoxIntersect(flag_min, flag_max, player_min, player_max)) {
         constexpr u32 kHideFlagDelay = 300;
         flag->hidden_end_tick = tick + kHideFlagDelay;
 
