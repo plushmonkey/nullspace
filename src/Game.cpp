@@ -316,8 +316,9 @@ bool Game::Update(const InputState& input, float dt) {
         }
 
         u32 carry = connection.settings.CarryFlags;
+        bool can_carry = carry > 0 && (carry == 1 || player->flags < carry - 1);
 
-        if ((carry > 0 && player->flags < carry - 1) || (flag->flags & GameFlag_Turf)) {
+        if (can_carry || (flag->flags & GameFlag_Turf)) {
           if (player->id == player_manager.player_id &&
               TICK_DIFF(tick, flag->last_pickup_request_tick) >= kFlagPickupDelay) {
             // Send flag pickup
