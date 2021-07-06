@@ -6,6 +6,7 @@
 #include "../Map.h"
 #include "../Math.h"
 #include "../Memory.h"
+#include "../Soccer.h"
 #include "Camera.h"
 #include "Image.h"
 
@@ -248,8 +249,8 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
   return true;
 }
 
-bool TileRenderer::CreateRadar(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim,
-                               u16 mapzoom) {
+bool TileRenderer::CreateRadar(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim, u16 mapzoom,
+                               Soccer& soccer) {
   Map map;
 
   if (!map.Load(temp_arena, filename)) {
@@ -283,14 +284,14 @@ bool TileRenderer::CreateRadar(MemoryArena& temp_arena, const char* filename, co
     radar_texture = -1;
   }
 
-  RenderRadar(map, temp_arena, full_dim, full_radar_renderable, &full_radar_texture, GL_NEAREST);
-  RenderRadar(map, temp_arena, radar_dim, radar_renderable, &radar_texture, GL_NEAREST);
+  RenderRadar(map, temp_arena, full_dim, full_radar_renderable, &full_radar_texture, GL_NEAREST, soccer);
+  RenderRadar(map, temp_arena, radar_dim, radar_renderable, &radar_texture, GL_NEAREST, soccer);
 
   return true;
 }
 
 void TileRenderer::RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions, SpriteRenderable& renderable,
-                               GLuint* texture, GLint filter) {
+                               GLuint* texture, GLint filter, Soccer& soccer) {
   glGenTextures(1, texture);
   glBindTexture(GL_TEXTURE_2D, *texture);
 
@@ -330,7 +331,7 @@ void TileRenderer::RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions
           // Don't write because multiple writes to this area should prioritize walls. If a write happens here then
           // walls could be overwritten with empty space.
         } else {
-          data[index] = GetRadarTileColor(id);
+          data[index] = GetRadarTileColor(id, x, y, soccer);
         }
       }
     }
@@ -347,7 +348,7 @@ void TileRenderer::RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions
 
         size_t index = gen_y * dimensions + gen_x;
 
-        data[index] = GetRadarTileColor(id);
+        data[index] = GetRadarTileColor(id, x, y, soccer);
 
         x_tile_index += 1024;
       }
@@ -373,14 +374,16 @@ void TileRenderer::RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions
   renderable.uvs[3] = Vector2f(1, 1);
 }
 
-u32 TileRenderer::GetRadarTileColor(u8 id) {
+u32 TileRenderer::GetRadarTileColor(u8 id, u16 x, u16 y, Soccer& soccer) {
   // TODO: other types
   if (id == 0 || id > 241) {
     return 0xFF0A190A;
   } else if (id == 171) {
     return 0xFF185218;
   } else if (id == 172) {
-    // TODO: team color
+    if (soccer.IsTeamGoal(Vector2f(x, y))) {
+      return 0xFF219CAD;
+    }
     return 0xFF0839FF;
   } else if (id >= 162 && id <= 169) {
     return 0xFFADADAD;

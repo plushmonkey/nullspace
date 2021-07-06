@@ -62,11 +62,6 @@ static void OnPlayerDeathPkt(void* user, u8* pkt, size_t size) {
   manager->OnPlayerDeath(pkt, size);
 }
 
-static void OnFlagClaimPkt(void* user, u8* pkt, size_t size) {
-  PlayerManager* manager = (PlayerManager*)user;
-  manager->OnFlagClaim(pkt, size);
-}
-
 static void OnFlagDropPkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
   manager->OnFlagDrop(pkt, size);
@@ -117,7 +112,6 @@ PlayerManager::PlayerManager(MemoryArena& perm_arena, Connection& connection, Pa
   dispatcher.Register(ProtocolS2C::LargePosition, OnLargePositionPkt, this);
   dispatcher.Register(ProtocolS2C::SmallPosition, OnSmallPositionPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerDeath, OnPlayerDeathPkt, this);
-  dispatcher.Register(ProtocolS2C::FlagClaim, OnFlagClaimPkt, this);
   dispatcher.Register(ProtocolS2C::DropFlag, OnFlagDropPkt, this);
   dispatcher.Register(ProtocolS2C::SetCoordinates, OnSetCoordinatesPkt, this);
   dispatcher.Register(ProtocolS2C::CreateTurret, OnCreateTurretLinkPkt, this);
@@ -491,7 +485,7 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
 
   banners->FreeBanner(player->id);
 
-  printf("%s entered arena\n", name);
+  printf("%s [%d] entered arena\n", name, player->id);
 
   if (player->attach_parent != kInvalidPlayerId) {
     Player* destination = GetPlayerById(player->attach_parent);
@@ -521,6 +515,7 @@ void PlayerManager::OnPlayerLeave(u8* pkt, size_t size) {
 
     printf("%s left arena\n", player->name);
 
+    DetachPlayer(*player);
     DetachAllChildren(*player);
 
     if (chat_controller) {
@@ -559,6 +554,7 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
     killed->explode_anim_t = 0.0f;
     killed->flags = 0;
 
+    DetachPlayer(*killed);
     DetachAllChildren(*killed);
   }
 
@@ -658,6 +654,7 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
   Player* player = GetPlayerById(pid);
 
   if (player) {
+    DetachPlayer(*player);
     DetachAllChildren(*player);
 
     player->ship = ship;
@@ -858,21 +855,6 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position) {
   }
 }
 
-void PlayerManager::OnFlagClaim(u8* pkt, size_t size) {
-  u16 flag_id = *(u16*)(pkt + 1);
-  u16 player_id = *(u16*)(pkt + 3);
-
-  Player* player = GetPlayerById(player_id);
-
-  if (player) {
-    player->flags++;
-
-    if (player->id == specview->GetPlayerId()) {
-      sound_system.Play(AudioType::Flag);
-    }
-  }
-}
-
 void PlayerManager::OnFlagDrop(u8* pkt, size_t size) {
   u16 player_id = *(u16*)(pkt + 1);
 
@@ -1019,6 +1001,10 @@ void PlayerManager::OnDestroyTurretLink(u8* pkt, size_t size) {
 void PlayerManager::DetachPlayer(Player& player) {
   if (player.attach_parent != kInvalidPlayerId) {
     Player* parent = GetPlayerById(player.attach_parent);
+
+    if (player.id == player_id) {
+      connection.SendAttachRequest(kInvalidPlayerId);
+    }
 
     if (parent) {
       AttachInfo* current = parent->children;

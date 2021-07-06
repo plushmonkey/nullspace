@@ -48,14 +48,14 @@ u16 SpectateView::GetPlayerId() {
   return statbox.player_manager.player_id;
 }
 
-void SpectateView::Update(const InputState& input, float dt) {
+bool SpectateView::Update(const InputState& input, float dt) {
   Player* self = statbox.player_manager.GetSelf();
 
-  if (!self) return;
+  if (!self) return false;
 
   if (self->ship != 8) {
     spectate_id = kInvalidSpectateId;
-    return;
+    return false;
   }
 
   float spectate_speed = 30.0f * dt;
@@ -86,6 +86,8 @@ void SpectateView::Update(const InputState& input, float dt) {
     moved = true;
   }
 
+  u16 previous_spectate_id = spectate_id;
+
   if (moved) {
     spectate_id = kInvalidSpectateId;
   } else if (input.IsDown(InputAction::Bullet)) {
@@ -102,6 +104,8 @@ void SpectateView::Update(const InputState& input, float dt) {
       spectate_id = kInvalidSpectateId;
     }
   }
+
+  return spectate_id != previous_spectate_id;
 }
 
 void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
@@ -137,18 +141,20 @@ void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
   }
 }
 
-void SpectateView::SpectateSelected() {
+bool SpectateView::SpectateSelected() {
   Player* selected = statbox.GetSelectedPlayer();
 
   if (selected) {
-    SpectatePlayer(*selected);
+    return SpectatePlayer(*selected);
   }
+
+  return false;
 }
 
-void SpectateView::SpectatePlayer(Player& player) {
+bool SpectateView::SpectatePlayer(Player& player) {
   u32 tick = GetCurrentTick();
 
-  if (TICK_DIFF(tick, last_spectate_packet) < 10) return;
+  if (TICK_DIFF(tick, last_spectate_packet) < 10) return false;
 
   if (player.ship != 8 && player.id != spectate_id) {
     spectate_id = player.id;
@@ -156,18 +162,23 @@ void SpectateView::SpectatePlayer(Player& player) {
     last_spectate_packet = tick;
 
     connection.SendSpectateRequest(spectate_id);
+    return true;
   }
+
+  return false;
 }
 
-void SpectateView::OnAction(InputAction action) {
+bool SpectateView::OnAction(InputAction action) {
   Player* self = statbox.player_manager.GetSelf();
 
-  if (!self || self->ship != 8) return;
+  if (!self || self->ship != 8) return false;
 
   // TODO: F5 to follow ball and F4 to spectate multiple players
   if (action == InputAction::Bullet || action == InputAction::Bomb) {
-    SpectateSelected();
+    return SpectateSelected();
   }
+
+  return false;
 }
 
 }  // namespace null

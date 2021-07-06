@@ -29,13 +29,17 @@ struct SpectateView {
   u8 GetVisibilityShip();
   u16 GetPlayerId();
 
-  void Update(const InputState& input, float dt);
+  // Returns true if the spectate target changes.
+  bool Update(const InputState& input, float dt);
   void Render(Camera& ui_camera, SpriteRenderer& renderer);
 
-  void OnAction(InputAction action);
+  // Returns true if the spectate target changes.
+  bool OnAction(InputAction action);
 
-  void SpectateSelected();
-  void SpectatePlayer(Player& player);
+  // Returns true if the spectate target changes.
+  bool SpectateSelected();
+  // Returns true if the spectate target changes.
+  bool SpectatePlayer(Player& player);
 };
 
 }  // namespace null

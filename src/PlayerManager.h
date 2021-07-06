@@ -89,7 +89,6 @@ struct PlayerManager {
   void OnPlayerFreqAndShipChange(u8* pkt, size_t size);
   void OnLargePositionPacket(u8* pkt, size_t size);
   void OnSmallPositionPacket(u8* pkt, size_t size);
-  void OnFlagClaim(u8* pkt, size_t size);
   void OnFlagDrop(u8* pkt, size_t size);
   void OnCreateTurretLink(u8* pkt, size_t size);
   void OnDestroyTurretLink(u8* pkt, size_t size);

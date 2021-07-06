@@ -200,6 +200,7 @@
     <ClCompile Include="src\render\TextureMap.cpp" />
     <ClCompile Include="src\render\TileRenderer.cpp" />
     <ClCompile Include="src\ShipController.cpp" />
+    <ClCompile Include="src\Soccer.cpp" />
     <ClCompile Include="src\Sound.cpp" />
     <ClCompile Include="src\SpectateView.cpp" />
     <ClCompile Include="src\StatBox.cpp" />
@@ -256,6 +257,7 @@
     <ClInclude Include="src\render\TileRenderer.h" />
     <ClInclude Include="src\Settings.h" />
     <ClInclude Include="src\ShipController.h" />
+    <ClInclude Include="src\Soccer.h" />
     <ClInclude Include="src\Sound.h" />
     <ClInclude Include="src\SpectateView.h" />
     <ClInclude Include="src\StatBox.h" />

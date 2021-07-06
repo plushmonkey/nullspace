@@ -26,11 +26,15 @@ struct ArenaSettings;
 using TileId = u8;
 constexpr u32 kTileSafeId = 171;
 
-constexpr size_t kAnimatedTileCount = 6;
+constexpr size_t kAnimatedTileCount = 7;
 
-enum class AnimatedTile { Goal, AsteroidSmall1, AsteroidSmall2, AsteroidLarge, SpaceStation, Wormhole };
-constexpr TileId kAnimatedIds[] = {172, 216, 218, 217, 219, 220};
-constexpr size_t kAnimatedTileSizes[] = {1, 1, 1, 2, 6, 5};
+enum class AnimatedTile { Goal, AsteroidSmall1, AsteroidSmall2, AsteroidLarge, SpaceStation, Wormhole, Flag };
+constexpr TileId kAnimatedIds[] = {172, 216, 218, 217, 219, 220, 170};
+constexpr size_t kAnimatedTileSizes[] = {1, 1, 1, 2, 6, 5, 1};
+
+static_assert(NULLSPACE_ARRAY_SIZE(kAnimatedIds) == kAnimatedTileCount, "Must have id for each animated tile");
+static_assert(NULLSPACE_ARRAY_SIZE(kAnimatedTileSizes) == kAnimatedTileCount,
+              "Must have tile size for each animated tile");
 
 struct AnimatedTileSet {
   size_t index;
@@ -51,6 +55,8 @@ struct Map {
   u32 GetChecksum(u32 key) const;
 
   CastResult Cast(const Vector2f& from, const Vector2f& direction, float max_distance);
+
+  inline AnimatedTileSet& GetAnimatedTileSet(AnimatedTile type) { return animated_tiles[(size_t)type]; }
 
   char filename[1024];
   u32 checksum = 0;

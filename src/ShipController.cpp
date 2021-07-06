@@ -255,6 +255,10 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
     if (ship.guns > 0) {
       self.weapon.level = ship.guns - 1;
 
+      if (self.flags > 0 && connection.settings.FlaggerGunUpgrade) {
+        self.weapon.level++;
+      }
+
       if (ship.capability & ShipCapability_BouncingBullets) {
         self.weapon.type = WeaponType::BouncingBullet;
       } else {
@@ -286,6 +290,10 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       self.weapon.type = (ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb;
       self.weapon.alternate = 1;
 
+      if (self.flags > 0 && connection.settings.FlaggerBombUpgrade) {
+        self.weapon.level++;
+      }
+
       if (ship.guns > 0) {
         self.weapon.shrap = ship.shrapnel;
         self.weapon.shraplevel = ship.guns - 1;
@@ -311,6 +319,10 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
     if (ship.bombs > 0) {
       self.weapon.level = ship.bombs - 1;
       self.weapon.type = (ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb;
+
+      if (self.flags > 0 && connection.settings.FlaggerBombUpgrade) {
+        self.weapon.level++;
+      }
 
       if (ship.guns > 0) {
         self.weapon.shrap = ship.shrapnel;

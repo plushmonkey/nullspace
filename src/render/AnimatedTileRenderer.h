@@ -7,6 +7,7 @@ namespace null {
 
 struct Camera;
 struct Map;
+struct Soccer;
 struct SpriteRenderer;
 struct TileRenderer;
 struct Vector2f;
@@ -33,7 +34,7 @@ struct AnimatedTileRenderer {
   void Update(float dt);
 
   void Render(SpriteRenderer& renderer, Map& map, Camera& camera, const Vector2f& screen_dim, struct GameFlag* flags,
-              size_t flag_count, struct PrizeGreen* greens, size_t green_count, u32 freq);
+              size_t flag_count, struct PrizeGreen* greens, size_t green_count, u32 freq, Soccer& soccer);
 };
 
 }  // namespace null

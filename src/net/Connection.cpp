@@ -89,7 +89,7 @@ Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQue
       buffer(perm_arena, kMaxPacketSize),
       last_sync_tick(GetCurrentTick()),
       last_position_tick(GetCurrentTick()) {
-  map_arena = perm_arena.CreateArena(Megabytes(6));
+  map_arena = perm_arena.CreateArena(Megabytes(16));
 }
 
 Connection::TickResult Connection::Tick() {
@@ -490,6 +490,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
       case ProtocolS2C::BrickDropped: {
       } break;
+      case ProtocolS2C::TurfFlagUpdate: {
+      } break;
       case ProtocolS2C::KeepAlive: {
       } break;
       case ProtocolS2C::SmallPosition: {
@@ -667,7 +669,7 @@ void Connection::SendFlagRequest(u16 flag_id) {
   struct {
     u8 type;
     u16 flag_id;
-  } pkt = { 0x13, flag_id };
+  } pkt = {0x13, flag_id};
 #pragma pack(pop)
 
   packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));

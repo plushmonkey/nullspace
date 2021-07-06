@@ -37,7 +37,7 @@ void AnimatedTileRenderer::Update(float dt) {
 
 void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& camera, const Vector2f& screen_dim,
                                   struct GameFlag* flags, size_t flag_count, struct PrizeGreen* greens,
-                                  size_t green_count, u32 freq) {
+                                  size_t green_count, u32 freq, Soccer& soccer) {
   for (size_t i = 0; i < green_count; ++i) {
     SpriteRenderable* renderable = &anim_prize.GetFrame();
     PrizeGreen* green = greens + i;
@@ -51,7 +51,7 @@ void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& ca
     SpriteRenderable* renderable = &anim_flag.GetFrame();
     GameFlag* flag = flags + i;
 
-    if (flag->id == 0xFFFF || !flag->dropped || TICK_GT(flag->hidden_end_tick, tick)) continue;
+    if (flag->id == 0xFFFF || !(flag->flags & GameFlag_Dropped) || TICK_GT(flag->hidden_end_tick, tick)) continue;
 
     if (flag->owner == freq) {
       renderable = &anim_flag_team.GetFrame();
@@ -70,26 +70,40 @@ void AnimatedTileRenderer::Render(SpriteRenderer& renderer, Map& map, Camera& ca
     renderer.Draw(camera, renderable, Vector2f((float)door->x, (float)door->y), Layer::Tiles);
   }
 
-  // TODO: Get correct goal renderable for team
-  Animation* animations[] = {&anim_goal,           &anim_asteroid_small1, &anim_asteroid_small2,
-                             &anim_asteroid_large, &anim_space_station,   &anim_wormhole};
+  Animation* animations[] = {&anim_goal,
+                             &anim_asteroid_small1,
+                             &anim_asteroid_small2,
+                             &anim_asteroid_large,
+                             &anim_space_station,
+                             &anim_wormhole,
+                             &anim_flag};
 
-  assert(NULLSPACE_ARRAY_SIZE(animations) == kAnimatedTileCount);
+  static_assert(NULLSPACE_ARRAY_SIZE(animations) == kAnimatedTileCount, "Animations array must contain all tile types");
 
   Vector2f half_dim_world = screen_dim * (0.5f / 16.0f);
   Vector2f view_min_world = camera.position - half_dim_world - Vector2f(6, 6);
   Vector2f view_max_world = camera.position + half_dim_world + Vector2f(6, 6);
 
   for (size_t i = 0; i < kAnimatedTileCount; ++i) {
-    SpriteRenderable& renderable = animations[i]->GetFrame();
+    if (i == (size_t)AnimatedTile::Flag) continue;
+
+    SpriteRenderable* renderable = &animations[i]->GetFrame();
     AnimatedTileSet* tileset = map.animated_tiles + i;
 
     for (size_t j = 0; j < tileset->count; ++j) {
       Vector2f position((float)tileset->tiles[j].x, (float)tileset->tiles[j].y);
 
+      if (i == (size_t)AnimatedTile::Goal) {
+        if (soccer.IsTeamGoal(position)) {
+          renderable = &anim_goal_team.GetFrame();
+        } else {
+          renderable = &anim_goal.GetFrame();
+        }
+      }
+
       // The viewable area is extended so it can work with the larger tiles
       if (BoxContainsPoint(view_min_world, view_max_world, position)) {
-        renderer.Draw(camera, renderable, Vector2f(position.x, position.y), Layer::Tiles);
+        renderer.Draw(camera, *renderable, Vector2f(position.x, position.y), Layer::Tiles);
       }
     }
   }

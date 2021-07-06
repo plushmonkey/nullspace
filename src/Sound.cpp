@@ -144,7 +144,7 @@ void SoundSystem::PlayClip(const AudioClip& clip, float volume) {
   // TODO: Evict old playing sounds if it ever reaches cap
   std::lock_guard<std::mutex> guard(clip_mutex);
 
-  if (playing_count >= NULLSPACE_ARRAY_SIZE(playing_clips)) return;
+  if (playing_count + 1 >= NULLSPACE_ARRAY_SIZE(playing_clips)) return;
   if (!clip.IsLoaded()) return;
 
   PlayingAudioClip* playing_clip = free_clips;

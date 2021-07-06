@@ -10,6 +10,7 @@ namespace null {
 struct Camera;
 struct Map;
 struct MemoryArena;
+struct Soccer;
 
 struct TileRenderer {
   ShaderProgram shader;
@@ -36,14 +37,15 @@ struct TileRenderer {
   bool Initialize();
   void Render(Camera& camera);
   bool CreateMapBuffer(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim);
-  bool CreateRadar(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim, u16 mapzoom);
+  bool CreateRadar(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim, u16 mapzoom,
+                   Soccer& soccer);
 
   void Cleanup();
 
  private:
   void RenderRadar(Map& map, MemoryArena& temp_arena, u32 dimensions, SpriteRenderable& renderable, GLuint* texture,
-                   GLint filter);
-  u32 GetRadarTileColor(u8 id);
+                   GLint filter, Soccer& soccer);
+  u32 GetRadarTileColor(u8 id, u16 x, u16 y, Soccer& soccer);
 };
 
 }  // namespace null

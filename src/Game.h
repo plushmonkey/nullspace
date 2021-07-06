@@ -11,6 +11,7 @@
 #include "Radar.h"
 #include "Settings.h"
 #include "ShipController.h"
+#include "Soccer.h"
 #include "Sound.h"
 #include "SpectateView.h"
 #include "StatBox.h"
@@ -26,13 +27,21 @@
 
 namespace null {
 
+enum {
+  GameFlag_Dropped = (1 << 0),
+  GameFlag_Turf = (1 << 1),
+};
+
 struct GameFlag {
   u16 id = 0xFFFF;
   u16 owner = 0xFFFF;
   u32 hidden_end_tick = 0;
   Vector2f position;
-  bool dropped = false;
+
+  u32 flags = 0;
+  u32 last_pickup_request_tick = 0;
 };
+constexpr u32 kFlagPickupDelay = 20;
 
 // This is the actual max green count in Continuum
 constexpr size_t kMaxGreenCount = 256;
@@ -63,6 +72,7 @@ struct Game {
   StatBox statbox;
   ChatController chat;
   SpectateView specview;
+  Soccer soccer;
   ShipController ship_controller;
   LvzController lvz;
   Radar radar;
@@ -101,6 +111,7 @@ struct Game {
 
   void OnFlagClaim(u8* pkt, size_t size);
   void OnFlagPosition(u8* pkt, size_t size);
+  void OnTurfFlagUpdate(u8* pkt, size_t size);
   void OnPlayerId(u8* pkt, size_t size);
 };
 

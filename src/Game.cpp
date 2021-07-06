@@ -100,7 +100,9 @@ static void OnAction(void* user, InputAction action) {
   }
 
   game->statbox.OnAction(action);
-  game->specview.OnAction(action);
+  if (game->specview.OnAction(action)) {
+    game->RecreateRadar();
+  }
 }
 
 static void OnFlagClaimPkt(void* user, u8* pkt, size_t size) {
@@ -126,6 +128,39 @@ static void OnArenaSettings(void* user, u8* pkt, size_t size) {
   game->RecreateRadar();
 }
 
+static void OnTurfFlagUpdatePkt(void* user, u8* pkt, size_t size) {
+  Game* game = (Game*)user;
+
+  game->OnTurfFlagUpdate(pkt, size);
+}
+
+static void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
+  Game* game = (Game*)user;
+  NetworkBuffer buffer(pkt, size, size);
+
+  buffer.ReadU8();
+
+  u8 ship = buffer.ReadU8();
+  u16 pid = buffer.ReadU16();
+  u16 freq = buffer.ReadU16();
+
+  u16 spectate_id = game->specview.GetPlayerId();
+  if (pid == spectate_id || pid == game->player_manager.player_id) {
+    Player* player = game->player_manager.GetPlayerById(pid);
+
+    if (player) {
+      // Force update the frequency so the radar colors will change correctly.
+      player->frequency = freq;
+
+      if (pid == spectate_id && ship != 8) {
+        game->specview.spectate_frequency = freq;
+      }
+    }
+
+    game->RecreateRadar();
+  }
+}
+
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_queue, int width, int height)
     : perm_arena(perm_arena),
       temp_arena(temp_arena),
@@ -144,6 +179,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
       statbox(player_manager, banner_pool, dispatcher),
       chat(dispatcher, connection, player_manager, statbox),
       specview(connection, statbox),
+      soccer(connection, specview),
       ship_controller(player_manager, weapon_manager, dispatcher, notifications),
       lvz(perm_arena, temp_arena, connection.requester, sprite_renderer, dispatcher),
       radar(player_manager) {
@@ -153,6 +189,8 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
   dispatcher.Register(ProtocolS2C::FlagClaim, OnFlagClaimPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
   dispatcher.Register(ProtocolS2C::ArenaSettings, OnArenaSettings, this);
+  dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
+  dispatcher.Register(ProtocolS2C::TurfFlagUpdate, OnTurfFlagUpdatePkt, this);
 
   player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications, &specview, &banner_pool);
   weapon_manager.Initialize(&ship_controller, &radar);
@@ -187,6 +225,8 @@ bool Game::Initialize(InputState& input) {
 }
 
 bool Game::Update(const InputState& input, float dt) {
+  Player* self = player_manager.GetSelf();
+
   chat.display_full = menu_open;
 
   Graphics::colors.Update(dt);
@@ -197,24 +237,9 @@ bool Game::Update(const InputState& input, float dt) {
   ship_controller.Update(input, dt);
   weapon_manager.Update(dt);
 
-  Player* me = player_manager.GetSelf();
-
   if (tile_renderer.tilemap_texture == -1 && connection.login_state == Connection::LoginState::Complete) {
-    if (!tile_renderer.CreateMapBuffer(temp_arena, connection.map.filename, ui_camera.surface_dim)) {
-      log_error("Failed to create renderable map.\n");
-    }
-
-    mapzoom = connection.settings.MapZoomFactor;
-
-    if (!tile_renderer.CreateRadar(temp_arena, connection.map.filename, ui_camera.surface_dim,
-                                   connection.settings.MapZoomFactor)) {
-      log_error("Failed to create radar.\n");
-    }
-
-    animated_tile_renderer.InitializeDoors(tile_renderer);
-
-    if (me) {
-      me->position = Vector2f(0, 0);
+    if (self) {
+      self->position = Vector2f(0, 0);
 
       for (size_t i = 0; i < player_manager.player_count; ++i) {
         Player* player = player_manager.GetPlayerById(statbox.player_view[i]);
@@ -225,19 +250,34 @@ bool Game::Update(const InputState& input, float dt) {
         }
       }
     }
+
+    if (!tile_renderer.CreateMapBuffer(temp_arena, connection.map.filename, ui_camera.surface_dim)) {
+      log_error("Failed to create renderable map.\n");
+    }
+
+    mapzoom = connection.settings.MapZoomFactor;
+
+    if (!tile_renderer.CreateRadar(temp_arena, connection.map.filename, ui_camera.surface_dim,
+                                   connection.settings.MapZoomFactor, soccer)) {
+      log_error("Failed to create radar.\n");
+    }
+
+    animated_tile_renderer.InitializeDoors(tile_renderer);
   }
 
   // This must be updated after position update
-  specview.Update(input, dt);
+  if (specview.Update(input, dt)) {
+    RecreateRadar();
+  }
 
   // Cap player and spectator camera to playable area
-  if (me) {
-    if (me->position.x < 0) me->position.x = 0;
-    if (me->position.y < 0) me->position.y = 0;
-    if (me->position.x >= 1024) me->position.x = 1023.9f;
-    if (me->position.y >= 1024) me->position.y = 1023.9f;
+  if (self) {
+    if (self->position.x < 0) self->position.x = 0;
+    if (self->position.y < 0) self->position.y = 0;
+    if (self->position.x >= 1024) self->position.x = 1023.9f;
+    if (self->position.y >= 1024) self->position.y = 1023.9f;
 
-    camera.position = me->position.PixelRounded();
+    camera.position = self->position.PixelRounded();
   }
 
   render_radar = input.IsDown(InputAction::DisplayMap);
@@ -270,11 +310,20 @@ bool Game::Update(const InputState& input, float dt) {
 
       if (BoxBoxIntersect(flag_min, flag_max, player_min, player_max)) {
         constexpr u32 kHideFlagDelay = 300;
-        flag->hidden_end_tick = tick + kHideFlagDelay;
 
-        if (player->id == player_manager.player_id) {
-          // Send flag pickup
-          connection.SendFlagRequest(flag->id);
+        if (!(flag->flags & GameFlag_Turf)) {
+          flag->hidden_end_tick = tick + kHideFlagDelay;
+        }
+
+        u32 carry = connection.settings.CarryFlags;
+
+        if ((carry > 0 && player->flags < carry - 1) || (flag->flags & GameFlag_Turf)) {
+          if (player->id == player_manager.player_id &&
+              TICK_DIFF(tick, flag->last_pickup_request_tick) >= kFlagPickupDelay) {
+            // Send flag pickup
+            connection.SendFlagRequest(flag->id);
+            flag->last_pickup_request_tick = tick;
+          }
         }
       }
     }
@@ -422,7 +471,7 @@ void Game::RenderGame(float dt) {
   u32 self_freq = specview.GetFrequency();
 
   animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim, flags, flag_count,
-                                greens, green_count, self_freq);
+                                greens, green_count, self_freq, soccer);
 
   if (self) {
     animation.Render(camera, sprite_renderer);
@@ -621,23 +670,42 @@ void Game::RenderMenu() {
 }
 
 void Game::RecreateRadar() {
-  if (connection.login_state != Connection::LoginState::Complete || connection.settings.MapZoomFactor == mapzoom) {
+  if (connection.login_state != Connection::LoginState::Complete) {
     return;
   }
 
   mapzoom = connection.settings.MapZoomFactor;
 
-  if (!tile_renderer.CreateRadar(temp_arena, connection.map.filename, ui_camera.surface_dim, mapzoom)) {
+  if (!tile_renderer.CreateRadar(temp_arena, connection.map.filename, ui_camera.surface_dim, mapzoom, soccer)) {
     fprintf(stderr, "Failed to create radar.\n");
   }
 }
 
 void Game::OnFlagClaim(u8* pkt, size_t size) {
   u16 id = *(u16*)(pkt + 1);
+  u16 player_id = *(u16*)(pkt + 3);
 
   assert(id < NULLSPACE_ARRAY_SIZE(flags));
 
-  flags[id].dropped = false;
+  Player* player = player_manager.GetPlayerById(player_id);
+
+  if (!player) return;
+
+  if (!(flags[id].flags & GameFlag_Turf)) {
+    flags[id].flags &= ~GameFlag_Dropped;
+
+    player->flags++;
+
+    if (player->id == specview.GetPlayerId()) {
+      sound_system.Play(AudioType::Flag);
+    }
+  } else {
+    flags[id].owner = player->frequency;
+
+    if (player->id == specview.GetPlayerId()) {
+      sound_system.Play(AudioType::Flag);
+    }
+  }
 }
 
 void Game::OnFlagPosition(u8* pkt, size_t size) {
@@ -655,8 +723,37 @@ void Game::OnFlagPosition(u8* pkt, size_t size) {
   flags[id].id = id;
   flags[id].owner = owner;
   flags[id].position = Vector2f((float)x, (float)y);
-  flags[id].dropped = true;
+  flags[id].flags |= GameFlag_Dropped;
   flags[id].hidden_end_tick = 0;
+}
+
+void Game::OnTurfFlagUpdate(u8* pkt, size_t size) {
+  NetworkBuffer buffer(pkt, size, size);
+
+  buffer.ReadU8();
+
+  u16 id = 0;
+  while (buffer.read < buffer.write) {
+    u16 team = buffer.ReadU16();
+
+    AnimatedTileSet& tileset = connection.map.GetAnimatedTileSet(AnimatedTile::Flag);
+
+    assert(id < tileset.count);
+
+    Tile* tile = &tileset.tiles[id];
+
+    if (id + 1 > (u16)flag_count) {
+      flag_count = id + 1;
+    }
+
+    flags[id].id = id;
+    flags[id].owner = team;
+    flags[id].position = Vector2f((float)tile->x, (float)tile->y);
+    flags[id].flags |= GameFlag_Dropped | GameFlag_Turf;
+    flags[id].hidden_end_tick = 0;
+
+    ++id;
+  }
 }
 
 void Game::OnPlayerId(u8* pkt, size_t size) {
