@@ -27,6 +27,7 @@ struct SpectateView {
   u32 GetFrequency();
   // Gets the ship of the player or the spectated player for visibility settings such as SeeBombLevel and SeeMines.
   u8 GetVisibilityShip();
+  u16 GetPlayerId();
 
   void Update(const InputState& input, float dt);
   void Render(Camera& ui_camera, SpriteRenderer& renderer);

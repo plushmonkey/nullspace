@@ -867,7 +867,7 @@ void PlayerManager::OnFlagClaim(u8* pkt, size_t size) {
   if (player) {
     player->flags++;
 
-    if (player->id == player_id) {
+    if (player->id == specview->GetPlayerId()) {
       sound_system.Play(AudioType::Flag);
     }
   }
@@ -1169,8 +1169,8 @@ void PlayerManager::SimulatePlayer(Player& player, float dt) {
     constexpr float kBounceSoundThreshold = 3.0f;
     constexpr float kBounceSoundThresholdSq = kBounceSoundThreshold * kBounceSoundThreshold;
 
-    if (player.id == player_id && player.velocity.LengthSq() >= kBounceSoundThresholdSq) {
-      sound_system.Play(AudioType::Bounce);
+    if (player.velocity.LengthSq() >= kBounceSoundThresholdSq) {
+      weapon_manager->PlayPositionalSound(AudioType::Bounce, player.position);
     }
   }
 

@@ -40,6 +40,14 @@ u8 SpectateView::GetVisibilityShip() {
   return visibility_ship;
 }
 
+u16 SpectateView::GetPlayerId() {
+  if (spectate_id != kInvalidSpectateId) {
+    return spectate_id;
+  }
+
+  return statbox.player_manager.player_id;
+}
+
 void SpectateView::Update(const InputState& input, float dt) {
   Player* self = statbox.player_manager.GetSelf();
 
