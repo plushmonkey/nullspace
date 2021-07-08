@@ -277,63 +277,75 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
   if (input.IsDown(InputAction::Repel)) {
     if (TICK_GT(tick, next_repel_tick)) {
-      if (ship.repels > 0 && !in_safe) {
+      if (ship.repels > 0) {
         self.weapon.type = WeaponType::Repel;
-        --ship.repels;
-      }
+        used_weapon = true;
 
-      used_weapon = true;
-      SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
-      SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
-      next_repel_tick = tick + kRepelDelayTicks;
+        if (!in_safe) {
+          --ship.repels;
+        }
+
+        SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
+        SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
+        next_repel_tick = tick + kRepelDelayTicks;
+      }
     }
   } else if (input.IsDown(InputAction::Burst)) {
     if (TICK_GT(tick, next_bomb_tick)) {
-      if (ship.bursts > 0 && !in_safe) {
+      if (ship.bursts > 0) {
         self.weapon.type = WeaponType::Burst;
-        --ship.bursts;
-      }
+        used_weapon = true;
 
-      used_weapon = true;
-      SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
-      SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
-      next_repel_tick = tick + kRepelDelayTicks;
+        if (!in_safe) {
+          --ship.bursts;
+        }
+
+        SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
+        SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
+        next_repel_tick = tick + kRepelDelayTicks;
+      }
     }
   } else if (input.IsDown(InputAction::Thor)) {
     if (TICK_GT(tick, next_bomb_tick)) {
-      if (ship.thors > 0 && !in_safe) {
+      if (ship.thors > 0) {
         self.weapon.type = WeaponType::Thor;
-        --ship.thors;
-      }
+        used_weapon = true;
 
-      used_weapon = true;
-      SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
-      SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
-      next_repel_tick = tick + kRepelDelayTicks;
+        if (!in_safe) {
+          --ship.thors;
+        }
+
+        SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
+        SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
+        next_repel_tick = tick + kRepelDelayTicks;
+      }
     }
   } else if (input.IsDown(InputAction::Decoy)) {
     if (TICK_GT(tick, next_bomb_tick)) {
-      if (ship.decoys > 0 && !in_safe) {
+      if (ship.decoys > 0) {
         self.weapon.type = WeaponType::Decoy;
-        --ship.decoys;
-      }
+        used_weapon = true;
 
-      used_weapon = true;
-      SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
-      SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
-      next_repel_tick = tick + kRepelDelayTicks;
+        if (!in_safe) {
+          --ship.decoys;
+        }
+
+        SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
+        SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
+        next_repel_tick = tick + kRepelDelayTicks;
+      }
     }
   } else if (input.IsDown(InputAction::Rocket)) {
     if (TICK_GT(tick, next_bomb_tick) && TICK_GT(tick, ship.rocket_end_tick)) {
       if (ship.rockets > 0) {
         --ship.rockets;
+
+        ship.rocket_end_tick = tick + ship_settings.RocketTime;
+
+        SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
+        SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
+        next_repel_tick = tick + kRepelDelayTicks;
       }
-
-      ship.rocket_end_tick = tick + ship_settings.RocketTime;
-
-      SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
-      SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
-      next_repel_tick = tick + kRepelDelayTicks;
     }
   } else if (input.IsDown(InputAction::Bullet) && TICK_GT(tick, next_bullet_tick)) {
     if (ship.guns > 0) {
