@@ -43,6 +43,7 @@ SpriteRenderable Graphics::empty_icon_sprites[2];
 SpriteRenderable* Graphics::icon_count_sprites = nullptr;
 
 SpriteRenderable* Graphics::exhaust_sprites = nullptr;
+SpriteRenderable* Graphics::rocket_sprites = nullptr;
 
 SpriteRenderable* Graphics::prize_sprites = nullptr;
 SpriteRenderable* Graphics::flag_sprites = nullptr;
@@ -80,6 +81,7 @@ AnimatedSprite Graphics::anim_repel;
 AnimatedSprite Graphics::anim_ship_explode;
 AnimatedSprite Graphics::anim_ship_warp;
 AnimatedSprite Graphics::anim_ship_exhaust;
+AnimatedSprite Graphics::anim_ship_rocket;
 
 AnimatedSprite Graphics::anim_prize;
 AnimatedSprite Graphics::anim_flag;
@@ -210,6 +212,11 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
   if (!exhaust_sprites) return false;
 
   CreateExhaustAnimations(exhaust_sprites, count);
+
+  rocket_sprites = LoadTileSheet(renderer, "rocket", Vector2f(24, 24), &count);
+  if (!rocket_sprites) return false;
+
+  CreateRocketAnimations(rocket_sprites, count);
 
   return true;
 }
@@ -424,9 +431,15 @@ void Graphics::CreateFlagAnimations(SpriteRenderable* renderables, int count) {
 }
 
 void Graphics::CreateExhaustAnimations(SpriteRenderable* renderables, int count) {
-  anim_ship_exhaust.duration = 0.6f;
+  anim_ship_exhaust.duration = 0.3f;
   anim_ship_exhaust.frames = renderables;
   anim_ship_exhaust.frame_count = count / 2;
+}
+
+void Graphics::CreateRocketAnimations(SpriteRenderable* renderables, int count) {
+  anim_ship_rocket.duration = 0.3f;
+  anim_ship_rocket.frames = renderables;
+  anim_ship_rocket.frame_count = count;
 }
 
 bool Graphics::InitializeTiles(SpriteRenderer& renderer) {

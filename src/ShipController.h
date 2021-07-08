@@ -19,6 +19,13 @@ struct WeaponManager;
 struct Exhaust {
   Animation animation;
   Vector2f velocity;
+
+  // Monotonically increasing index to preserve animation order
+  u32 index;
+  // How far through the animation should it stop being moved
+  float end_movement_t;
+  // How fast the animation should advance after movement
+  float end_animation_speed;
 };
 
 enum class Prize {
@@ -84,6 +91,8 @@ struct Ship {
   u32 rockets;
   u32 portals;
 
+  u32 rocket_end_tick;
+
   bool multifire;
   float emped_time;
 
@@ -98,6 +107,10 @@ struct ShipController {
   u32 next_bullet_tick = 0;
   u32 next_bomb_tick = 0;
   u32 next_repel_tick = 0;
+
+  u32 next_exhaust_index = 0;
+  u32 next_exhaust_tick = 0;
+
   size_t exhaust_count = 0;
   Exhaust exhausts[64];
 
@@ -122,6 +135,10 @@ struct ShipController {
   s32 GeneratePrize(bool negative_allowed);
 
   void OnWeaponHit(Weapon& weapon);
+
+  // Creates an exhaust and spawns it directly behind the ship.
+  Exhaust* CreateExhaust(const Vector2f& position, const Vector2f& heading, const Vector2f& velocity,
+                         float ship_radius);
 };
 
 }  // namespace null

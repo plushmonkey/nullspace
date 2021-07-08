@@ -20,6 +20,7 @@
 namespace null {
 
 constexpr u32 kRepelDelayTicks = 50;
+constexpr u32 kMaxExhaustIndex = 1024;
 
 static void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
   ShipController* controller = (ShipController*)user;
@@ -63,10 +64,12 @@ void ShipController::Update(const InputState& input, float dt) {
   Connection& connection = player_manager.connection;
   ShipSettings& ship_settings = connection.settings.ShipSettings[self->ship];
 
+  u32 tick = GetCurrentTick();
+  bool rockets_enabled = !TICK_GT(tick, ship.rocket_end_tick);
   bool afterburners = false;
   float ab_cost = (ship_settings.AfterburnerEnergy / 10.0f) * dt;
 
-  if (input.IsDown(InputAction::Afterburner) && self->energy > ab_cost) {
+  if (input.IsDown(InputAction::Afterburner) && self->energy > ab_cost && !rockets_enabled) {
     afterburners = true;
   }
 
@@ -77,12 +80,17 @@ void ShipController::Update(const InputState& input, float dt) {
   if (self->attach_parent == kInvalidPlayerId) {
     u32 thrust = afterburners ? ship_settings.MaximumThrust : ship.thrust;
 
-    if (input.IsDown(InputAction::Backward)) {
-      self->velocity -= OrientationToHeading(direction) * (thrust * (10.0f / 16.0f)) * dt;
-      thrust_backward = true;
-    } else if (input.IsDown(InputAction::Forward)) {
+    if (rockets_enabled) {
+      thrust = connection.settings.RocketThrust;
       self->velocity += OrientationToHeading(direction) * (thrust * (10.0f / 16.0f)) * dt;
-      thrust_forward = true;
+    } else {
+      if (input.IsDown(InputAction::Backward)) {
+        self->velocity -= OrientationToHeading(direction) * (thrust * (10.0f / 16.0f)) * dt;
+        thrust_backward = true;
+      } else if (input.IsDown(InputAction::Forward)) {
+        self->velocity += OrientationToHeading(direction) * (thrust * (10.0f / 16.0f)) * dt;
+        thrust_forward = true;
+      }
     }
   } else {
     Player* parent = player_manager.GetPlayerById(self->attach_parent);
@@ -125,6 +133,10 @@ void ShipController::Update(const InputState& input, float dt) {
 
   u32 speed = afterburners ? ship_settings.MaximumSpeed : ship.speed;
 
+  if (rockets_enabled) {
+    speed = connection.settings.RocketSpeed;
+  }
+
   self->velocity.Truncate(speed / 10.0f / 16.0f);
 
   if (player_manager.connection.map.GetTileId(self->position) == kTileSafeId) {
@@ -138,9 +150,11 @@ void ShipController::Update(const InputState& input, float dt) {
   for (size_t i = 0; i < exhaust_count; ++i) {
     Exhaust* exhaust = exhausts + i;
 
-    bool moving = exhaust->animation.t <= 0.3f * exhaust->animation.sprite->duration;
-    // Speed up the animation at the beginning
-    exhaust->animation.t += moving ? dt * 2.0f : dt;
+    float t = exhaust->animation.t / exhaust->animation.GetDuration();
+    bool moving = t < exhaust->end_movement_t;
+    float anim_dt = moving ? dt : (dt * exhaust->end_animation_speed);
+
+    exhaust->animation.t += anim_dt;
 
     if (!exhaust->animation.IsAnimating()) {
       exhausts[i--] = exhausts[--exhaust_count];
@@ -148,41 +162,99 @@ void ShipController::Update(const InputState& input, float dt) {
     }
 
     if (moving) {
-      exhaust->animation.position += exhaust->velocity * dt;
+      // Slow the velocity down the longer the exhaust instance is active so the end particles build up.
+      Vector2f velocity = exhaust->velocity * (1.0f - t * 2.0f) * 16.0f;
+      exhaust->animation.position += velocity * dt;
     }
   }
 
-  static u32 last_tick = 0;
-  u32 tick = GetCurrentTick();
+  constexpr u32 kExhaustTickInterval = 6;
 
-  if ((thrust_forward || thrust_backward) && TICK_DIFF(tick, last_tick) >= 6) {
+  if (TICK_GT(tick, next_exhaust_tick)) {
     Connection& connection = player_manager.connection;
     ShipSettings& ship_settings = connection.settings.ShipSettings[self->ship];
-
-    Vector2f exhaust_pos = self->position - Graphics::anim_ship_exhaust.frames[0].dimensions * (0.5f / 16.0f);
     Vector2f heading = OrientationToHeading((u8)(self->orientation * 40.0f));
 
-    float velocity_strength = 12.0f;
-    Vector2f velocity = (thrust_forward ? -heading : heading) * velocity_strength;
+    if (!TICK_GT(tick, ship.rocket_end_tick)) {
+      Vector2f exhaust_pos = self->position - Graphics::anim_ship_rocket.frames[0].dimensions * (0.5f / 16.0f);
+      Vector2f velocity = -heading * 0.6f;
 
-    Exhaust* exhaust_r = exhausts + exhaust_count++;
-    assert(exhaust_count + 1 < NULLSPACE_ARRAY_SIZE(exhausts));
+      Exhaust* exhaust_m = CreateExhaust(exhaust_pos, heading, velocity, ship_settings.GetRadius());
+      Exhaust* exhaust_l = CreateExhaust(exhaust_pos, heading, velocity, ship_settings.GetRadius());
+      Exhaust* exhaust_r = CreateExhaust(exhaust_pos, heading, velocity, ship_settings.GetRadius());
 
-    exhaust_r->animation.t = 0.0f;
-    exhaust_r->animation.position = (exhaust_pos + Perpendicular(heading) * 0.2f) - heading * ship_settings.GetRadius();
-    exhaust_r->animation.sprite = &Graphics::anim_ship_exhaust;
-    exhaust_r->velocity = velocity;
-    exhaust_r->velocity += Perpendicular(heading) * (velocity_strength * 0.2f);
+      constexpr float kRocketHeadingVelocitySpread = 0.3f;
+      constexpr float kRocketEndMovement = 0.5f;
+      constexpr float kRocketEndAnimationSpeed = 0.25f;
 
-    Exhaust* exhaust_l = exhausts + exhaust_count++;
-    exhaust_l->animation.t = 0.0f;
-    exhaust_l->animation.position = (exhaust_pos - Perpendicular(heading) * 0.2f) - heading * ship_settings.GetRadius();
-    exhaust_l->animation.sprite = &Graphics::anim_ship_exhaust;
-    exhaust_l->velocity = velocity;
-    exhaust_l->velocity -= Perpendicular(heading) * (velocity_strength * 0.2f);
+      if (exhaust_r) {
+        exhaust_r->animation.position += velocity * 0.2f;
+        exhaust_r->animation.position += Perpendicular(heading) * 0.3f;
+        exhaust_r->velocity = Normalize(exhaust_r->velocity + Perpendicular(heading) * kRocketHeadingVelocitySpread);
 
-    last_tick = tick;
+        exhaust_r->animation.sprite = &Graphics::anim_ship_rocket;
+        exhaust_r->end_movement_t = kRocketEndMovement;
+        exhaust_r->end_animation_speed = kRocketEndAnimationSpeed;
+      }
+
+      if (exhaust_m) {
+        exhaust_m->animation.position += velocity * 0.3f;
+        exhaust_m->animation.sprite = &Graphics::anim_ship_rocket;
+        exhaust_m->end_movement_t = kRocketEndMovement;
+        exhaust_m->end_animation_speed = kRocketEndAnimationSpeed;
+      }
+
+      if (exhaust_l) {
+        exhaust_l->animation.position += velocity * 0.2f;
+        exhaust_l->animation.position -= Perpendicular(heading) * 0.3f;
+        exhaust_l->velocity = Normalize(exhaust_l->velocity - Perpendicular(heading) * kRocketHeadingVelocitySpread);
+        exhaust_l->animation.sprite = &Graphics::anim_ship_rocket;
+        exhaust_l->end_movement_t = kRocketEndMovement;
+        exhaust_l->end_animation_speed = kRocketEndAnimationSpeed;
+      }
+    } else if (thrust_forward || thrust_backward) {
+      Vector2f exhaust_pos = self->position - Graphics::anim_ship_exhaust.frames[0].dimensions * (0.5f / 16.0f);
+      Vector2f velocity = (thrust_forward ? -heading : heading) * 0.75f;
+
+      Exhaust* exhaust_r = CreateExhaust(exhaust_pos, heading, velocity, ship_settings.GetRadius());
+      Exhaust* exhaust_l = CreateExhaust(exhaust_pos, heading, velocity, ship_settings.GetRadius());
+
+      if (exhaust_r) {
+        exhaust_r->animation.position += Perpendicular(heading) * 0.2f;
+        exhaust_r->velocity += Perpendicular(heading) * 0.2f;
+      }
+
+      if (exhaust_l) {
+        exhaust_l->animation.position -= Perpendicular(heading) * 0.2f;
+        exhaust_l->velocity -= Perpendicular(heading) * 0.2f;
+      }
+    }
+
+    next_exhaust_tick = tick + kExhaustTickInterval;
   }
+}
+
+Exhaust* ShipController::CreateExhaust(const Vector2f& position, const Vector2f& heading, const Vector2f& velocity,
+                                       float ship_radius) {
+  Exhaust* exhaust = exhausts + exhaust_count++;
+
+  assert(exhaust_count + 1 < NULLSPACE_ARRAY_SIZE(exhausts));
+
+  if (exhaust_count + 1 >= NULLSPACE_ARRAY_SIZE(exhausts)) return nullptr;
+
+  exhaust->animation.t = 0.0f;
+  exhaust->animation.position = position - heading * ship_radius;
+  exhaust->animation.sprite = &Graphics::anim_ship_exhaust;
+  exhaust->velocity = velocity;
+  exhaust->index = next_exhaust_index++;
+  exhaust->end_movement_t = 0.5f;
+  exhaust->end_animation_speed = 0.5f;
+
+  if (next_exhaust_index >= kMaxExhaustIndex) {
+    next_exhaust_index = 0;
+  }
+
+  return exhaust;
 }
 
 inline void SetNextTick(u32* target, u32 next_tick) {
@@ -247,6 +319,18 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       }
 
       used_weapon = true;
+      SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
+      SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
+      next_repel_tick = tick + kRepelDelayTicks;
+    }
+  } else if (input.IsDown(InputAction::Rocket)) {
+    if (TICK_GT(tick, next_bomb_tick) && TICK_GT(tick, ship.rocket_end_tick)) {
+      if (ship.rockets > 0) {
+        --ship.rockets;
+      }
+
+      ship.rocket_end_tick = tick + ship_settings.RocketTime;
+
       SetNextTick(&next_bomb_tick, tick + ship_settings.BombFireDelay);
       SetNextTick(&next_bullet_tick, tick + ship_settings.BombFireDelay);
       next_repel_tick = tick + kRepelDelayTicks;
@@ -393,7 +477,10 @@ void ShipController::Render(Camera& ui_camera, Camera& camera, SpriteRenderer& r
   for (size_t i = 0; i < exhaust_count; ++i) {
     Exhaust* exhaust = exhausts + i;
 
-    renderer.Draw(camera, exhaust->animation.GetFrame(), exhaust->animation.position, Layer::AfterWeapons);
+    float z_offset = (exhaust->index / (float)kMaxExhaustIndex);
+    assert(z_offset < 1.0f);
+    float z = (float)Layer::AfterWeapons + z_offset;
+    renderer.Draw(camera, exhaust->animation.GetFrame(), Vector3f(exhaust->animation.position, z));
   }
 
   renderer.Render(camera);
@@ -1133,6 +1220,7 @@ void ShipController::ResetShip() {
   ship.capability = 0;
   ship.emped_time = 0.0f;
   ship.multifire = false;
+  ship.rocket_end_tick = 0;
 
   this->next_bomb_tick = this->next_bullet_tick = this->next_repel_tick = 0;
 

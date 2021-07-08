@@ -47,6 +47,7 @@ struct Graphics {
   static SpriteRenderable* icon_count_sprites;
 
   static SpriteRenderable* exhaust_sprites;
+  static SpriteRenderable* rocket_sprites;
 
   static SpriteRenderable* prize_sprites;
   static SpriteRenderable* flag_sprites;
@@ -84,6 +85,7 @@ struct Graphics {
   static AnimatedSprite anim_ship_explode;
   static AnimatedSprite anim_ship_warp;
   static AnimatedSprite anim_ship_exhaust;
+  static AnimatedSprite anim_ship_rocket;
 
   static AnimatedSprite anim_prize;
   static AnimatedSprite anim_flag;
@@ -111,6 +113,7 @@ struct Graphics {
   static void CreatePrizeAnimations(SpriteRenderable* renderables, int count);
   static void CreateFlagAnimations(SpriteRenderable* renderables, int count);
   static void CreateExhaustAnimations(SpriteRenderable* renderables, int count);
+  static void CreateRocketAnimations(SpriteRenderable* renderables, int count);
 
   static inline SpriteRenderable GetColor(ColorType type) { return colors.GetRenderable(type); }
   static inline SpriteRenderable GetColor(ColorType type, const Vector2f& dimensions) {
