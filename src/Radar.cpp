@@ -124,6 +124,7 @@ void Radar::RenderDecoy(Camera& ui_camera, SpriteRenderer& renderer, Player& sel
 
   if (ctx.team_freq == player.frequency) {
     renderable.color = ColorType::RadarTeamDecoy;
+    renderable.dim = Vector2f(2, 2);
   }
 
   RenderIndicator(ui_camera, renderer, position, renderable);
