@@ -20,6 +20,7 @@ enum class ColorType {
   Tile = 18,
   Safe = 19,
   RadarPrize = 23,
+  RadarPortal = 25,
   RadarTeamFlag = 26,
   RadarSelf = 27,
   RadarTeam = 29,

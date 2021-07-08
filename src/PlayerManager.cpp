@@ -279,7 +279,17 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
   if (!IsPlayerVisible(self, self_freq, player)) return;
 
   if (player.enter_delay <= 0.0f) {
-    size_t index = player.ship * 40 + (u8)(player.orientation * 40.0f);
+    size_t render_ship = player.ship;
+
+    if (player.attach_parent != kInvalidPlayerId) {
+      Player* parent = GetPlayerById(player.attach_parent);
+
+      if (parent && parent->ship != 8) {
+        render_ship = parent->ship;
+      }
+    }
+
+    size_t index = render_ship * 40 + (u8)(player.orientation * 40.0f);
     Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
 
     offset = offset.PixelRounded();

@@ -6,6 +6,7 @@
 #include "ArenaSettings.h"
 #include "InputState.h"
 #include "PlayerManager.h"
+#include "Radar.h"
 #include "Random.h"
 #include "Settings.h"
 #include "Tick.h"
@@ -581,6 +582,22 @@ void ShipController::Render(Camera& ui_camera, Camera& camera, SpriteRenderer& r
     Vector2f position = ship.portal_location - renderable.dimensions * (0.5f / 16.0f);
 
     renderer.Draw(camera, renderable, position, Layer::AfterWeapons);
+
+    // Speed up time so the calculation advances faster then take the fractional part as the spinner
+    float base_time = ship.portal_time * 1.5f;
+    float t = (base_time - (u32)base_time);
+
+    if (t < 0.25f) {
+      position += Vector2f(0, 1);
+    } else if (t < 0.5f) {
+      position += Vector2f(1, 1);
+    } else if (t < 0.75f) {
+      position += Vector2f(1, 0);
+    } else {
+      // Do nothing, show portal in top left position
+    }
+
+    weapon_manager.radar->AddTemporaryIndicator(position, 0, Vector2f(1, 1), ColorType::RadarPortal);
   }
 
   renderer.Render(camera);

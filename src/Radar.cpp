@@ -132,13 +132,27 @@ void Radar::RenderDecoy(Camera& ui_camera, SpriteRenderer& renderer, Player& sel
 
 void Radar::RenderPlayer(Camera& ui_camera, SpriteRenderer& renderer, Player& self, Player& player) {
   if (player.ship >= 8) return;
+  if (player.attach_parent != kInvalidPlayerId) return;
 
   bool visible =
       !(player.togglables & Status_Stealth) || self.togglables & Status_XRadar || player.frequency == ctx.team_freq;
 
-  if (!visible) {
-    return;
+  if (!visible && player.children != nullptr) {
+    AttachInfo* info = player.children;
+
+    // Loop through attached children and find any that don't have stealth
+    while (info && !visible) {
+      Player* child = player_manager.GetPlayerById(info->player_id);
+
+      if (child) {
+        visible = !(child->togglables & Status_Stealth);
+      }
+
+      info = info->next;
+    }
   }
+
+  if (!visible) return;
 
   IndicatorRenderable renderable = GetIndicator(self, player);
 
