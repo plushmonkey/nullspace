@@ -98,6 +98,7 @@ struct Game {
 
   bool Update(const InputState& input, float dt);
   void UpdateGreens(float dt);
+  void SpawnDeathGreen(const Vector2f& position, Prize prize);
 
   void Render(float dt);
 

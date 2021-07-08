@@ -72,7 +72,7 @@ struct PlayerManager {
   void RenderPlayerName(Camera& camera, SpriteRenderer& renderer, Player& self, Player& player,
                         const Vector2f& position, bool is_decoy);
 
-  void Spawn();
+  void Spawn(bool reset = true);
 
   Player* GetSelf();
   Player* GetPlayerById(u16 id, size_t* index = nullptr);

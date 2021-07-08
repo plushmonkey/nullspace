@@ -68,6 +68,9 @@ enum class AudioType {
   Flag,
   Bounce,
 
+  Portal,
+  Warp,
+
   Count
 };
 constexpr size_t kAudioTypeCount = (size_t)AudioType::Count;

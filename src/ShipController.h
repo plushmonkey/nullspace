@@ -91,7 +91,14 @@ struct Ship {
   u32 rockets;
   u32 portals;
 
+  u32 next_bullet_tick = 0;
+  u32 next_bomb_tick = 0;
+  u32 next_repel_tick = 0;
+
   u32 rocket_end_tick;
+
+  float portal_time;
+  Vector2f portal_location;
 
   bool multifire;
   float emped_time;
@@ -104,9 +111,8 @@ struct ShipController {
   WeaponManager& weapon_manager;
   NotificationSystem& notifications_;
   Ship ship;
-  u32 next_bullet_tick = 0;
-  u32 next_bomb_tick = 0;
-  u32 next_repel_tick = 0;
+
+  Animation portal_animation;
 
   u32 next_exhaust_index = 0;
   u32 next_exhaust_tick = 0;
@@ -118,7 +124,11 @@ struct ShipController {
                  NotificationSystem& notifications);
 
   void Update(const InputState& input, float dt);
+  void UpdatePortal(float dt);
+  void UpdateExhaust(Player& self, bool thrust_forward, bool thrust_backward, float dt);
+
   void FireWeapons(Player& self, const InputState& input, float dt);
+  void HandleStatusEnergy(Player& self, u32 status, u32 cost, float dt);
 
   void Render(Camera& ui_camera, Camera& camera, SpriteRenderer& renderer);
   void RenderIndicators(Camera& ui_camera, SpriteRenderer& renderer);

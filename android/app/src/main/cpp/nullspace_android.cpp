@@ -51,6 +51,7 @@ GameSettings g_Settings;
 void InitializeSettings() {
     g_Settings.vsync = true;
     g_Settings.window_type = WindowType::Windowed;
+    g_Settings.render_stars = true;
 
     g_Settings.encrypt_method = EncryptMethod::Subspace;
 

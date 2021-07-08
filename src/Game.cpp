@@ -161,6 +161,26 @@ static void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
   }
 }
 
+static void OnPlayerDeathPkt(void* user, u8* pkt, size_t size) {
+  NetworkBuffer buffer(pkt, size, size);
+
+  buffer.ReadU8();
+
+  u8 green_id = buffer.ReadU8();
+  u16 killer_id = buffer.ReadU16();
+  u16 killed_id = buffer.ReadU16();
+
+  Game* game = (Game*)user;
+
+  Player* killed = game->player_manager.GetPlayerById(killed_id);
+  Player* killer = game->player_manager.GetPlayerById(killer_id);
+
+  // Only spawn greens if they are positive and the killed player has moved.
+  if (green_id > 0 && killer && killed && killed->velocity != Vector2f(0, 0)) {
+    game->SpawnDeathGreen(killed->position, (Prize)green_id);
+  }
+}
+
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_queue, int width, int height)
     : perm_arena(perm_arena),
       temp_arena(temp_arena),
@@ -191,6 +211,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
   dispatcher.Register(ProtocolS2C::ArenaSettings, OnArenaSettings, this);
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
   dispatcher.Register(ProtocolS2C::TurfFlagUpdate, OnTurfFlagUpdatePkt, this);
+  dispatcher.Register(ProtocolS2C::PlayerDeath, OnPlayerDeathPkt, this);
 
   player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications, &specview, &banner_pool);
   weapon_manager.Initialize(&ship_controller, &radar);
@@ -213,7 +234,7 @@ bool Game::Initialize(InputState& input) {
     return false;
   }
 
-  if (!background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
+  if (g_Settings.render_stars && !background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
     log_error("Failed to initialize background renderer.\n");
     return false;
   }
@@ -354,29 +375,30 @@ void Game::UpdateGreens(float dt) {
     for (size_t i = 0; i < player_manager.player_count; ++i) {
       Player* player = player_manager.players + i;
 
-      if (player->ship != 8) {
-        float radius = connection.settings.ShipSettings[player->ship].GetRadius();
+      if (player->ship == 8) continue;
+      if (player->enter_delay > 0) continue;
 
-        Vector2f pmin = player->position - Vector2f(radius, radius);
-        Vector2f pmax = player->position + Vector2f(radius, radius);
+      float radius = connection.settings.ShipSettings[player->ship].GetRadius();
 
-        for (size_t j = 0; j < green_count; ++j) {
-          PrizeGreen* green = greens + j;
+      Vector2f pmin = player->position - Vector2f(radius, radius);
+      Vector2f pmax = player->position + Vector2f(radius, radius);
 
-          Vector2f gmin = green->position;
-          Vector2f gmax = gmin + Vector2f(1, 1);
+      for (size_t j = 0; j < green_count; ++j) {
+        PrizeGreen* green = greens + j;
 
-          if (green->end_tick > 0 && BoxBoxIntersect(pmin, pmax, gmin, gmax)) {
-            if (player == self) {
-              // Pick up green
-              sound_system.Play(AudioType::Prize);
-              ship_controller.ApplyPrize(self, green->prize_id, true);
-              connection.SendTakeGreen((u16)green->position.x, (u16)green->position.y, green->prize_id);
-            }
+        Vector2f gmin = green->position;
+        Vector2f gmax = gmin + Vector2f(1, 1);
 
-            // Set the end tick to zero so it gets automatically removed next update
-            green->end_tick = 0;
+        if (green->end_tick > 0 && BoxBoxIntersect(pmin, pmax, gmin, gmax)) {
+          if (player == self) {
+            // Pick up green
+            sound_system.Play(AudioType::Prize);
+            ship_controller.ApplyPrize(self, green->prize_id, true);
+            connection.SendTakeGreen((u16)green->position.x, (u16)green->position.y, green->prize_id);
           }
+
+          // Set the end tick to zero so it gets automatically removed next update
+          green->end_tick = 0;
         }
       }
     }
@@ -411,14 +433,19 @@ void Game::UpdateGreens(float dt) {
     spawn_extent = 1024;
   }
 
+  // TODO: Check rng usage to see if it stays in sync with Continuum
   for (s32 i = 0; i < update_count; ++i) {
-    VieRNG rng = {(s32)connection.security.prize_seed};
-
     for (s32 j = 0; j < connection.settings.PrizeHideCount; ++j) {
+      VieRNG rng = {(s32)connection.security.prize_seed};
+
       u16 x = (u16)((rng.GetNext() % (spawn_extent - 2)) + 1 + ((1024 - spawn_extent) / 2));
       u16 y = (u16)((rng.GetNext() % (spawn_extent - 2)) + 1 + ((1024 - spawn_extent) / 2));
 
+      connection.security.prize_seed = rng.seed;
+
       s32 prize_id = ship_controller.GeneratePrize(true);
+
+      rng.seed = (s32)connection.security.prize_seed;
 
       u32 duration_rng = rng.GetNext();
 
@@ -434,11 +461,21 @@ void Game::UpdateGreens(float dt) {
 
         u32 duration = (duration_rng % (exist_diff + 1)) + connection.settings.PrizeMinExist;
         green->end_tick = tick + duration;
+
+        connection.security.prize_seed = rng.seed;
       }
     }
-
-    connection.security.prize_seed = rng.seed;
   }
+}
+
+void Game::SpawnDeathGreen(const Vector2f& position, Prize prize) {
+  if (green_count >= kMaxGreenCount) return;
+
+  PrizeGreen* green = greens + green_count++;
+
+  green->position = position;
+  green->prize_id = (s32)prize;
+  green->end_tick = GetCurrentTick() + connection.settings.DeathPrizeTime;
 }
 
 void Game::Render(float dt) {
@@ -465,7 +502,10 @@ void Game::Render(float dt) {
 }
 
 void Game::RenderGame(float dt) {
-  background_renderer.Render(camera, sprite_renderer, ui_camera.surface_dim);
+  if (g_Settings.render_stars) {
+    background_renderer.Render(camera, sprite_renderer, ui_camera.surface_dim);
+  }
+
   tile_renderer.Render(camera);
 
   Player* self = player_manager.GetSelf();

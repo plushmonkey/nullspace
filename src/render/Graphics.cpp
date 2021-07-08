@@ -37,6 +37,7 @@ SpriteRenderable* Graphics::bullet_sprites = nullptr;
 SpriteRenderable* Graphics::bullet_trail_sprites = nullptr;
 
 SpriteRenderable* Graphics::repel_sprites = nullptr;
+SpriteRenderable* Graphics::portal_sprites = nullptr;
 
 SpriteRenderable* Graphics::icon_sprites = nullptr;
 SpriteRenderable Graphics::empty_icon_sprites[2];
@@ -77,6 +78,7 @@ AnimatedSprite Graphics::anim_burst_inactive;
 AnimatedSprite Graphics::anim_burst_active;
 
 AnimatedSprite Graphics::anim_repel;
+AnimatedSprite Graphics::anim_portal;
 
 AnimatedSprite Graphics::anim_ship_explode;
 AnimatedSprite Graphics::anim_ship_warp;
@@ -329,6 +331,13 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   if (!repel_sprites) return false;
 
   CreateRepelAnimations(repel_sprites, count);
+
+  portal_sprites = LoadTileSheet(renderer, "warppnt", Vector2f(16, 16), &count);
+  if (!portal_sprites) return false;
+
+  anim_portal.duration = 1.0f;
+  anim_portal.frames = portal_sprites;
+  anim_portal.frame_count = count;
 
   return true;
 }

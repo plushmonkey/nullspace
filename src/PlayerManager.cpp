@@ -556,6 +556,8 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
 
     DetachPlayer(*killed);
     DetachAllChildren(*killed);
+
+    weapon_manager->PlayPositionalSound(AudioType::Explode1, killed->position);
   }
 
   if (killer) {
@@ -573,7 +575,7 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
   }
 }
 
-void PlayerManager::Spawn() {
+void PlayerManager::Spawn(bool reset) {
   Player* self = GetSelf();
 
   if (!self) return;
@@ -637,7 +639,10 @@ void PlayerManager::Spawn() {
     }
   }
 
-  ship_controller->ResetShip();
+  if (reset) {
+    ship_controller->ResetShip();
+  }
+
   self->togglables |= Status_Flash;
   SendPositionPacket();
 }

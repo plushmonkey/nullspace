@@ -11,6 +11,7 @@ enum class WindowType { Windowed, Fullscreen, BorderlessFullscreen };
 struct GameSettings {
   bool vsync;
   WindowType window_type;
+  bool render_stars;
 
   EncryptMethod encrypt_method;
 
