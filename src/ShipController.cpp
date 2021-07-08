@@ -388,13 +388,15 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       }
     }
   } else if (input.IsDown(InputAction::Portal)) {
-    if (ship.portals > 0) {
+    float portal_time = connection.settings.WarpPointDelay / 100.0f;
+
+    if (ship.portals > 0 && (portal_time - ship.portal_time) >= 0.5f) {
       --ship.portals;
 
       portal_animation.sprite = &Graphics::anim_portal;
       portal_animation.t = 0.0f;
 
-      ship.portal_time = connection.settings.WarpPointDelay / 100.0f;
+      ship.portal_time = portal_time;
       ship.portal_location = self.position;
 
       player_manager.sound_system.Play(AudioType::Portal);
