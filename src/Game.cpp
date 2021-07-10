@@ -181,6 +181,13 @@ static void OnPlayerDeathPkt(void* user, u8* pkt, size_t size) {
   }
 }
 
+static void OnSecurityRequestPkt(void* user, u8* pkt, size_t size) {
+  Game* game = (Game*)user;
+
+  // Reset green timer so it can synchronize with other clients
+  game->green_ticks = 0;
+}
+
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_queue, int width, int height)
     : perm_arena(perm_arena),
       temp_arena(temp_arena),
@@ -212,6 +219,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
   dispatcher.Register(ProtocolS2C::TurfFlagUpdate, OnTurfFlagUpdatePkt, this);
   dispatcher.Register(ProtocolS2C::PlayerDeath, OnPlayerDeathPkt, this);
+  dispatcher.Register(ProtocolS2C::Security, OnSecurityRequestPkt, this);
 
   player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications, &specview, &banner_pool);
   weapon_manager.Initialize(&ship_controller, &radar);
@@ -359,14 +367,6 @@ bool Game::Update(const InputState& input, float dt) {
 void Game::UpdateGreens(float dt) {
   u32 tick = GetCurrentTick();
 
-  for (size_t i = 0; i < green_count; ++i) {
-    PrizeGreen* green = greens + i;
-
-    if (tick >= green->end_tick) {
-      greens[i--] = greens[--green_count];
-    }
-  }
-
   if (TICK_GT(tick, last_green_collision_tick)) {
     Player* self = player_manager.GetSelf();
 
@@ -406,19 +406,18 @@ void Game::UpdateGreens(float dt) {
     last_green_collision_tick = tick;
   }
 
+  for (size_t i = 0; i < green_count; ++i) {
+    PrizeGreen* green = greens + i;
+
+    if (tick > green->end_tick) {
+      greens[i--] = greens[--green_count];
+    }
+  }
+
   if (connection.security.prize_seed == 0) return;
 
   s32 tick_count = TICK_DIFF(tick, last_green_tick);
-
-  if (tick_count < connection.settings.PrizeDelay) return;
-
-  s32 update_count = 1;
-
-  if (connection.settings.PrizeDelay > 0) {
-    update_count = tick_count / connection.settings.PrizeDelay;
-  }
-
-  last_green_tick = tick;
+  if (tick_count <= 0) return;
 
   size_t max_greens = (connection.settings.PrizeFactor * player_manager.player_count) / 1000;
   if (max_greens > NULLSPACE_ARRAY_SIZE(greens)) {
@@ -427,44 +426,50 @@ void Game::UpdateGreens(float dt) {
 
   u16 spawn_extent =
       connection.settings.MinimumVirtual + connection.settings.UpgradeVirtual * (u16)player_manager.player_count;
+
   if (spawn_extent < 3) {
     spawn_extent = 3;
   } else if (spawn_extent > 1024) {
     spawn_extent = 1024;
   }
 
-  // TODO: Check rng usage to see if it stays in sync with Continuum
-  for (s32 i = 0; i < update_count; ++i) {
-    for (s32 j = 0; j < connection.settings.PrizeHideCount; ++j) {
-      VieRNG rng = {(s32)connection.security.prize_seed};
+  for (s32 i = 0; i < tick_count; ++i) {
+    if (++green_ticks >= (u32)connection.settings.PrizeDelay) {
+      for (s32 j = 0; j < connection.settings.PrizeHideCount; ++j) {
+        VieRNG rng = {(s32)connection.security.prize_seed};
 
-      u16 x = (u16)((rng.GetNext() % (spawn_extent - 2)) + 1 + ((1024 - spawn_extent) / 2));
-      u16 y = (u16)((rng.GetNext() % (spawn_extent - 2)) + 1 + ((1024 - spawn_extent) / 2));
-
-      connection.security.prize_seed = rng.seed;
-
-      s32 prize_id = ship_controller.GeneratePrize(true);
-
-      rng.seed = (s32)connection.security.prize_seed;
-
-      u32 duration_rng = rng.GetNext();
-
-      // Insert prize if it's valid and in an empty map space
-      if (prize_id != 0 && green_count < max_greens && connection.map.GetTileId(x, y) == 0) {
-        PrizeGreen* green = greens + green_count++;
-
-        green->position.x = (float)x;
-        green->position.y = (float)y;
-        green->prize_id = prize_id;
-
-        s16 exist_diff = (connection.settings.PrizeMaxExist - connection.settings.PrizeMinExist);
-
-        u32 duration = (duration_rng % (exist_diff + 1)) + connection.settings.PrizeMinExist;
-        green->end_tick = tick + duration;
+        u16 x = (u16)((rng.GetNext() % (spawn_extent - 2)) + 1 + ((1024 - spawn_extent) / 2));
+        u16 y = (u16)((rng.GetNext() % (spawn_extent - 2)) + 1 + ((1024 - spawn_extent) / 2));
 
         connection.security.prize_seed = rng.seed;
+
+        s32 prize_id = ship_controller.GeneratePrize(true);
+
+        rng.seed = (s32)connection.security.prize_seed;
+
+        u32 duration_rng = rng.GetNext();
+
+        connection.security.prize_seed = rng.seed;
+
+        // Insert prize if it's valid and in an empty map space
+        if (prize_id != 0 && green_count < max_greens && connection.map.GetTileId(x, y) == 0) {
+          PrizeGreen* green = greens + green_count++;
+
+          green->position.x = (float)x;
+          green->position.y = (float)y;
+          green->prize_id = prize_id;
+
+          s16 exist_diff = (connection.settings.PrizeMaxExist - connection.settings.PrizeMinExist);
+
+          u32 duration = (duration_rng % (exist_diff + 1)) + connection.settings.PrizeMinExist;
+          green->end_tick = tick + duration;
+        }
       }
+
+      green_ticks = 0;
     }
+
+    last_green_tick = tick;
   }
 }
 

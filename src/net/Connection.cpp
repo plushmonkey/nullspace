@@ -488,6 +488,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
       case ProtocolS2C::PlayerBannerChange: {
       } break;
+      case ProtocolS2C::CollectedPrize: {
+      } break;
       case ProtocolS2C::BrickDropped: {
       } break;
       case ProtocolS2C::TurfFlagUpdate: {
@@ -516,6 +518,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       case ProtocolS2C::CompressedMap: {
       } break;
       case ProtocolS2C::PowerballPosition: {
+      } break;
+      case ProtocolS2C::PostLogin: {
       } break;
       case ProtocolS2C::Version: {
         u16 version = buffer.ReadU16();

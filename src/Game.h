@@ -88,6 +88,7 @@ struct Game {
   // Current max green count is min((PrizeFactor * player_count) / 1000, 256)
   size_t green_count = 0;
   PrizeGreen greens[kMaxGreenCount];
+  u32 green_ticks = 0;
   u32 last_green_tick = 0;
   u32 last_green_collision_tick = 0;
 
