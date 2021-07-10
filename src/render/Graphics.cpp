@@ -290,17 +290,7 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   mine_sprites = LoadTileSheet(renderer, "mines", Vector2f(16, 16), &count);
   if (!mine_sprites) return false;
 
-  for (size_t i = 0; i < 4; ++i) {
-    anim_mines[i].frames = mine_sprites + i * 10;
-    anim_mines[i].frame_count = 10;
-    anim_mines[i].duration = kMineAnimDuration;
-  }
-
-  for (size_t i = 0; i < 4; ++i) {
-    anim_emp_mines[i].frames = mine_sprites + i * 10 + 40;
-    anim_emp_mines[i].frame_count = 10;
-    anim_emp_mines[i].duration = kMineAnimDuration;
-  }
+  CreateMineAnimations(mine_sprites, count);
 
   shrapnel_sprites = LoadTileSheet(renderer, "shrapnel", Vector2f(8, 8), &count);
   if (!shrapnel_sprites) return false;
@@ -335,11 +325,15 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   portal_sprites = LoadTileSheet(renderer, "warppnt", Vector2f(16, 16), &count);
   if (!portal_sprites) return false;
 
+  CreatePortalAnimations(portal_sprites, count);
+
+  return true;
+}
+
+void Graphics::CreatePortalAnimations(SpriteRenderable* renderables, int count) {
   anim_portal.duration = 1.0f;
   anim_portal.frames = portal_sprites;
   anim_portal.frame_count = count;
-
-  return true;
 }
 
 void Graphics::CreateBombAnimations(SpriteRenderable* renderables, int count) {
@@ -364,6 +358,20 @@ void Graphics::CreateBombAnimations(SpriteRenderable* renderables, int count) {
   anim_thor.frames = renderables + 120;
   anim_thor.frame_count = 10;
   anim_thor.duration = kBombAnimDuration;
+}
+
+void Graphics::CreateMineAnimations(SpriteRenderable* renderables, int count) {
+  for (size_t i = 0; i < 4; ++i) {
+    anim_mines[i].frames = mine_sprites + i * 10;
+    anim_mines[i].frame_count = 10;
+    anim_mines[i].duration = kMineAnimDuration;
+  }
+
+  for (size_t i = 0; i < 4; ++i) {
+    anim_emp_mines[i].frames = mine_sprites + i * 10 + 40;
+    anim_emp_mines[i].frame_count = 10;
+    anim_emp_mines[i].duration = kMineAnimDuration;
+  }
 }
 
 void Graphics::CreateBombTrailAnimations(SpriteRenderable* renderables, int count) {

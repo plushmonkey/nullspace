@@ -106,6 +106,7 @@ struct Graphics {
                          const Vector2f& half_extents);
 
   static void CreateBombAnimations(SpriteRenderable* renderables, int count);
+  static void CreateMineAnimations(SpriteRenderable* renderables, int count);
   static void CreateBombTrailAnimations(SpriteRenderable* renderables, int count);
   static void CreateBombExplodeAnimations(SpriteRenderable* renderables, int count);
   static void CreateEmpExplodeAnimations(SpriteRenderable* renderables, int count);
@@ -116,6 +117,7 @@ struct Graphics {
   static void CreateFlagAnimations(SpriteRenderable* renderables, int count);
   static void CreateExhaustAnimations(SpriteRenderable* renderables, int count);
   static void CreateRocketAnimations(SpriteRenderable* renderables, int count);
+  static void CreatePortalAnimations(SpriteRenderable* renderables, int count);
 
   static inline SpriteRenderable GetColor(ColorType type) { return colors.GetRenderable(type); }
   static inline SpriteRenderable GetColor(ColorType type, const Vector2f& dimensions) {

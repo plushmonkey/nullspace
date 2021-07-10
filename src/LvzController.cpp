@@ -37,12 +37,16 @@ enum OverwriteFlag {
   Overwrite_Ship7,
   Overwrite_Ship8,
   Overwrite_Bombs,
+  Overwrite_Mines,
   Overwrite_BombTrails,
   Overwrite_Repel,
   Overwrite_Explode2,
   Overwrite_EmpBurst,
   Overwrite_Flag,
   Overwrite_Prizes,
+  Overwrite_Exhaust,
+  Overwrite_Rocket,
+  Overwrite_Portal,
 };
 
 struct ObjectImageList {
@@ -637,6 +641,21 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
       Graphics::CreateBombAnimations(Graphics::bomb_sprites, count);
       ImageFree(image_data);
     }
+  } else if ((overwrite & (1 << Overwrite_Mines)) == 0 && null_stricmp(extension_free, "mines") == 0) {
+    overwrite |= (1 << Overwrite_Mines);
+    renderer.FreeSheet(Graphics::mine_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      Vector2f dim(width / 10.0f, width / 10.0f);
+      Graphics::mine_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreateMineAnimations(Graphics::mine_sprites, count);
+      ImageFree(image_data);
+    }
   } else if ((overwrite & (1 << Overwrite_BombTrails)) == 0 && null_stricmp(extension_free, "trail") == 0) {
     overwrite |= (1 << Overwrite_BombTrails);
     renderer.FreeSheet(Graphics::bomb_trail_sprites[0].texture);
@@ -730,6 +749,51 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
       Vector2f dim(dim_x, dim_x);
       Graphics::prize_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
       Graphics::CreatePrizeAnimations(Graphics::prize_sprites, count);
+      ImageFree(image_data);
+    }
+  } else if ((overwrite & (1 << Overwrite_Exhaust)) == 0 && null_stricmp(extension_free, "exhaust") == 0) {
+    overwrite |= (1 << Overwrite_Exhaust);
+    renderer.FreeSheet(Graphics::exhaust_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      Vector2f dim(16.0f, 16.0f);
+      Graphics::exhaust_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreateExhaustAnimations(Graphics::exhaust_sprites, count);
+      ImageFree(image_data);
+    }
+  } else if ((overwrite & (1 << Overwrite_Rocket)) == 0 && null_stricmp(extension_free, "rocket") == 0) {
+    overwrite |= (1 << Overwrite_Rocket);
+    renderer.FreeSheet(Graphics::rocket_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      Vector2f dim(24.0f, 24.0f);
+      Graphics::rocket_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreateRocketAnimations(Graphics::rocket_sprites, count);
+      ImageFree(image_data);
+    }
+  } else if ((overwrite & (1 << Overwrite_Portal)) == 0 && null_stricmp(extension_free, "warppnt") == 0) {
+    overwrite |= (1 << Overwrite_Portal);
+    renderer.FreeSheet(Graphics::portal_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      Vector2f dim(16.0f, 16.0f);
+      Graphics::portal_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreatePortalAnimations(Graphics::portal_sprites, count);
       ImageFree(image_data);
     }
   }
