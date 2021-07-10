@@ -591,60 +591,102 @@ void PlayerManager::Spawn(bool reset) {
   if (!self) return;
 
   u8 ship = self->ship;
-  u32 spawn_count = 1;
+  u32 spawn_count = 0;
 
   for (size_t i = 1; i < NULLSPACE_ARRAY_SIZE(connection.settings.SpawnSettings); ++i) {
-    if (connection.settings.SpawnSettings[i].X != 0 || connection.settings.SpawnSettings[i].Y != 0) {
+    if (connection.settings.SpawnSettings[i].X != 0 || connection.settings.SpawnSettings[i].Y != 0 ||
+        connection.settings.SpawnSettings[i].Radius != 0) {
       ++spawn_count;
     }
   }
 
-  u32 spawn_index = self->frequency % spawn_count;
+  float ship_radius = connection.settings.ShipSettings[ship].GetRadius();
+  u32 rand_seed = rand();
 
-  float x_center = (float)connection.settings.SpawnSettings[spawn_index].X;
-  float y_center = (float)connection.settings.SpawnSettings[spawn_index].Y;
-  int radius = connection.settings.SpawnSettings[spawn_index].Radius;
+  if (spawn_count == 0) {
+    // Default position to center of map if no location could be found.
+    self->position = Vector2f(512, 512);
 
-  if (x_center == 0) {
-    x_center = 512;
-  } else if (x_center < 0) {
-    x_center += 1024;
-  }
-  if (y_center == 0) {
-    y_center = 512;
-  } else if (y_center < 0) {
-    y_center += 1024;
-  }
+    for (size_t i = 0; i < 100; ++i) {
+      u16 x = 0;
+      u16 y = 0;
 
-  // Default to exact center in the case that a random position wasn't found
-  self->position = Vector2f(x_center, y_center);
+      switch (connection.settings.RadarMode) {
+        case 1:
+        case 3: {
+          VieRNG rng = {(s32)rand_seed};
+          u8 rng_x = (u8)rng.GetNext();
+          u8 rng_y = (u8)rng.GetNext();
 
-  if (radius > 0) {
-    float ship_radius = connection.settings.ShipSettings[ship].GetRadius();
+          x = (self->frequency & 1) * 0x300 + rng_x;
+          y = rng_y + 0x100;
+        } break;
+        case 2:
+        case 4: {
+          VieRNG rng = {(s32)rand_seed};
+          u8 rng_x = (u8)rng.GetNext();
+          u8 rng_y = (u8)rng.GetNext();
 
-    bool found = false;
+          x = (self->frequency & 1) * 0x300 + rng_x;
+          y = ((self->frequency / 2) & 1) * 0x300 + rng_y;
+        } break;
+        default: {
+          u32 spawn_radius = (((u32)player_count / 8) * 0x2000 + 0x400) / 0x60 + 0x100;
 
-    // Try 100 times to spawn in a random spot. TODO: Improve this to find open space better
-    for (int i = 0; i < 100 && !found; ++i) {
-      float x_offset = (float)((rand() % (radius * 2)) - radius);
-      float y_offset = (float)((rand() % (radius * 2)) - radius);
-
-      Vector2f spawn(x_center + x_offset, y_center + y_offset);
-
-      bool acceptable = true;
-
-      // Loop over entire ship to find empty space
-      for (float y_offset_check = -ship_radius; y_offset_check < ship_radius && acceptable; ++y_offset_check) {
-        for (float x_offset_check = -ship_radius; x_offset_check < ship_radius && acceptable; ++x_offset_check) {
-          if (connection.map.IsSolid((u16)(spawn.x + x_offset_check), (u16)(spawn.y + y_offset_check))) {
-            acceptable = false;
+          if (spawn_radius > (u32)connection.settings.WarpRadiusLimit) {
+            spawn_radius = (u32)connection.settings.WarpRadiusLimit;
           }
-        }
+
+          if (spawn_radius < 3) {
+            spawn_radius = 3;
+          }
+
+          VieRNG rng = {(s32)rand_seed};
+          x = rng.GetNext() % (spawn_radius - 2) - 9 + ((0x400 - spawn_radius) / 2) + (rand() % 0x14);
+          y = rng.GetNext() % (spawn_radius - 2) - 9 + ((0x400 - spawn_radius) / 2) + (rand() % 0x14);
+        } break;
       }
 
-      if (acceptable) {
+      Vector2f spawn((float)x, (float)y);
+
+      if (connection.map.CanFit(spawn, ship_radius)) {
         self->position = spawn;
-        found = true;
+        break;
+      }
+    }
+  } else {
+    u32 spawn_index = self->frequency % spawn_count;
+
+    float x_center = (float)connection.settings.SpawnSettings[spawn_index].X;
+    float y_center = (float)connection.settings.SpawnSettings[spawn_index].Y;
+    int radius = connection.settings.SpawnSettings[spawn_index].Radius;
+
+    if (x_center == 0) {
+      x_center = 512;
+    } else if (x_center < 0) {
+      x_center += 1024;
+    }
+    if (y_center == 0) {
+      y_center = 512;
+    } else if (y_center < 0) {
+      y_center += 1024;
+    }
+
+    // Default to exact center in the case that a random position wasn't found
+    self->position = Vector2f(x_center, y_center);
+
+    if (radius > 0) {
+      // Try 100 times to spawn in a random spot.
+      for (int i = 0; i < 100; ++i) {
+        float x_offset = (float)((rand() % (radius * 2)) - radius);
+        float y_offset = (float)((rand() % (radius * 2)) - radius);
+
+        Vector2f spawn(x_center + x_offset, y_center + y_offset);
+
+        if (connection.map.CanFit(spawn, ship_radius)) {
+          self->position = spawn;
+          break;
+        }
       }
     }
   }

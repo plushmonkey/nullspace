@@ -219,6 +219,18 @@ void Map::SeedDoors(u32 seed) {
   }
 }
 
+bool Map::CanFit(const Vector2f& position, float radius) {
+  for (float y_offset_check = -radius; y_offset_check < radius; ++y_offset_check) {
+    for (float x_offset_check = -radius; x_offset_check < radius; ++x_offset_check) {
+      if (IsSolid((u16)(position.x + x_offset_check), (u16)(position.y + y_offset_check))) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 TileId Map::GetTileId(u16 x, u16 y) const {
   if (!tiles) return 0;
   if (x >= 1024 || y >= 1024) return 20;

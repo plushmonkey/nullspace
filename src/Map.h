@@ -52,6 +52,8 @@ struct Map {
   void UpdateDoors(const ArenaSettings& settings);
   void SeedDoors(u32 seed);
 
+  bool CanFit(const Vector2f& position, float radius);
+
   u32 GetChecksum(u32 key) const;
 
   CastResult Cast(const Vector2f& from, const Vector2f& direction, float max_distance);
