@@ -709,16 +709,22 @@ bool WeaponManager::FireWeapons(Player& player, WeaponData weapon, u32 pos_x, u3
     if (self && self->id == player.id) {
       size_t self_count = 0;
       size_t team_count = 0;
+      bool has_check_mine = false;
 
-      GetMineCounts(player, &self_count, &team_count);
+      GetMineCounts(player, player.position, &self_count, &team_count, &has_check_mine);
+
+      if (has_check_mine) {
+        player_manager.notifications->PushFormatted(TextColor::Yellow, "You cannot lay mines on top of each other.");
+        return false;
+      }
 
       if (self_count >= ship_settings.MaxMines) {
-        player_manager.notifications->PushFormatted(TextColor::Yellow, "You have too many mines");
+        player_manager.notifications->PushFormatted(TextColor::Yellow, "You have too many mines.");
         return false;
       }
 
       if (team_count >= (size_t)connection.settings.TeamMaxMines) {
-        player_manager.notifications->PushFormatted(TextColor::Yellow, "Team has too many mines");
+        player_manager.notifications->PushFormatted(TextColor::Yellow, "Team has too many mines.");
         return false;
       }
     }
@@ -1034,9 +1040,11 @@ void WeaponManager::PlayPositionalSound(AudioType type, const Vector2f& position
   }
 }
 
-void WeaponManager::GetMineCounts(Player& player, size_t* player_count, size_t* team_count) {
+void WeaponManager::GetMineCounts(Player& player, const Vector2f& check, size_t* player_count, size_t* team_count,
+                                  bool* has_check_mine) {
   *player_count = 0;
   *team_count = 0;
+  *has_check_mine = false;
 
   for (size_t i = 0; i < weapon_count; ++i) {
     Weapon* weapon = weapons + i;
@@ -1049,6 +1057,10 @@ void WeaponManager::GetMineCounts(Player& player, size_t* player_count, size_t* 
 
       if (weapon->frequency == player.frequency) {
         (*team_count)++;
+      }
+
+      if (weapon->position == check) {
+        *has_check_mine = true;
       }
     }
   }

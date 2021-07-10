@@ -696,6 +696,12 @@ void PlayerManager::Spawn(bool reset) {
   }
 
   self->togglables |= Status_Flash;
+  self->warp_anim_t = 0.0f;
+
+  if (ship_controller) {
+    ship_controller->exhaust_count = 0;
+  }
+
   SendPositionPacket();
 }
 

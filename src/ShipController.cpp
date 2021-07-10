@@ -575,7 +575,7 @@ void ShipController::Render(Camera& ui_camera, Camera& camera, SpriteRenderer& r
 
     float z_offset = (exhaust->index / (float)kMaxExhaustIndex);
     assert(z_offset < 1.0f);
-    float z = (float)Layer::AfterWeapons + z_offset;
+    float z = (float)Layer::AfterTiles + z_offset;
     renderer.Draw(camera, exhaust->animation.GetFrame(), Vector3f(exhaust->animation.position, z));
   }
 
@@ -987,6 +987,7 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify) {
     case Prize::Warp: {
       display_notification = true;
       player_manager.Spawn();
+      self->velocity = Vector2f(0, 0);
     } break;
     case Prize::Guns: {
       display_notification = true;

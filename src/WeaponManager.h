@@ -137,7 +137,8 @@ struct WeaponManager {
 
   u64 GetTime();
 
-  void GetMineCounts(Player& player, size_t* player_count, size_t* team_count);
+  void GetMineCounts(Player& player, const Vector2f& check, size_t* player_count, size_t* team_count,
+                     bool* has_check_mine);
 };
 
 }  // namespace null
