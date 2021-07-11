@@ -96,12 +96,14 @@ struct Ship {
   u32 next_repel_tick = 0;
 
   u32 rocket_end_tick;
+  float emped_time;
+  float super_time;
+  float shield_time;
 
   float portal_time;
   Vector2f portal_location;
 
   bool multifire;
-  float emped_time;
 
   ShipCapabilityFlags capability;
 };
@@ -119,13 +121,15 @@ struct ShipController {
   NotificationSystem& notifications_;
   Ship ship;
 
-  Animation portal_animation;
-
   BombExplosionReport explosion_report;
 
   u32 last_emp_animation_tick = 0;
   u32 next_exhaust_index = 0;
   u32 next_exhaust_tick = 0;
+
+  Animation portal_animation;
+  Animation super_animation;
+  Animation shield_animation;
 
   size_t exhaust_count = 0;
   Exhaust exhausts[64];
@@ -134,7 +138,7 @@ struct ShipController {
                  NotificationSystem& notifications);
 
   void Update(const InputState& input, float dt);
-  void UpdatePortal(float dt);
+  void UpdateEffects(float dt);
   void UpdateExhaust(Player& self, bool thrust_forward, bool thrust_backward, float dt);
 
   void FireWeapons(Player& self, const InputState& input, float dt);

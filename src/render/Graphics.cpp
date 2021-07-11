@@ -5,6 +5,9 @@
 #include "Colors.h"
 #include "SpriteRenderer.h"
 
+// TODO: This entire thing needs to be redone as a database. It should also probably defer loading and creation graphics
+// until LVZ is loaded so they can override it first.
+
 namespace null {
 
 constexpr float kBombAnimDuration = 1.0f;
@@ -39,6 +42,8 @@ SpriteRenderable* Graphics::bullet_trail_sprites = nullptr;
 
 SpriteRenderable* Graphics::repel_sprites = nullptr;
 SpriteRenderable* Graphics::portal_sprites = nullptr;
+SpriteRenderable* Graphics::super_sprites = nullptr;
+SpriteRenderable* Graphics::shield_sprites = nullptr;
 
 SpriteRenderable* Graphics::icon_sprites = nullptr;
 SpriteRenderable Graphics::empty_icon_sprites[2];
@@ -81,6 +86,8 @@ AnimatedSprite Graphics::anim_burst_active;
 
 AnimatedSprite Graphics::anim_repel;
 AnimatedSprite Graphics::anim_portal;
+AnimatedSprite Graphics::anim_super;
+AnimatedSprite Graphics::anim_shield;
 
 AnimatedSprite Graphics::anim_ship_explode;
 AnimatedSprite Graphics::anim_ship_warp;
@@ -333,6 +340,20 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   if (!emp_spark_sprites) return false;
 
   CreateEmpSparkAnimations(emp_spark_sprites, count);
+
+  super_sprites = LoadTileSheet(renderer, "super", Vector2f(16, 16), &count);
+  if (!super_sprites) return false;
+
+  anim_super.duration = 1.0f;
+  anim_super.frames = super_sprites;
+  anim_super.frame_count = count;
+
+  shield_sprites = LoadTileSheet(renderer, "shield", Vector2f(16, 16), &count);
+  if (!shield_sprites) return false;
+
+  anim_shield.duration = 1.0f;
+  anim_shield.frames = shield_sprites;
+  anim_shield.frame_count = count;
 
   return true;
 }

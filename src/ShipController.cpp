@@ -159,7 +159,7 @@ void ShipController::Update(const InputState& input, float dt) {
   }
 
   FireWeapons(*self, input, dt);
-  UpdatePortal(dt);
+  UpdateEffects(dt);
   UpdateExhaust(*self, thrust_forward, thrust_backward, dt);
 
   constexpr u32 kEmpSparkDropInterval = 15;
@@ -184,18 +184,25 @@ void ShipController::HandleStatusEnergy(Player& self, u32 status, u32 cost, floa
   }
 }
 
-void ShipController::UpdatePortal(float dt) {
-  if (portal_animation.sprite) {
-    portal_animation.t += dt;
-    if (portal_animation.t >= portal_animation.GetDuration()) {
-      portal_animation.t -= portal_animation.GetDuration();
+inline void UpdateTimedAnimationEffect(Animation* animation, float* time, float dt) {
+  if (animation->sprite) {
+    animation->t += dt;
+
+    if (animation->t >= animation->GetDuration()) {
+      animation->t -= animation->GetDuration();
     }
   }
 
-  ship.portal_time -= dt;
-  if (ship.portal_time < 0.0f) {
-    ship.portal_time = 0.0f;
+  *time -= dt;
+  if (*time < 0.0f) {
+    *time = 0.0f;
   }
+}
+
+void ShipController::UpdateEffects(float dt) {
+  UpdateTimedAnimationEffect(&portal_animation, &ship.portal_time, dt);
+  UpdateTimedAnimationEffect(&super_animation, &ship.super_time, dt);
+  UpdateTimedAnimationEffect(&shield_animation, &ship.shield_time, dt);
 }
 
 void ShipController::UpdateExhaust(Player& self, bool thrust_forward, bool thrust_backward, float dt) {
@@ -544,6 +551,10 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       self.togglables |= Status_Flash;
     }
 
+    if (ship.super_time > 0.0f) {
+      energy_cost = 0;
+    }
+
     if (connection.map.GetTileId(self.position) == kTileSafeId) {
       self.velocity = Vector2f(0, 0);
     } else if (self.energy > energy_cost) {
@@ -618,6 +629,25 @@ void ShipController::Render(Camera& ui_camera, Camera& camera, SpriteRenderer& r
   renderer.Render(camera);
 }
 
+inline void RenderTimedIndicator(Camera& ui_camera, SpriteRenderer& renderer, Animation* animation, float y,
+                                 float duration, bool percent = false) {
+  SpriteRenderable& renderable = animation->GetFrame();
+  Vector2f position(ui_camera.surface_dim.x - renderable.dimensions.x, y - renderable.dimensions.y * 0.5f);
+
+  renderer.Draw(ui_camera, renderable, position, Layer::Gauges);
+
+  char duration_text[16] = {0};
+
+  if (percent) {
+    sprintf(duration_text, "%d%%", (u32)(duration * 100.0f));
+  } else {
+    sprintf(duration_text, "%.1f", duration);
+  }
+
+  renderer.DrawText(ui_camera, duration_text, TextColor::Yellow, position + Vector2f(0, 4), Layer::Gauges,
+                    TextAlignment::Right);
+}
+
 void ShipController::RenderIndicators(Camera& ui_camera, SpriteRenderer& renderer) {
   Player* self = player_manager.GetSelf();
 
@@ -626,18 +656,22 @@ void ShipController::RenderIndicators(Camera& ui_camera, SpriteRenderer& rendere
   if (ship.portal_time > 0) {
     constexpr float kPortalIndicatorY = 133;
 
-    SpriteRenderable& renderable = portal_animation.GetFrame();
-    Vector2f position(ui_camera.surface_dim.x - renderable.dimensions.x,
-                      kPortalIndicatorY - renderable.dimensions.y * 0.5f);
+    RenderTimedIndicator(ui_camera, renderer, &portal_animation, kPortalIndicatorY, ship.portal_time);
+  }
 
-    renderer.Draw(ui_camera, renderable, position, Layer::Gauges);
+  if (ship.super_time > 0.0f) {
+    constexpr float kSuperIndicatorY = 101;
 
-    char portal_duration_text[16] = {0};
+    RenderTimedIndicator(ui_camera, renderer, &super_animation, kSuperIndicatorY, ship.super_time);
+  }
 
-    sprintf(portal_duration_text, "%.1f", ship.portal_time);
+  if (ship.shield_time > 0.0f) {
+    constexpr float kShieldIndicatorY = 85;
 
-    renderer.DrawText(ui_camera, portal_duration_text, TextColor::Yellow, position + Vector2f(0, 4), Layer::Gauges,
-                      TextAlignment::Right);
+    float max_shield_time = player_manager.connection.settings.ShipSettings[self->ship].ShieldsTime / 100.0f;
+    float percent = ship.shield_time / max_shield_time;
+
+    RenderTimedIndicator(ui_camera, renderer, &shield_animation, kShieldIndicatorY, percent, true);
   }
 
   // TODO: Find real position
@@ -1138,11 +1172,24 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify) {
       }
     } break;
     case Prize::Super: {
-      // TODO: Implement
+      u32 super_ticks = rand() % ship_settings.SuperTime;
+      float super_time = super_ticks / 100.0f;
+
+      if (super_time > ship.super_time) {
+        ship.super_time = super_time;
+
+        super_animation.t = 0.0f;
+        super_animation.sprite = &Graphics::anim_super;
+      }
+
       display_notification = true;
     } break;
     case Prize::Shields: {
-      // TODO: Implement
+      ship.shield_time = ship_settings.ShieldsTime / 100.0f;
+
+      shield_animation.t = 0.0f;
+      shield_animation.sprite = &Graphics::anim_shield;
+
       display_notification = true;
     } break;
     case Prize::Shrapnel: {
@@ -1371,6 +1418,9 @@ void ShipController::ResetShip() {
   ship.emped_time = 0.0f;
   ship.multifire = false;
   ship.rocket_end_tick = 0;
+  ship.emped_time = 0.0f;
+  ship.super_time = 0.0f;
+  ship.shield_time = 0.0f;
   ship.portal_time = 0.0f;
 
   ship.next_bomb_tick = ship.next_bullet_tick = ship.next_repel_tick = 0;
@@ -1529,6 +1579,13 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
 
   if (tile_id == kTileSafeId) {
     return;
+  }
+
+  if (ship.shield_time > 0.0f) {
+    float max_shield_time = player_manager.connection.settings.ShipSettings[self->ship].ShieldsTime / 100.0f;
+    float percent = ship.shield_time / max_shield_time;
+
+    damage -= (int)(damage * percent);
   }
 
   if (!connection.settings.ExactDamage &&
