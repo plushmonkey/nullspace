@@ -326,8 +326,8 @@ bool Game::Update(const InputState& input, float dt) {
         max_jitter_distance = 2.0f;
       }
 
-      camera.position.x += sin(GetCurrentTick() * 2.0f) * strength * max_jitter_distance;
-      camera.position.y += sin(GetCurrentTick() * 1.73f) * strength * max_jitter_distance;
+      camera.position.x += sin(GetCurrentTick() * 0.75f) * strength * max_jitter_distance;
+      camera.position.y += sin(GetCurrentTick() * 0.63f) * strength * max_jitter_distance;
 
       jitter_time -= dt;
     }

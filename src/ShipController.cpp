@@ -1525,6 +1525,12 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
     } break;
   }
 
+  TileId tile_id = connection.map.GetTileId((u16)self->position.x, (u16)self->position.y);
+
+  if (tile_id == kTileSafeId) {
+    return;
+  }
+
   if (!connection.settings.ExactDamage &&
       (type == WeaponType::Bullet || type == WeaponType::BouncingBullet || type == WeaponType::Burst)) {
     u32 r = (rand() * 1000) % (damage * damage + 1);
