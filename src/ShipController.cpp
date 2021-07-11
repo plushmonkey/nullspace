@@ -1333,7 +1333,7 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify) {
       display_notification = true;
       if (negative) {
         if (ship.portals > 0) {
-          --ship.bursts;
+          --ship.portals;
         } else {
           max_notification = true;
         }
