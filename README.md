@@ -1,30 +1,42 @@
 # nullspace
-SubSpace client that I will probably never work on.  
-
-## Features
-- VIE and Continuum encryption
-- Download map and LVZ data
-- Chat
-- Render statbox
-- Render radar with some indicators
-- Render tiles and animated tiles
-- Render simple LVZ objects (map and some screen)
-- Render players
-- Render simple weapons like bullets and bombs
-- Player/weapon-tile collision/bounce
-- Player-weapon collision - bombs not exactly correct yet
-- Spectator camera
-- Entering and controlling a ship
-- Energy and recharge
-- Shoot bullets/bombs with correct weapon data
-- Initial bounty prizing with correct prizing
-- Item indicators
-- Cloak, stealth, xradar, antiwarp, and multifire
-- Door synchronization
-- Android spectator client (only tested in emulator)
+SubSpace client that I will probably never finish.  
 
 ## Running
 Follow the security requirements listed below and drop the built nullspace.exe into Continuum folder.  
+Tested on modern Windows 10 and Linux setup, 12 year old Windows 10 laptop, and Android emulator.  
+
+### Video
+Example video showcasing the client in Hyperspace, MetalGear, and a local server with Trench Wars settings.  
+The actual client is much smoother than the video shows.  
+
+[![Example video](https://i.imgur.com/dIGWkfP.png)](http://www.youtube.com/watch?v=VhohJr5V_tQ "Subspace Continuum - nullspace client")  
+
+## Features
+- Windows, Linux, and Android (spectator client tested in emulator)
+- VIE and Continuum encryption
+- Download map and LVZ data
+- Statbox, radar, chat, energy, item/ship status indicators, and menu ui elements
+- Render tiles and animated tiles
+- Render simple LVZ objects (map and some screen)
+- Render players and weapons
+- Player/weapon collision/bounce
+- Spectator camera
+- Entering and controlling a ship with correct arena settings
+- Render exhaust
+- Energy and recharge
+- Bullets, bouncing bullets, bombs, proximity bombs, mines, repels, and shrap implemented with correct simulation
+- Bursts, repels, decoys, thors, rockets, and portals implemented
+- Afterburners
+- Initial bounty prizing with correct prizing
+- Cloak, stealth, xradar, antiwarp, and multifire
+- Super and shields
+- Door synchronization
+- Green synchronization and prize weighting
+- Banners
+- Attaching
+- Notifications in center of screen
+- Sound effects
+- Flag pickup and flag turf claiming
 
 ## Security
 
