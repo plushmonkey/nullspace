@@ -1507,7 +1507,7 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
           TileId tile_id = connection.map.GetTileId((u16)self->position.x, (u16)self->position.y);
 
           if (tile_id != kTileSafeId) {
-            u32 emp_time = (u32)((connection.settings.EBombShutdownTime * damage) / damage);
+            u32 emp_time = (u32)((connection.settings.EBombShutdownTime * damage) / bomb_dmg);
 
             ship.emped_time = emp_time / 100.0f;
           }
