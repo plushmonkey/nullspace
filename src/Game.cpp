@@ -188,6 +188,12 @@ static void OnSecurityRequestPkt(void* user, u8* pkt, size_t size) {
   game->green_ticks = 0;
 }
 
+static void OnBombDamageTaken(void* user) {
+  Game* game = (Game*)user;
+
+  game->jitter_time = game->connection.settings.JitterTime / 100.0f;
+}
+
 Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_queue, int width, int height)
     : perm_arena(perm_arena),
       temp_arena(temp_arena),
@@ -225,6 +231,9 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
   weapon_manager.Initialize(&ship_controller, &radar);
 
   connection.view_dim = ui_camera.surface_dim;
+
+  ship_controller.explosion_report.on_damage = OnBombDamageTaken;
+  ship_controller.explosion_report.user = this;
 }
 
 bool Game::Initialize(InputState& input) {
@@ -307,6 +316,21 @@ bool Game::Update(const InputState& input, float dt) {
     if (self->position.y >= 1024) self->position.y = 1023.9f;
 
     camera.position = self->position.PixelRounded();
+
+    if (jitter_time > 0) {
+      float max_jitter_time = connection.settings.JitterTime / 100.0f;
+      float strength = jitter_time / max_jitter_time;
+      float max_jitter_distance = max_jitter_time;
+
+      if (max_jitter_distance > 2.0f) {
+        max_jitter_distance = 2.0f;
+      }
+
+      camera.position.x += sin(GetCurrentTick() * 2.0f) * strength * max_jitter_distance;
+      camera.position.y += sin(GetCurrentTick() * 1.73f) * strength * max_jitter_distance;
+
+      jitter_time -= dt;
+    }
   }
 
   render_radar = input.IsDown(InputAction::DisplayMap);

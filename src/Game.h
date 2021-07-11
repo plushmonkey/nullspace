@@ -81,6 +81,7 @@ struct Game {
   bool menu_open = false;
   bool menu_quit = false;
   int mapzoom = 0;
+  float jitter_time = 0.0f;
 
   size_t flag_count = 0;
   GameFlag flags[256];

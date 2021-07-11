@@ -106,6 +106,13 @@ struct Ship {
   ShipCapabilityFlags capability;
 };
 
+typedef void (*OnBombDamage)(void* user);
+
+struct BombExplosionReport {
+  OnBombDamage on_damage = nullptr;
+  void* user = nullptr;
+};
+
 struct ShipController {
   PlayerManager& player_manager;
   WeaponManager& weapon_manager;
@@ -113,6 +120,8 @@ struct ShipController {
   Ship ship;
 
   Animation portal_animation;
+
+  BombExplosionReport explosion_report;
 
   u32 next_exhaust_index = 0;
   u32 next_exhaust_tick = 0;

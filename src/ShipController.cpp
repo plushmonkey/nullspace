@@ -557,7 +557,7 @@ void ShipController::Render(Camera& ui_camera, Camera& camera, SpriteRenderer& r
   int energy = (int)self->energy;
 
   int count = 0;
-  while (energy > 0) {
+  while (energy > 0 || count == 0) {
     int digit = energy % 10;
     SpriteRenderable& renderable = Graphics::energyfont_sprites[digit];
 
@@ -1497,6 +1497,10 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
             u32 emp_time = (u32)((connection.settings.EBombShutdownTime * damage) / damage);
             // TODO: Set emp time
           }
+        }
+
+        if (damage > 0 && explosion_report.on_damage) {
+          explosion_report.on_damage(explosion_report.user);
         }
       }
     } break;
