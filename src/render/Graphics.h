@@ -36,6 +36,7 @@ struct Graphics {
   static SpriteRenderable* mine_sprites;
   static SpriteRenderable* shrapnel_sprites;
   static SpriteRenderable* bombflash_sprites;
+  static SpriteRenderable* emp_spark_sprites;
 
   static SpriteRenderable* bullet_sprites;
   static SpriteRenderable* bullet_trail_sprites;
@@ -67,6 +68,7 @@ struct Graphics {
   static AnimatedSprite anim_thor;
   static AnimatedSprite anim_bomb_trails[4];
   static AnimatedSprite anim_bombflash;
+  static AnimatedSprite anim_emp_spark;
 
   static AnimatedSprite anim_mines[4];
   static AnimatedSprite anim_emp_mines[4];
@@ -110,6 +112,7 @@ struct Graphics {
   static void CreateBombTrailAnimations(SpriteRenderable* renderables, int count);
   static void CreateBombExplodeAnimations(SpriteRenderable* renderables, int count);
   static void CreateEmpExplodeAnimations(SpriteRenderable* renderables, int count);
+  static void CreateEmpSparkAnimations(SpriteRenderable* renderables, int count);
   static void CreateBulletAnimations(SpriteRenderable* renderables, int count);
   static void CreateBulletTrailAnimations(SpriteRenderable* renderables, int count);
   static void CreateRepelAnimations(SpriteRenderable* renderables, int count);

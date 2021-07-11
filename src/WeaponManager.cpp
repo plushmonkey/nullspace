@@ -868,6 +868,12 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
     weapon->velocity = Vector2f(0, 0);
   }
 
+  weapon->animation.t = 0.0f;
+  weapon->animation.sprite = nullptr;
+  weapon->animation.repeat = true;
+
+  SetWeaponSprite(*player, *weapon);
+
   s32 tick_diff = TICK_DIFF(GetCurrentTick(), local_timestamp);
 
   WeaponSimulateResult result = WeaponSimulateResult::Continue;
@@ -901,12 +907,7 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
   weapon->rng_seed =
       CalculateRngSeed(pos_x, pos_y, vel_x, vel_y, weapon_data.shrap, weapon_data.level, player->frequency);
 
-  weapon->animation.t = 0.0f;
-  weapon->animation.sprite = nullptr;
-  weapon->animation.repeat = true;
   weapon->last_trail_tick = 0;
-
-  SetWeaponSprite(*player, *weapon);
 
   if (player->id == player_manager.player_id &&
       (type == WeaponType::Bomb || type == WeaponType::ProximityBomb || type == WeaponType::Thor) &&

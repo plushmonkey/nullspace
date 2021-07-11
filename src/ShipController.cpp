@@ -138,9 +138,13 @@ void ShipController::Update(const InputState& input, float dt) {
     self->energy -= ab_cost;
   }
 
-  self->energy += (ship.recharge / 10.0f) * dt;
-  if (self->energy > ship.energy) {
-    self->energy = (float)ship.energy;
+  if (ship.emped_time > 0.0f) {
+    ship.emped_time -= dt;
+  } else {
+    self->energy += (ship.recharge / 10.0f) * dt;
+    if (self->energy > ship.energy) {
+      self->energy = (float)ship.energy;
+    }
   }
 
   HandleStatusEnergy(*self, Status_XRadar, ship_settings.XRadarEnergy, dt);
@@ -157,6 +161,15 @@ void ShipController::Update(const InputState& input, float dt) {
   FireWeapons(*self, input, dt);
   UpdatePortal(dt);
   UpdateExhaust(*self, thrust_forward, thrust_backward, dt);
+
+  constexpr u32 kEmpSparkDropInterval = 15;
+  if (ship.emped_time > 0.0f && TICK_DIFF(tick, last_emp_animation_tick) >= kEmpSparkDropInterval) {
+    Vector2f position = self->position - Graphics::anim_emp_spark.frames[0].dimensions * (0.5f / 16.0f);
+
+    weapon_manager.animation.AddAnimation(Graphics::anim_emp_spark, position)->layer = Layer::AfterTiles;
+
+    last_emp_animation_tick = tick;
+  }
 }
 
 void ShipController::HandleStatusEnergy(Player& self, u32 status, u32 cost, float dt) {
@@ -1495,7 +1508,8 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
 
           if (tile_id != kTileSafeId) {
             u32 emp_time = (u32)((connection.settings.EBombShutdownTime * damage) / damage);
-            // TODO: Set emp time
+
+            ship.emped_time = emp_time / 100.0f;
           }
         }
 

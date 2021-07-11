@@ -47,6 +47,7 @@ enum OverwriteFlag {
   Overwrite_Exhaust,
   Overwrite_Rocket,
   Overwrite_Portal,
+  Overwrite_EmpSpark,
 };
 
 struct ObjectImageList {
@@ -794,6 +795,21 @@ void LvzController::ProcessGraphicFile(const char* filename, u8* data, size_t si
       Vector2f dim(16.0f, 16.0f);
       Graphics::portal_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
       Graphics::CreatePortalAnimations(Graphics::portal_sprites, count);
+      ImageFree(image_data);
+    }
+  } else if ((overwrite & (1 << Overwrite_EmpSpark)) == 0 && null_stricmp(extension_free, "spark") == 0) {
+    overwrite |= (1 << Overwrite_EmpSpark);
+    renderer.FreeSheet(Graphics::emp_spark_sprites[0].texture);
+
+    int width, height;
+
+    u8* image_data = ImageLoadFromMemory(data, size, &width, &height);
+
+    if (image_data) {
+      int count = 0;
+      Vector2f dim(40.0f, 40.0f);
+      Graphics::emp_spark_sprites = renderer.LoadSheetFromMemory(filename, image_data, width, height, dim, &count);
+      Graphics::CreatePortalAnimations(Graphics::emp_spark_sprites, count);
       ImageFree(image_data);
     }
   }

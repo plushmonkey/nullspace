@@ -123,6 +123,7 @@ struct ShipController {
 
   BombExplosionReport explosion_report;
 
+  u32 last_emp_animation_tick = 0;
   u32 next_exhaust_index = 0;
   u32 next_exhaust_tick = 0;
 

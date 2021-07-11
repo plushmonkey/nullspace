@@ -32,6 +32,7 @@ SpriteRenderable* Graphics::bomb_trail_sprites = nullptr;
 SpriteRenderable* Graphics::mine_sprites = nullptr;
 SpriteRenderable* Graphics::shrapnel_sprites = nullptr;
 SpriteRenderable* Graphics::bombflash_sprites = nullptr;
+SpriteRenderable* Graphics::emp_spark_sprites = nullptr;
 
 SpriteRenderable* Graphics::bullet_sprites = nullptr;
 SpriteRenderable* Graphics::bullet_trail_sprites = nullptr;
@@ -63,6 +64,7 @@ AnimatedSprite Graphics::anim_emp_explode;
 AnimatedSprite Graphics::anim_thor;
 AnimatedSprite Graphics::anim_bomb_trails[4];
 AnimatedSprite Graphics::anim_bombflash;
+AnimatedSprite Graphics::anim_emp_spark;
 
 AnimatedSprite Graphics::anim_mines[4];
 AnimatedSprite Graphics::anim_emp_mines[4];
@@ -327,6 +329,11 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
 
   CreatePortalAnimations(portal_sprites, count);
 
+  emp_spark_sprites = LoadTileSheet(renderer, "spark", Vector2f(40, 40), &count);
+  if (!emp_spark_sprites) return false;
+
+  CreateEmpSparkAnimations(emp_spark_sprites, count);
+
   return true;
 }
 
@@ -392,6 +399,12 @@ void Graphics::CreateEmpExplodeAnimations(SpriteRenderable* renderables, int cou
   anim_emp_explode.frames = renderables;
   anim_emp_explode.frame_count = count;
   anim_emp_explode.duration = 0.5f;
+}
+
+void Graphics::CreateEmpSparkAnimations(SpriteRenderable* renderables, int count) {
+  anim_emp_spark.frames = renderables;
+  anim_emp_spark.frame_count = count;
+  anim_emp_spark.duration = 0.5f;
 }
 
 void Graphics::CreateBulletAnimations(SpriteRenderable* renderables, int count) {
