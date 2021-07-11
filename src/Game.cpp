@@ -188,6 +188,31 @@ static void OnSecurityRequestPkt(void* user, u8* pkt, size_t size) {
   game->green_ticks = 0;
 }
 
+static void OnPlayerPrizePkt(void* user, u8* pkt, size_t size) {
+  NetworkBuffer buffer(pkt, size, size);
+  Game* game = (Game*)user;
+
+  buffer.ReadU8();   // type
+  buffer.ReadU32();  // timestmap
+
+  u16 x = buffer.ReadU16();
+  u16 y = buffer.ReadU16();
+
+  // Loop through greens to remove any on that tile. This exists so players outside of position broadcast range will
+  // still keep prize seed in sync.
+  for (size_t i = 0; i < game->green_count; ++i) {
+    PrizeGreen* green = game->greens + i;
+
+    u16 green_x = (u16)green->position.x;
+    u16 green_y = (u16)green->position.y;
+
+    if (green_x == x && green_y == y) {
+      game->greens[i] = game->greens[--game->green_count];
+      break;
+    }
+  }
+}
+
 static void OnBombDamageTaken(void* user) {
   Game* game = (Game*)user;
 
@@ -226,6 +251,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
   dispatcher.Register(ProtocolS2C::TurfFlagUpdate, OnTurfFlagUpdatePkt, this);
   dispatcher.Register(ProtocolS2C::PlayerDeath, OnPlayerDeathPkt, this);
   dispatcher.Register(ProtocolS2C::Security, OnSecurityRequestPkt, this);
+  dispatcher.Register(ProtocolS2C::PlayerPrize, OnPlayerPrizePkt, this);
 
   player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications, &specview, &banner_pool);
   weapon_manager.Initialize(&ship_controller, &radar);
@@ -251,6 +277,8 @@ bool Game::Initialize(InputState& input) {
     return false;
   }
 
+  chat.CreateCursor(sprite_renderer);
+
   if (g_Settings.render_stars && !background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
     log_error("Failed to initialize background renderer.\n");
     return false;
@@ -274,6 +302,8 @@ bool Game::Update(const InputState& input, float dt) {
   player_manager.Update(dt);
   ship_controller.Update(input, dt);
   weapon_manager.Update(dt);
+
+  chat.Update(dt);
 
   if (tile_renderer.tilemap_texture == -1 && connection.login_state == Connection::LoginState::Complete) {
     if (self) {
@@ -401,6 +431,7 @@ void Game::UpdateGreens(float dt) {
 
       if (player->ship == 8) continue;
       if (player->enter_delay > 0) continue;
+      if (!player_manager.IsSynchronized(*player)) continue;
 
       float radius = connection.settings.ShipSettings[player->ship].GetRadius();
 
@@ -853,6 +884,8 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
     fprintf(stderr, "Failed to initialize graphics.\n");
     exit(1);
   }
+
+  chat.CreateCursor(sprite_renderer);
 
   animated_tile_renderer.Initialize();
 

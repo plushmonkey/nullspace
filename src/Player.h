@@ -2,6 +2,7 @@
 #define NULLSPACE_PLAYER_H_
 
 #include "Math.h"
+#include "Tick.h"
 #include "Types.h"
 #include "render/Animation.h"
 
@@ -9,6 +10,7 @@ namespace null {
 
 using PlayerId = u16;
 constexpr PlayerId kInvalidPlayerId = 0xFFFF;
+constexpr u32 kPlayerTimeout = 200;
 
 enum StatusFlag {
   Status_Stealth = (1 << 0),
@@ -102,6 +104,8 @@ struct Player {
   float warp_anim_t;
   float explode_anim_t;
   float bombflash_anim_t;
+
+  inline u32 GetTimestamp() { return (GetCurrentTick() & 0xFFFF0000) | timestamp; }
 };
 
 }  // namespace null

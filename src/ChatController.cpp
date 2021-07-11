@@ -25,9 +25,9 @@ struct ChatSpan {
   const char* end;
 };
 
-void WrapChat(const char* mesg, s32 linesize, ChatSpan* lines, size_t* linecount) {
+void WrapChat(const char* mesg, s32 linesize, ChatSpan* lines, size_t* linecount, bool skip_spaces = true) {
   // Trim front
-  while (*mesg && *mesg == ' ') ++mesg;
+  while (skip_spaces && *mesg && *mesg == ' ') ++mesg;
 
   s32 size = (s32)strlen(mesg);
 
@@ -43,26 +43,28 @@ void WrapChat(const char* mesg, s32 linesize, ChatSpan* lines, size_t* linecount
     s32 end = last_end + linesize;
 
     if (end >= size) {
-      end = last_end + size;
+      end = size;
       lines[count - 1].begin = mesg + last_end;
       lines[count - 1].end = mesg + end;
       *linecount = count;
       break;
     }
 
-    if (mesg[end] == ' ') {
-      // Go backwards to trim off last space
-      for (; end >= 0; --end) {
-        if (mesg[end] != ' ') {
-          ++end;
-          break;
+    if (skip_spaces) {
+      if (mesg[end] == ' ') {
+        // Go backwards to trim off last space
+        for (; end >= 0; --end) {
+          if (mesg[end] != ' ') {
+            ++end;
+            break;
+          }
         }
-      }
-    } else {
-      for (; end >= 0; --end) {
-        // Go backwards looking for a space
-        if (mesg[end] == ' ') {
-          break;
+      } else {
+        for (; end >= 0; --end) {
+          // Go backwards looking for a space
+          if (mesg[end] == ' ') {
+            break;
+          }
         }
       }
     }
@@ -78,7 +80,7 @@ void WrapChat(const char* mesg, s32 linesize, ChatSpan* lines, size_t* linecount
     *linecount = count;
 
     // Trim again for next line
-    while (last_end < size && mesg[last_end] == ' ') {
+    while (skip_spaces && last_end < size && mesg[last_end] == ' ') {
       ++last_end;
     }
   }
@@ -110,6 +112,8 @@ void ChatController::SendInput() {
   u16 target = 0;
   char* mesg = input;
   int channel = 1;
+
+  while (*mesg && *mesg == ' ') ++mesg;
 
   if (HandleInputCommands()) {
     input[0] = 0;
@@ -243,6 +247,16 @@ bool ChatController::HandleInputCommands() {
   return false;
 }
 
+void ChatController::Update(float dt) {
+  if (cursor.animation.sprite) {
+    cursor.animation.t += dt;
+
+    if (cursor.animation.t >= cursor.animation.GetDuration()) {
+      cursor.animation.t -= cursor.animation.GetDuration();
+    }
+  }
+}
+
 void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
   // TODO: pull radar size from somewhere else
   float radar_size = camera.surface_dim.x * 0.165f + 11;
@@ -260,7 +274,7 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
 
     u32 max_characters = (u32)((camera.surface_dim.x - radar_size) / kFontWidth);
 
-    WrapChat(input, max_characters, lines, &linecount);
+    WrapChat(input, max_characters, lines, &linecount, false);
 
     y -= kFontHeight * linecount;
 
@@ -272,6 +286,13 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
       sprintf(output, "%.*s", length, span->begin);
 
       renderer.DrawText(camera, output, color, Vector2f(0, y + i * kFontHeight), Layer::Chat);
+
+      if (i == linecount - 1 && cursor.animation.sprite) {
+        float cursor_x = length * 8.0f + 1.0f;
+        float cursor_y = y + i * kFontHeight;
+
+        renderer.Draw(camera, cursor.animation.GetFrame(), Vector2f(cursor_x, cursor_y), Layer::Chat);
+      }
     }
 
     display_amount -= linecount;
@@ -532,6 +553,41 @@ ChatType ChatController::GetInputType() {
   }
 
   return ChatType::Public;
+}
+
+inline void CreateUV(SpriteRenderer& renderer, SpriteRenderable& renderable, const Vector2f& tile_position) {
+  Vector2f sheet_dimensions = renderer.GetRenderableSheetDimensions(renderable);
+
+  float left = tile_position.x;
+  float right = left + 1.0f;
+  float top = tile_position.y;
+  float bottom = top + 1.0f;
+  float width = sheet_dimensions.x;
+  float height = sheet_dimensions.y;
+
+  renderable.uvs[0] = Vector2f(left / width, top / height);
+  renderable.uvs[1] = Vector2f(right / width, top / height);
+  renderable.uvs[2] = Vector2f(left / width, bottom / height);
+  renderable.uvs[3] = Vector2f(right / width, bottom / height);
+}
+
+void ChatController::CreateCursor(SpriteRenderer& renderer) {
+  SpriteRenderable color = Graphics::GetColor(ColorType::RadarPortal);
+
+  cursor.renderables[0].texture = color.texture;
+  cursor.renderables[0].dimensions = Vector2f(1, 12);
+  CreateUV(renderer, cursor.renderables[0], Vector2f(0, 25));
+
+  cursor.renderables[1].texture = color.texture;
+  cursor.renderables[1].dimensions = Vector2f(1, 12);
+  CreateUV(renderer, cursor.renderables[1], Vector2f(0, 0));
+
+  cursor.sprite.duration = 0.5f;
+  cursor.sprite.frames = cursor.renderables;
+  cursor.sprite.frame_count = 2;
+
+  cursor.animation.t = 0.0f;
+  cursor.animation.sprite = &cursor.sprite;
 }
 
 }  // namespace null

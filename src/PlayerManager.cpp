@@ -191,7 +191,7 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
 
       renderer.Draw(camera, renderable, position, Layer::AfterShips);
     } else if (player->enter_delay <= 0.0f) {
-      if (IsPlayerVisible(*self, self_freq, *player)) {
+      if (IsSynchronized(*player) && IsPlayerVisible(*self, self_freq, *player)) {
         size_t index = player->ship * 40 + (u8)(player->orientation * 40.0f);
 
         Vector2f offset = Graphics::ship_sprites[index].dimensions * (0.5f / 16.0f);
@@ -205,7 +205,7 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
       while (info) {
         Player* child = GetPlayerById(info->player_id);
 
-        if (child) {
+        if (child && IsSynchronized(*child) && IsPlayerVisible(*self, self_freq, *child)) {
           size_t index = (size_t)(child->orientation * 40.0f);
 
           Vector2f offset = Graphics::turret_sprites[index].dimensions * (0.5f / 16.0f);
@@ -251,7 +251,10 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
 
     Vector2f position = player->position;
 
-    RenderPlayerName(camera, renderer, *self, *player, position, false);
+    // Don't render the player's name if they aren't synchronized, but still render their children
+    if (IsSynchronized(*player)) {
+      RenderPlayerName(camera, renderer, *self, *player, position, false);
+    }
 
     AttachInfo* info = player->children;
 
@@ -260,7 +263,7 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
 
       Player* child = GetPlayerById(info->player_id);
 
-      if (child) {
+      if (child && IsSynchronized(*child)) {
         RenderPlayerName(camera, renderer, *self, *child, position, false);
       }
 
@@ -1209,6 +1212,12 @@ bool PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
 }
 
 void PlayerManager::SimulatePlayer(Player& player, float dt) {
+  if (!IsSynchronized(player)) {
+    player.velocity = Vector2f(0, 0);
+    player.lerp_time = 0.0f;
+    return;
+  }
+
   bool x_bounce = SimulateAxis(player, dt, 0);
   bool y_bounce = SimulateAxis(player, dt, 1);
 

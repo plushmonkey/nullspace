@@ -3,6 +3,7 @@
 
 #include "InputState.h"
 #include "Types.h"
+#include "render/Animation.h"
 
 namespace null {
 
@@ -34,6 +35,12 @@ struct ChatEntry {
   char message[520];
 };
 
+struct ChatCursor {
+  SpriteRenderable renderables[2];
+  AnimatedSprite sprite;
+  Animation animation;
+};
+
 struct ChatController {
   Connection& connection;
   PlayerManager& player_manager;
@@ -45,9 +52,11 @@ struct ChatController {
   // Continuum has input of 256 but only 250 get sent?
   // Limiting to 250 to make the chat work exactly as would send instead of emulating Continuum's bad behavior
   char input[250] = {0};
+  ChatCursor cursor;
 
   ChatController(PacketDispatcher& dispatcher, Connection& connection, PlayerManager& player_manager, StatBox& statbox);
 
+  void Update(float dt);
   void Render(Camera& camera, SpriteRenderer& renderer);
   ChatEntry* PushEntry(const char* mesg, size_t size, ChatType type);
   void AddMessage(ChatType type, const char* fmt, ...);
@@ -58,6 +67,8 @@ struct ChatController {
   void SendInput();
   bool HandleInputCommands();
   ChatType GetInputType();
+
+  void CreateCursor(SpriteRenderer& renderer);
 };
 
 }  // namespace null

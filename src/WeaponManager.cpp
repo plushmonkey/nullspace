@@ -225,6 +225,7 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
     if (player->ship == 8) continue;
     if (player->frequency == weapon.frequency) continue;
     if (player->enter_delay > 0) continue;
+    if (!player_manager.IsSynchronized(*player)) continue;
 
     float radius = connection.settings.ShipSettings[player->ship].GetRadius();
     Vector2f player_r(radius, radius);
@@ -339,6 +340,7 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
     if (player.frequency == weapon.frequency) continue;
     if (player.ship >= 8) continue;
     if (player.enter_delay > 0.0f) continue;
+    if (!player_manager.IsSynchronized(player)) continue;
 
     float dist_sq = player.position.DistanceSq(weapon.position);
 

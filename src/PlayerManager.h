@@ -100,6 +100,10 @@ struct PlayerManager {
   void DetachPlayer(Player& player);
   void DetachAllChildren(Player& player);
   size_t GetTurretCount(Player& player);
+
+  inline bool IsSynchronized(Player& player) {
+    return player.id == player_id || TICK_DIFF(GetCurrentTick(), player.GetTimestamp()) < kPlayerTimeout;
+  }
 };
 
 }  // namespace null
