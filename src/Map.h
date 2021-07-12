@@ -22,6 +22,7 @@ struct CastResult {
 };
 
 struct ArenaSettings;
+struct BrickManager;
 
 using TileId = u8;
 constexpr u32 kTileSafeId = 171;
@@ -45,18 +46,19 @@ struct AnimatedTileSet {
 struct Map {
   bool Load(MemoryArena& arena, const char* filename);
 
-  bool IsSolid(u16 x, u16 y) const;
+  bool IsSolid(u16 x, u16 y, u32 frequency) const;
   TileId GetTileId(u16 x, u16 y) const;
   TileId GetTileId(const Vector2f& position) const;
+  void SetTileId(u16 x, u16 y, TileId id);
 
   void UpdateDoors(const ArenaSettings& settings);
   void SeedDoors(u32 seed);
 
-  bool CanFit(const Vector2f& position, float radius);
+  bool CanFit(const Vector2f& position, float radius, u32 frequency);
 
   u32 GetChecksum(u32 key) const;
 
-  CastResult Cast(const Vector2f& from, const Vector2f& direction, float max_distance);
+  CastResult Cast(const Vector2f& from, const Vector2f& direction, float max_distance, u32 frequency);
 
   inline AnimatedTileSet& GetAnimatedTileSet(AnimatedTile type) { return animated_tiles[(size_t)type]; }
 
@@ -70,6 +72,8 @@ struct Map {
 
   size_t door_count = 0;
   Tile* doors = nullptr;
+
+  BrickManager* brick_manager = nullptr;
 
   AnimatedTileSet animated_tiles[kAnimatedTileCount];
 

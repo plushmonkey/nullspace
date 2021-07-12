@@ -2,6 +2,7 @@
 #define NULLSPACE_GAME_H_
 
 #include "BannerPool.h"
+#include "BrickManager.h"
 #include "ChatController.h"
 #include "InputState.h"
 #include "LvzController.h"
@@ -62,6 +63,7 @@ struct Game {
   Connection connection;
   PlayerManager player_manager;
   WeaponManager weapon_manager;
+  BrickManager brick_manager;
   BannerPool banner_pool;
   Camera camera;
   Camera ui_camera;

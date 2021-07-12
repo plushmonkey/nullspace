@@ -118,9 +118,11 @@ struct Connection {
   void SendArenaLogin(u8 ship, u16 audio, u16 xres, u16 yres, u16 arena_number, const char* arena_name);
   void SendPassword(bool registration);
   void SendAttachRequest(u16 destination_pid);
+  void SendAttachDrop();
   void SendTakeGreen(u16 x, u16 y, s16 prize_id);
   void SendFlagRequest(u16 flag_id);
   void SendFlagDrop();
+  void SendDropBrick(const Vector2f& position);
 };
 
 }  // namespace null

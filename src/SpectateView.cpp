@@ -98,7 +98,9 @@ bool SpectateView::Update(const InputState& input, float dt) {
     Player* follow_player = statbox.player_manager.GetPlayerById(spectate_id);
 
     if (follow_player && follow_player->ship != 8) {
-      if (statbox.player_manager.IsSynchronized(*follow_player)) {
+      // Deviate from Continuum behavior for an improved spectator experience. Don't switch view to 0, 0 on player
+      // death. Just continue to watch where they just died because that's where the action is.
+      if (statbox.player_manager.IsSynchronized(*follow_player) && follow_player->position != Vector2f(0, 0)) {
         self->position = follow_player->position;
       }
     } else {
@@ -125,7 +127,8 @@ void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
 
   Player* follow_player = statbox.player_manager.GetPlayerById(spectate_id);
 
-  constexpr u32 kExtraDataTimeout = 300;
+  u32 tick = GetCurrentTick();
+
   if (follow_player && TICK_DIFF(GetCurrentTick(), follow_player->last_extra_timestamp) < kExtraDataTimeout) {
     char rows[6][64];
 
@@ -145,6 +148,15 @@ void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
     for (size_t i = 0; i < 6; ++i) {
       renderer.DrawText(ui_camera, rows[i], TextColor::White, Vector2f(x, (float)i * 12), Layer::Gauges);
     }
+  }
+
+  // Deviate from Continuum spectator view by showing dead player's respawn timer while spectating them.
+  if (follow_player && follow_player->enter_delay > 0 &&
+      !statbox.player_manager.explode_animation.IsAnimating(follow_player->explode_anim_t)) {
+    char output[256];
+    sprintf(output, "%.1f", follow_player->enter_delay);
+    renderer.DrawText(ui_camera, output, TextColor::DarkRed, ui_camera.surface_dim * 0.5f, Layer::TopMost,
+                      TextAlignment::Center);
   }
 }
 

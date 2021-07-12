@@ -93,7 +93,7 @@ struct PlayerManager {
   void OnCreateTurretLink(u8* pkt, size_t size);
   void OnDestroyTurretLink(u8* pkt, size_t size);
 
-  void OnPositionPacket(Player& player, const Vector2f& position);
+  void OnPositionPacket(Player& player, const Vector2f& position, s32 tick_diff);
 
   void AttachSelf(Player* destination);
   void AttachPlayer(Player& requester, Player& destination);
@@ -102,7 +102,7 @@ struct PlayerManager {
   size_t GetTurretCount(Player& player);
 
   inline bool IsSynchronized(Player& player) {
-    return player.id == player_id || TICK_DIFF(GetCurrentTick(), player.GetTimestamp()) < kPlayerTimeout;
+    return player.id == player_id || TICK_DIFF(GetCurrentTick(), player.timestamp) < kPlayerTimeout;
   }
 };
 

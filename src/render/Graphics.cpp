@@ -41,6 +41,7 @@ SpriteRenderable* Graphics::bullet_sprites = nullptr;
 SpriteRenderable* Graphics::bullet_trail_sprites = nullptr;
 
 SpriteRenderable* Graphics::repel_sprites = nullptr;
+SpriteRenderable* Graphics::brick_sprites = nullptr;
 SpriteRenderable* Graphics::portal_sprites = nullptr;
 SpriteRenderable* Graphics::super_sprites = nullptr;
 SpriteRenderable* Graphics::shield_sprites = nullptr;
@@ -86,6 +87,8 @@ AnimatedSprite Graphics::anim_burst_inactive;
 AnimatedSprite Graphics::anim_burst_active;
 
 AnimatedSprite Graphics::anim_repel;
+AnimatedSprite Graphics::anim_enemy_brick;
+AnimatedSprite Graphics::anim_team_brick;
 AnimatedSprite Graphics::anim_portal;
 AnimatedSprite Graphics::anim_super;
 AnimatedSprite Graphics::anim_shield;
@@ -334,6 +337,11 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
 
   CreateRepelAnimations(repel_sprites, count);
 
+  brick_sprites = LoadTileSheet(renderer, "wall", Vector2f(16, 16), &count);
+  if (!brick_sprites) return false;
+
+  CreateBrickAnimations(brick_sprites, count);
+
   portal_sprites = LoadTileSheet(renderer, "warppnt", Vector2f(16, 16), &count);
   if (!portal_sprites) return false;
 
@@ -501,6 +509,16 @@ void Graphics::CreateRocketAnimations(SpriteRenderable* renderables, int count) 
   anim_ship_rocket.duration = 0.3f;
   anim_ship_rocket.frames = renderables;
   anim_ship_rocket.frame_count = count;
+}
+
+void Graphics::CreateBrickAnimations(SpriteRenderable* renderables, int count) {
+  anim_enemy_brick.duration = 1.0f;
+  anim_enemy_brick.frames = renderables;
+  anim_enemy_brick.frame_count = count / 2;
+
+  anim_team_brick.duration = 1.0f;
+  anim_team_brick.frames = renderables + (count / 2);
+  anim_team_brick.frame_count = count / 2;
 }
 
 bool Graphics::InitializeTiles(SpriteRenderer& renderer) {

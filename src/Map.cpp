@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "ArenaSettings.h"
+#include "BrickManager.h"
 #include "Tick.h"
 
 namespace null {
@@ -219,10 +220,10 @@ void Map::SeedDoors(u32 seed) {
   }
 }
 
-bool Map::CanFit(const Vector2f& position, float radius) {
+bool Map::CanFit(const Vector2f& position, float radius, u32 frequency) {
   for (float y_offset_check = -radius; y_offset_check < radius; ++y_offset_check) {
     for (float x_offset_check = -radius; x_offset_check < radius; ++x_offset_check) {
-      if (IsSolid((u16)(position.x + x_offset_check), (u16)(position.y + y_offset_check))) {
+      if (IsSolid((u16)(position.x + x_offset_check), (u16)(position.y + y_offset_check), frequency)) {
         return false;
       }
     }
@@ -238,12 +239,29 @@ TileId Map::GetTileId(u16 x, u16 y) const {
   return tiles[y * 1024 + x];
 }
 
+void Map::SetTileId(u16 x, u16 y, TileId id) {
+  if (!tiles) return;
+  if (x >= 1024 || y >= 1024) return;
+
+  tiles[y * 1024 + x] = id;
+}
+
 TileId Map::GetTileId(const Vector2f& position) const {
   return GetTileId((u16)position.x, (u16)position.y);
 }
 
-bool Map::IsSolid(u16 x, u16 y) const {
+bool Map::IsSolid(u16 x, u16 y, u32 frequency) const {
   TileId id = GetTileId(x, y);
+
+  if (id == 250 && brick_manager) {
+    Brick* brick = brick_manager->GetBrick(x, y);
+
+    assert(brick);
+
+    if (brick && brick->team == frequency) {
+      return false;
+    }
+  }
 
   return null::IsSolid(id);
 }
@@ -257,6 +275,11 @@ u32 Map::GetChecksum(u32 key) const {
   for (int y = basekey % 32; y < 1024; y += 32) {
     for (int x = basekey % 31; x < 1024; x += 31) {
       u8 tile = (u8)GetTileId(x, y);
+
+      if (tile == 250) {
+        tile = 0;
+      }
+
       if ((tile >= kTileStart && tile <= kTileEnd) || tile == kTileSafeId) {
         key += basekey ^ tile;
       }
@@ -266,7 +289,7 @@ u32 Map::GetChecksum(u32 key) const {
   return key;
 }
 
-CastResult Map::Cast(const Vector2f& from, const Vector2f& direction, float max_distance) {
+CastResult Map::Cast(const Vector2f& from, const Vector2f& direction, float max_distance, u32 frequency) {
   CastResult result;
 
   result.hit = false;
@@ -311,7 +334,7 @@ CastResult Map::Cast(const Vector2f& from, const Vector2f& direction, float max_
       travel.y += unit_step.y;
     }
 
-    if (IsSolid((unsigned short)std::floor(check.x), (unsigned short)std::floor(check.y))) {
+    if (IsSolid((unsigned short)std::floor(check.x), (unsigned short)std::floor(check.y), frequency)) {
       result.hit = true;
       result.distance = clear_distance;
       break;

@@ -9,6 +9,7 @@
 #include "Radar.h"
 #include "ShipController.h"
 #include "Sound.h"
+#include "SpectateView.h"
 #include "Tick.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
@@ -368,7 +369,7 @@ bool WeaponManager::SimulateAxis(Weapon& weapon, float dt, int axis) {
   if (weapon.data.type == WeaponType::Thor) return false;
 
   // TODO: Handle other special tiles here
-  if (map.IsSolid((u16)std::floor(weapon.position.x), (u16)std::floor(weapon.position.y))) {
+  if (map.IsSolid((u16)std::floor(weapon.position.x), (u16)std::floor(weapon.position.y), weapon.frequency)) {
     weapon.position[axis] = previous;
     weapon.velocity[axis] = -weapon.velocity[axis];
 
@@ -512,7 +513,7 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
         shrap->last_event_position = shrap->position;
         shrap->last_event_time = GetTime();
 
-        if (connection.map.IsSolid((u16)shrap->position.x, (u16)shrap->position.y)) {
+        if (connection.map.IsSolid((u16)shrap->position.x, (u16)shrap->position.y, shrap->frequency)) {
           --weapon_count;
         }
       }
@@ -583,7 +584,8 @@ void WeaponManager::Render(Camera& camera, Camera& ui_camera, SpriteRenderer& re
 
     if (weapon->data.type != WeaponType::Thor) {
       // TODO: This is pretty heavy. Maybe make it an option to toggle off and just use the simulated position
-      CastResult cast = connection.map.Cast(weapon->last_event_position, Normalize(travel_ray), travel_ray.Length());
+      CastResult cast = connection.map.Cast(weapon->last_event_position, Normalize(travel_ray), travel_ray.Length(),
+                                            weapon->frequency);
       extrapolated_pos = cast.position;
 
       float desync_threshold = weapon->velocity.Length() * (4.0f / 100.0f);

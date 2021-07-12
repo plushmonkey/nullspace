@@ -11,6 +11,7 @@ namespace null {
 using PlayerId = u16;
 constexpr PlayerId kInvalidPlayerId = 0xFFFF;
 constexpr u32 kPlayerTimeout = 200;
+constexpr u32 kExtraDataTimeout = 200;
 
 enum StatusFlag {
   Status_Stealth = (1 << 0),
@@ -63,6 +64,8 @@ struct Player {
   u16 s2c_latency;
 
   u16 flag_timer;
+  WeaponData weapon;
+
   union {
     struct {
       u32 items;
@@ -97,17 +100,13 @@ struct Player {
   AttachInfo* children;
 
   u32 last_extra_timestamp;
-
-  u16 timestamp;
-  WeaponData weapon;
+  u32 timestamp;
 
   float enter_delay;
 
   float warp_anim_t;
   float explode_anim_t;
   float bombflash_anim_t;
-
-  inline u32 GetTimestamp() { return (GetCurrentTick() & 0xFFFF0000) | timestamp; }
 };
 
 }  // namespace null

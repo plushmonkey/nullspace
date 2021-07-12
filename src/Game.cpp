@@ -186,6 +186,8 @@ static void OnSecurityRequestPkt(void* user, u8* pkt, size_t size) {
 
   // Reset green timer so it can synchronize with other clients
   game->green_ticks = 0;
+  game->last_green_tick = GetCurrentTick();
+  game->last_green_collision_tick = GetCurrentTick();
 }
 
 static void OnPlayerPrizePkt(void* user, u8* pkt, size_t size) {
@@ -230,6 +232,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
       connection(perm_arena, temp_arena, work_queue, dispatcher),
       player_manager(perm_arena, connection, dispatcher, sound_system),
       weapon_manager(temp_arena, connection, player_manager, dispatcher, animation, sound_system),
+      brick_manager(perm_arena, connection, dispatcher),
       banner_pool(temp_arena, player_manager, dispatcher),
       camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f / 16.0f),
       ui_camera(Vector2f((float)width, (float)height), Vector2f(0, 0), 1.0f),
@@ -307,15 +310,19 @@ bool Game::Update(const InputState& input, float dt) {
 
   if (tile_renderer.tilemap_texture == -1 && connection.login_state == Connection::LoginState::Complete) {
     if (self) {
-      self->position = Vector2f(0, 0);
+      if (self->ship == 8) {
+        self->position = Vector2f(0, 0);
 
-      for (size_t i = 0; i < player_manager.player_count; ++i) {
-        Player* player = player_manager.GetPlayerById(statbox.player_view[i]);
+        for (size_t i = 0; i < player_manager.player_count; ++i) {
+          Player* player = player_manager.GetPlayerById(statbox.player_view[i]);
 
-        if (player->ship != 8) {
-          specview.SpectatePlayer(*player);
-          break;
+          if (player->ship != 8) {
+            specview.SpectatePlayer(*player);
+            break;
+          }
         }
+      } else {
+        player_manager.Spawn(true);
       }
     }
 
@@ -331,12 +338,15 @@ bool Game::Update(const InputState& input, float dt) {
     }
 
     animated_tile_renderer.InitializeDoors(tile_renderer);
+    connection.map.brick_manager = &brick_manager;
   }
 
   // This must be updated after position update
   if (specview.Update(input, dt)) {
     RecreateRadar();
   }
+
+  brick_manager.Update(connection.map, specview.GetFrequency(), dt);
 
   // Cap player and spectator camera to playable area
   if (self) {
@@ -590,6 +600,7 @@ void Game::RenderGame(float dt) {
 
   animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim, flags, flag_count,
                                 greens, green_count, self_freq, soccer);
+  brick_manager.Render(camera, sprite_renderer, ui_camera.surface_dim, self_freq);
 
   if (self) {
     animation.Render(camera, sprite_renderer);
@@ -883,8 +894,6 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
   Cleanup();
 
   // TODO: Handle and display errors
-
-  last_green_tick = GetCurrentTick();
 
   lvz.Reset();
 

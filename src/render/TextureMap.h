@@ -1,43 +1,73 @@
 #ifndef NULLSPACE_TEXTUREMAP_H_
 #define NULLSPACE_TEXTUREMAP_H_
 
+#include <cstring>
+
+#include "../HashMap.h"
 #include "../Types.h"
 
 namespace null {
 
-struct MemoryArena;
+struct TextureKey {
+  char name[64];
+
+  bool operator==(const TextureKey& other) { return strcmp(name, other.name) == 0; }
+};
 
 struct TextureData {
   u32 id;
   u32 width;
   u32 height;
+
+  bool operator==(const TextureData& other) { return id == other.id && width == other.width && height == other.height; }
 };
 
-// Map texture name to texture data
-constexpr size_t kTextureMapBuckets = (1 << 8);
-struct TextureMap {
-  struct Element {
-    char name[64];
-    TextureData value;
+struct TextureHasher {
+  inline u32 operator()(const TextureKey& key) { return Hash(key.name); }
+  inline u32 operator()(const char* str) { return Hash(str); }
 
-    Element* next;
-  };
+  inline u32 Hash(const char* str) {
+    u32 hash = 5381;
+    char c;
 
-  MemoryArena& arena;
-  Element* elements[kTextureMapBuckets];
-  Element* free;
+    while ((c = *str++)) {
+      hash = hash * 33 ^ c;
+    }
 
-  TextureMap(MemoryArena& arena);
-
-  void Insert(const char* name, u32 id, u32 width, u32 height);
-  TextureData* Find(const char* name);
-
-  void Clear();
-
- private:
-  Element* Allocate();
+    return hash;
+  }
 };
 
+struct TextureMap : public HashMap<TextureKey, TextureData, TextureHasher> {
+  TextureMap(MemoryArena& arena) : HashMap<TextureKey, TextureData, TextureHasher>(arena) {}
+
+  TextureData* Find(const char* str) {
+    u32 bucket = hasher(str) & (NULLSPACE_ARRAY_SIZE(elements) - 1);
+    Element* element = elements[bucket];
+
+    while (element) {
+      if (strcmp(element->key.name, str) == 0) {
+        return &element->value;
+      }
+
+      element = element->next;
+    }
+
+    return nullptr;
+  }
+
+  void Insert(const char* name, u32 id, u32 width, u32 height) {
+    TextureKey key;
+
+    strcpy(key.name, name);
+
+    TextureData data;
+    data.id = id;
+    data.width = width;
+    data.height = height;
+
+    HashMap::Insert(key, data);
+  }
+};
 }  // namespace null
-
 #endif

@@ -42,6 +42,7 @@ struct Graphics {
   static SpriteRenderable* bullet_trail_sprites;
 
   static SpriteRenderable* repel_sprites;
+  static SpriteRenderable* brick_sprites;
   static SpriteRenderable* portal_sprites;
   static SpriteRenderable* super_sprites;
   static SpriteRenderable* shield_sprites;
@@ -87,6 +88,8 @@ struct Graphics {
   static AnimatedSprite anim_burst_active;
 
   static AnimatedSprite anim_repel;
+  static AnimatedSprite anim_enemy_brick;
+  static AnimatedSprite anim_team_brick;
   static AnimatedSprite anim_portal;
   static AnimatedSprite anim_super;
   static AnimatedSprite anim_shield;
@@ -127,6 +130,7 @@ struct Graphics {
   static void CreateExhaustAnimations(SpriteRenderable* renderables, int count);
   static void CreateRocketAnimations(SpriteRenderable* renderables, int count);
   static void CreatePortalAnimations(SpriteRenderable* renderables, int count);
+  static void CreateBrickAnimations(SpriteRenderable* renderables, int count);
 
   static inline SpriteRenderable GetColor(ColorType type) { return colors.GetRenderable(type); }
   static inline SpriteRenderable GetColor(ColorType type, const Vector2f& dimensions) {

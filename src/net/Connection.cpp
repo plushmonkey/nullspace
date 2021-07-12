@@ -648,6 +648,16 @@ void Connection::SendAttachRequest(u16 destination_pid) {
   packet_sequencer.SendReliableMessage(*this, (u8*)&attach_request, sizeof(attach_request));
 }
 
+void Connection::SendAttachDrop() {
+#pragma pack(push, 1)
+  struct {
+    u8 type;
+  } pkt = {0x14};
+#pragma pack(pop)
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
+}
+
 void Connection::SendTakeGreen(u16 x, u16 y, s16 prize_id) {
   u32 timestamp = GetCurrentTick();
 
@@ -684,6 +694,18 @@ void Connection::SendFlagDrop() {
   struct {
     u8 type;
   } pkt = {0x15};
+#pragma pack(pop)
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
+}
+
+void Connection::SendDropBrick(const Vector2f& position) {
+#pragma pack(push, 1)
+  struct {
+    u8 type;
+    u16 x;
+    u16 y;
+  } pkt = {0x1C, (u16)position.x, (u16)position.y};
 #pragma pack(pop)
 
   packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));

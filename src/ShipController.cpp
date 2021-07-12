@@ -403,6 +403,16 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         ship.next_repel_tick = tick + kRepelDelayTicks;
       }
     }
+  } else if (input.IsDown(InputAction::Brick)) {
+    if (TICK_GT(tick, ship.next_bomb_tick)) {
+      if (ship.bricks > 0 && !in_safe) {
+        --ship.bricks;
+
+        connection.SendDropBrick(self.position);
+        SetNextTick(&ship.next_bomb_tick, tick + ship_settings.BombFireDelay);
+        SetNextTick(&ship.next_bullet_tick, tick + ship_settings.BombFireDelay);
+      }
+    }
   } else if (input.IsDown(InputAction::Rocket)) {
     if (TICK_GT(tick, ship.next_bomb_tick) && TICK_GT(tick, ship.rocket_end_tick)) {
       if (ship.rockets > 0) {

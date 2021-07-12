@@ -254,6 +254,11 @@ void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
     // Don't render the player's name if they aren't synchronized, but still render their children
     if (IsSynchronized(*player)) {
       RenderPlayerName(camera, renderer, *self, *player, position, false);
+
+      float max_energy = (float)ship_controller->ship.energy;
+      if (player->id == player_id && player->energy < max_energy * 0.5f) {
+        position += Vector2f(0, 12.0f / 16.0f);
+      }
     }
 
     AttachInfo* info = player->children;
@@ -277,6 +282,7 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
   if (player.ship == 8) return;
   if (player.position == Vector2f(0, 0)) return;
 
+  u32 tick = GetCurrentTick();
   u32 self_freq = specview->GetFrequency();
 
   if (!IsPlayerVisible(self, self_freq, player)) return;
@@ -326,7 +332,7 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
         renderer.DrawText(camera, energy_output, energy_color, current_position, Layer::Ships);
 
         current_position.y += (12.0f / 16.0f);
-      } else if (player.id != player_id && player.energy > 0.0f) {
+      } else if (player.id != player_id && TICK_DIFF(tick, player.last_extra_timestamp) < kExtraDataTimeout) {
         char energy_output[16];
         sprintf(energy_output, "%d", (u32)player.energy);
         Vector2f energy_p = position.PixelRounded() + Vector2f(-0.5f, offset.y);
@@ -661,7 +667,7 @@ void PlayerManager::Spawn(bool reset) {
 
       Vector2f spawn((float)x, (float)y);
 
-      if (connection.map.CanFit(spawn, ship_radius)) {
+      if (connection.map.CanFit(spawn, ship_radius, self->frequency)) {
         self->position = spawn;
         break;
       }
@@ -695,7 +701,7 @@ void PlayerManager::Spawn(bool reset) {
 
         Vector2f spawn(x_center + x_offset, y_center + y_offset);
 
-        if (connection.map.CanFit(spawn, ship_radius)) {
+        if (connection.map.CanFit(spawn, ship_radius, self->frequency)) {
           self->position = spawn;
           break;
         }
@@ -761,7 +767,11 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
 
   Player* player = GetPlayerById(pid);
 
-  if (player) {
+  // Put packet timestamp into local time
+  u32 server_timestamp = ((GetCurrentTick() + connection.time_diff) & 0xFFFF0000) | timestamp;
+  u32 local_timestamp = server_timestamp - connection.time_diff;
+
+  if (player && TICK_GT(local_timestamp, player->timestamp)) {
     player->orientation = direction / 40.0f;
     player->velocity.y = vel_y / 16.0f / 10.0f;
     player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
@@ -777,17 +787,8 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
     }
 
     Vector2f pkt_position(x / 16.0f, y / 16.0f);
-    // Put packet timestamp into local time
-    player->timestamp = (timestamp - connection.time_diff) & 0xFFFF;
-    s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), (GetCurrentTick() & 0xFFFF0000) | player->timestamp);
-
-    if (timestamp_diff > 15) {
-      timestamp_diff = 15;
-    } else if (timestamp_diff < -15) {
-      timestamp_diff = -15;
-    }
-
-    player->ping += timestamp_diff;
+    player->timestamp = local_timestamp;
+    s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
 
     u16 weapon = buffer.ReadU16();
     memcpy(&player->weapon, &weapon, sizeof(weapon));
@@ -799,6 +800,7 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
     // Don't force set own energy/latency
     if (player->id != player_id) {
       if (size >= 23) {
+        player->last_extra_timestamp = GetCurrentTick();
         player->energy = (float)buffer.ReadU16();
       } else {
         player->energy = 0;
@@ -821,11 +823,9 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
       } else {
         player->items = 0;
       }
-
-      player->last_extra_timestamp = GetCurrentTick();
     }
 
-    OnPositionPacket(*player, pkt_position);
+    OnPositionPacket(*player, pkt_position, timestamp_diff);
   }
 }
 
@@ -844,7 +844,8 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
   Player* player = GetPlayerById(pid);
 
   // Put packet timestamp into local time
-  u32 local_timestamp = (timestamp - connection.time_diff) & 0xFFFF;
+  u32 server_timestamp = ((GetCurrentTick() + connection.time_diff) & 0xFFFF0000) | timestamp;
+  u32 local_timestamp = server_timestamp - connection.time_diff;
 
   // Only perform update if the packet is newer than the previous one.
   if (player && TICK_GT(local_timestamp, player->timestamp)) {
@@ -863,6 +864,7 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
     // Don't force set own energy/latency
     if (player->id != player_id) {
       if (size >= 18) {
+        player->last_extra_timestamp = GetCurrentTick();
         player->energy = (float)buffer.ReadU16();
       } else {
         player->energy = 0.0f;
@@ -885,26 +887,17 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
       } else {
         player->items = 0;
       }
-
-      player->last_extra_timestamp = GetCurrentTick();
     }
 
     Vector2f pkt_position(x / 16.0f, y / 16.0f);
     player->timestamp = local_timestamp;
-    s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), (GetCurrentTick() & 0xFFFF0000) | player->timestamp);
+    s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
 
-    if (timestamp_diff > 15) {
-      timestamp_diff = 15;
-    } else if (timestamp_diff < -15) {
-      timestamp_diff = -15;
-    }
-
-    player->ping += timestamp_diff;
-    OnPositionPacket(*player, pkt_position);
+    OnPositionPacket(*player, pkt_position, timestamp_diff);
   }
 }
 
-void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position) {
+void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, s32 tick_diff) {
   if (player.position == Vector2f(0, 0) && position != Vector2f(0, 0)) {
     player.warp_anim_t = 0.0f;
   }
@@ -914,8 +907,17 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position) {
   // Hard set the new position so we can simulate from it to catch up to where the player would be now after ping ticks
   player.position = position;
 
+  if (tick_diff < 0) {
+    tick_diff = 0;
+  }
+
+  // Client sends ppk to server with server timestamp, server calculates the tick difference on arrival and sets that to
+  // ping. The player should be simulated however many ticks it took to reach server plus the tick difference between
+  // this client and the server.
+  s32 sim_ticks = player.ping + tick_diff;
+
   // Simulate per tick because the simulation can be unstable with large dt
-  for (int i = 0; i < player.ping; ++i) {
+  for (int i = 0; i < sim_ticks; ++i) {
     SimulatePlayer(player, (1.0f / 100.0f));
   }
 
@@ -957,6 +959,11 @@ void PlayerManager::AttachSelf(Player* destination) {
   if (self->attach_parent != kInvalidPlayerId) {
     connection.SendAttachRequest(kInvalidPlayerId);
     DetachPlayer(*self);
+    return;
+  }
+
+  if (self->children) {
+    connection.SendAttachDrop();
     return;
   }
 
@@ -1192,13 +1199,13 @@ bool PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
   for (s16 other = start; other < end && !collided; ++other) {
     // TODO: Handle special tiles like warp here
 
-    if (axis == 0 && map.IsSolid(check, other)) {
+    if (axis == 0 && map.IsSolid(check, other, player.frequency)) {
       if (BoxBoxIntersect(collider_min, collider_max, Vector2f((float)check, (float)other),
                           Vector2f((float)check + 1, (float)other + 1))) {
         collided = true;
         break;
       }
-    } else if (axis == 1 && map.IsSolid(other, check)) {
+    } else if (axis == 1 && map.IsSolid(other, check, player.frequency)) {
       if (BoxBoxIntersect(collider_min, collider_max, Vector2f((float)other, (float)check),
                           Vector2f((float)other + 1, (float)check + 1))) {
         collided = true;

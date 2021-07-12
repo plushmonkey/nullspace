@@ -25,7 +25,7 @@ The actual client is much smoother than the video shows.
 - Render exhaust
 - Energy and recharge
 - Bullets, bouncing bullets, bombs, proximity bombs, mines, repels, and shrap implemented with correct simulation
-- Bursts, repels, decoys, thors, rockets, and portals implemented
+- Bursts, repels, decoys, thors, bricks, rockets, and portals implemented
 - Afterburners
 - Initial bounty prizing with correct prizing
 - Cloak, stealth, xradar, antiwarp, and multifire
