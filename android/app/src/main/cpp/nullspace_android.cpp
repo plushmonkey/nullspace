@@ -54,7 +54,7 @@ void InitializeSettings() {
     g_Settings.render_stars = true;
 
     g_Settings.encrypt_method = EncryptMethod::Subspace;
-
+    
     g_Settings.sound_enabled = true;
     g_Settings.sound_volume = 0.25f;
     g_Settings.sound_radius_increase = 10.0f;
@@ -115,8 +115,6 @@ struct nullspace {
         constexpr size_t kPermanentSize = Megabytes(64);
         constexpr size_t kTransientSize = Megabytes(32);
         constexpr size_t kWorkSize = Megabytes(4);
-
-        InitializeSettings();
 
         u8* perm_memory = (u8*)malloc(kPermanentSize);
         u8* trans_memory = (u8*)malloc(kTransientSize);
@@ -299,10 +297,17 @@ struct nullspace {
     }
 
     bool Update() {
+        constexpr float kMaxDelta = 1.0f / 20.0f;
+
         using ms_float = std::chrono::duration<float, std::milli>;
         auto start = std::chrono::high_resolution_clock::now();
 
         float dt = frame_time / 1000.0f;
+
+        // Cap dt so window movement doesn't cause large updates
+        if (dt > kMaxDelta) {
+            dt = kMaxDelta;
+        }
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -348,6 +353,8 @@ void init(struct android_app* app)
 
     void* output = nullptr;
 
+    null::InitializeSettings();
+
     g_App = app;
     ANativeWindow_acquire(g_App->window);
 
@@ -391,6 +398,8 @@ void init(struct android_app* app)
         if (!gladLoadGLES2Loader((GLADloadproc)eglGetProcAddress)) {
             __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s", "Failed to initialize glad loader.");
         }
+
+        eglSwapInterval(g_EglDisplay, null::g_Settings.vsync);
 
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LEQUAL);

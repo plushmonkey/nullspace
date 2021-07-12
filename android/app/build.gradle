@@ -19,6 +19,7 @@ android {
                 cppFlags '-std=c++14'
             }
         }
+        signingConfig signingConfigs.debug
     }
 
     buildTypes {

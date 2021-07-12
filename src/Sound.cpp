@@ -14,9 +14,8 @@
 namespace null {
 
 ma_uint32 read_and_mix_pcm_frames_f32(ma_decoder* decoder, float* output, ma_uint32 frame_count) {
-  float buffer[4096];
+  float buffer[512];
   ma_uint32 total_frames_read = 0;
-  int iterations = 0;
 
   while (total_frames_read < frame_count) {
     ma_uint32 frames_remaining = frame_count - total_frames_read;
@@ -45,7 +44,6 @@ ma_uint32 read_and_mix_pcm_frames_f32(ma_decoder* decoder, float* output, ma_uin
       // End of clip
       break;
     }
-    ++iterations;
   }
 
   return total_frames_read;

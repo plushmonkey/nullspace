@@ -37,8 +37,7 @@ struct TileRenderer {
   bool Initialize();
   void Render(Camera& camera);
   bool CreateMapBuffer(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim);
-  bool CreateRadar(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim, u16 mapzoom,
-                   Soccer& soccer);
+  bool CreateRadar(MemoryArena& temp_arena, Map& map, const Vector2f& surface_dim, u16 mapzoom, Soccer& soccer);
 
   void Cleanup();
 

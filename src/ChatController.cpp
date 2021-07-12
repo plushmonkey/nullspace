@@ -556,7 +556,7 @@ ChatType ChatController::GetInputType() {
 }
 
 inline void CreateUV(SpriteRenderer& renderer, SpriteRenderable& renderable, const Vector2f& tile_position) {
-  Vector2f sheet_dimensions = renderer.GetRenderableSheetDimensions(renderable);
+  Vector2f sheet_dimensions = Graphics::colors.texture_dimensions;
 
   float left = tile_position.x;
   float right = left + 1.0f;

@@ -151,6 +151,7 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
   if (!color_sprites) return false;
 
   colors.texture_id = color_sprites->texture;
+  colors.texture_dimensions = color_sprites->dimensions;
 
   icon_sprites = LoadTileSheet(renderer, "Icons", Vector2f(26, 24), &count);
   if (!icon_sprites) return false;

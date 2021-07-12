@@ -249,15 +249,8 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
   return true;
 }
 
-bool TileRenderer::CreateRadar(MemoryArena& temp_arena, const char* filename, const Vector2f& surface_dim, u16 mapzoom,
+bool TileRenderer::CreateRadar(MemoryArena& temp_arena, Map& map, const Vector2f& surface_dim, u16 mapzoom,
                                Soccer& soccer) {
-  Map map;
-
-  if (!map.Load(temp_arena, filename)) {
-    fprintf(stderr, "Could not load map for radar rendering.\n");
-    return false;
-  }
-
   u32 surface_width = (u32)surface_dim.x;
   u32 surface_height = (u32)surface_dim.y;
 

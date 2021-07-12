@@ -192,18 +192,6 @@ SpriteRenderable* SpriteRenderer::LoadSheetFromMemory(const char* name, const u8
   return result;
 }
 
-Vector2f SpriteRenderer::GetRenderableSheetDimensions(SpriteRenderable& renderable) {
-  int width = 0;
-  int height = 0;
-
-  glBindTexture(GL_TEXTURE_2D, renderable.texture);
-
-  glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
-  glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
-
-  return Vector2f((float)width, (float)height);
-}
-
 void SpriteRenderer::FreeSheet(unsigned int texture_id) {
   glDeleteTextures(1, &texture_id);
 }

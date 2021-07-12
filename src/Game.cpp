@@ -325,8 +325,8 @@ bool Game::Update(const InputState& input, float dt) {
 
     mapzoom = connection.settings.MapZoomFactor;
 
-    if (!tile_renderer.CreateRadar(temp_arena, connection.map.filename, ui_camera.surface_dim,
-                                   connection.settings.MapZoomFactor, soccer)) {
+    if (!tile_renderer.CreateRadar(temp_arena, connection.map, ui_camera.surface_dim, connection.settings.MapZoomFactor,
+                                   soccer)) {
       log_error("Failed to create radar.\n");
     }
 
@@ -777,7 +777,7 @@ void Game::RecreateRadar() {
 
   mapzoom = connection.settings.MapZoomFactor;
 
-  if (!tile_renderer.CreateRadar(temp_arena, connection.map.filename, ui_camera.surface_dim, mapzoom, soccer)) {
+  if (!tile_renderer.CreateRadar(temp_arena, connection.map, ui_camera.surface_dim, mapzoom, soccer)) {
     fprintf(stderr, "Failed to create radar.\n");
   }
 }
@@ -832,6 +832,8 @@ void Game::OnTurfFlagUpdate(u8* pkt, size_t size) {
   NetworkBuffer buffer(pkt, size, size);
 
   buffer.ReadU8();
+
+  if (connection.login_state != Connection::LoginState::Complete) return;
 
   u16 id = 0;
   while (buffer.read < buffer.write) {

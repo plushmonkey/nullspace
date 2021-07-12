@@ -35,6 +35,7 @@ enum class ColorType {
 struct Colors {
   u32 texture_id = -1;
   float animation_time = 0.0f;
+  Vector2f texture_dimensions;
 
   void Update(float dt);
   SpriteRenderable GetRenderable(ColorType type);
