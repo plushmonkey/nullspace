@@ -219,6 +219,8 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
     return WeaponSimulateResult::Continue;
   }
 
+  WeaponSimulateResult result = WeaponSimulateResult::Continue;
+
   for (size_t i = 0; i < player_manager.player_count; ++i) {
     Player* player = player_manager.players + i;
 
@@ -273,7 +275,7 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
         hit = BoxBoxOverlap(pos - player_r, pos + player_r, min_w, max_w);
 
         if (!hit) {
-          return WeaponSimulateResult::Continue;
+          continue;
         }
       }
 
@@ -288,11 +290,11 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
         weapon.position = previous_position;
       }
 
-      return WeaponSimulateResult::PlayerExplosion;
+      result = WeaponSimulateResult::PlayerExplosion;
     }
   }
 
-  return WeaponSimulateResult::Continue;
+  return result;
 }
 
 WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {

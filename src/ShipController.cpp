@@ -96,10 +96,15 @@ void ShipController::Update(const InputState& input, float dt) {
   } else {
     Player* parent = player_manager.GetPlayerById(self->attach_parent);
     if (parent) {
-      self->position = parent->position;
-      self->velocity = parent->velocity;
-      self->lerp_time = parent->lerp_time;
-      self->lerp_velocity = parent->lerp_velocity;
+      if (player_manager.IsSynchronized(*parent) && parent->position != Vector2f(0, 0)) {
+        self->position = parent->position;
+        self->velocity = parent->velocity;
+        self->lerp_time = parent->lerp_time;
+        self->lerp_velocity = parent->lerp_velocity;
+      } else {
+        self->velocity = Vector2f(0, 0);
+        self->lerp_time = 0.0f;
+      }
     }
   }
 
@@ -647,8 +652,7 @@ inline void RenderTimedIndicator(Camera& ui_camera, SpriteRenderer& renderer, An
     sprintf(duration_text, "%.1f", duration);
   }
 
-  renderer.DrawText(ui_camera, duration_text, color, position + Vector2f(0, 4), Layer::Gauges,
-                    TextAlignment::Right);
+  renderer.DrawText(ui_camera, duration_text, color, position + Vector2f(0, 4), Layer::Gauges, TextAlignment::Right);
 }
 
 void ShipController::RenderIndicators(Camera& ui_camera, SpriteRenderer& renderer) {
@@ -659,7 +663,8 @@ void ShipController::RenderIndicators(Camera& ui_camera, SpriteRenderer& rendere
   if (ship.portal_time > 0) {
     constexpr float kPortalIndicatorY = 133;
 
-    RenderTimedIndicator(ui_camera, renderer, &portal_animation, kPortalIndicatorY, ship.portal_time, TextColor::Yellow);
+    RenderTimedIndicator(ui_camera, renderer, &portal_animation, kPortalIndicatorY, ship.portal_time,
+                         TextColor::Yellow);
   }
 
   if (ship.super_time > 0.0f) {

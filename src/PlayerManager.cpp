@@ -365,13 +365,21 @@ void PlayerManager::SendPositionPacket() {
 
   assert(player);
 
-  if (player->ship != 8 && player->energy <= 0) return;
-
   u16 x = (u16)(player->position.x * 16.0f);
   u16 y = (u16)(player->position.y * 16.0f);
 
   u16 vel_x = (u16)(player->velocity.x * 16.0f * 10.0f);
   u16 vel_y = (u16)(player->velocity.y * 16.0f * 10.0f);
+
+  if (player->ship != 8 && player->enter_delay > 0.0f) {
+    x = 0xFFFF;
+    y = 0xFFFF;
+  }
+
+  if (player->attach_parent != kInvalidPlayerId) {
+    vel_x = 0;
+    vel_y = 0;
+  }
 
   u16 weapon = *(u16*)&player->weapon;
   u16 energy = (u16)player->energy;
@@ -835,7 +843,11 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
 
   Player* player = GetPlayerById(pid);
 
-  if (player) {
+  // Put packet timestamp into local time
+  u32 local_timestamp = (timestamp - connection.time_diff) & 0xFFFF;
+
+  // Only perform update if the packet is newer than the previous one.
+  if (player && TICK_GT(local_timestamp, player->timestamp)) {
     player->orientation = direction / 40.0f;
     player->ping = ping;
     player->bounty = bounty;
@@ -878,8 +890,7 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
     }
 
     Vector2f pkt_position(x / 16.0f, y / 16.0f);
-    // Put packet timestamp into local time
-    player->timestamp = (timestamp - connection.time_diff) & 0xFFFF;
+    player->timestamp = local_timestamp;
     s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), (GetCurrentTick() & 0xFFFF0000) | player->timestamp);
 
     if (timestamp_diff > 15) {
@@ -1046,10 +1057,12 @@ void PlayerManager::OnCreateTurretLink(u8* pkt, size_t size) {
 
     AttachPlayer(*requester, *destination);
 
-    requester->position = destination->position;
-    requester->velocity = destination->velocity;
-    requester->lerp_velocity = destination->lerp_velocity;
-    requester->lerp_time = destination->lerp_time;
+    if (requester->id != player_id) {
+      requester->position = destination->position;
+      requester->velocity = destination->velocity;
+      requester->lerp_velocity = destination->lerp_velocity;
+      requester->lerp_time = destination->lerp_time;
+    }
   }
 }
 
@@ -1060,7 +1073,7 @@ void PlayerManager::OnDestroyTurretLink(u8* pkt, size_t size) {
 
   if (player) {
     Player* self = GetSelf();
-    if (self && self->attach_parent == pid) {
+    if (self && self->attach_parent == pid && self->enter_delay <= 0.0f) {
       connection.SendAttachRequest(kInvalidPlayerId);
     }
     DetachAllChildren(*player);
