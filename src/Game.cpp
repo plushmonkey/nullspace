@@ -367,6 +367,8 @@ bool Game::Update(const InputState& input, float dt) {
   animated_tile_renderer.Update(dt);
   lvz.Update(dt);
 
+  radar.Update(ui_camera, connection.settings.MapZoomFactor, specview.GetFrequency(), specview.spectate_id);
+
   UpdateGreens(dt);
 
   u32 tick = GetCurrentTick();
@@ -413,7 +415,22 @@ bool Game::Update(const InputState& input, float dt) {
     }
   }
 
-  radar.Update(ui_camera, connection.settings.MapZoomFactor, specview.GetFrequency(), specview.spectate_id);
+  if (self) {
+    s32 tick_diff = TICK_DIFF(tick, last_tick);
+
+    if (self->flag_timer > 0 && tick_diff > 0) {
+      s32 new_timer = self->flag_timer - tick_diff;
+
+      if (new_timer <= 0) {
+        connection.SendFlagDrop();
+        self->flag_timer = 0;
+      } else {
+        self->flag_timer = (u16)new_timer;
+      }
+    }
+
+    last_tick = GetCurrentTick();
+  }
 
   return !menu_quit;
 }
@@ -793,11 +810,14 @@ void Game::OnFlagClaim(u8* pkt, size_t size) {
   if (!player) return;
 
   if (!(flags[id].flags & GameFlag_Turf)) {
+    bool was_dropped = flags[id].flags & GameFlag_Dropped;
+
     flags[id].flags &= ~GameFlag_Dropped;
 
     player->flags++;
 
-    if (player->id == specview.GetPlayerId()) {
+    if (was_dropped && player->id == specview.GetPlayerId()) {
+      player->flag_timer = connection.settings.FlagDropDelay;
       sound_system.Play(AudioType::Flag);
     }
   } else {

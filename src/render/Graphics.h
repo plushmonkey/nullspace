@@ -45,6 +45,7 @@ struct Graphics {
   static SpriteRenderable* portal_sprites;
   static SpriteRenderable* super_sprites;
   static SpriteRenderable* shield_sprites;
+  static SpriteRenderable* flag_indicator_sprites;
 
   static SpriteRenderable* icon_sprites;
   static SpriteRenderable empty_icon_sprites[2];
@@ -89,6 +90,7 @@ struct Graphics {
   static AnimatedSprite anim_portal;
   static AnimatedSprite anim_super;
   static AnimatedSprite anim_shield;
+  static AnimatedSprite anim_flag_indicator;
 
   static AnimatedSprite anim_ship_explode;
   static AnimatedSprite anim_ship_warp;

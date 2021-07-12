@@ -82,6 +82,7 @@ struct Game {
   bool menu_quit = false;
   int mapzoom = 0;
   float jitter_time = 0.0f;
+  u32 last_tick = 0;
 
   size_t flag_count = 0;
   GameFlag flags[256];

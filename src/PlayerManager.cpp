@@ -398,7 +398,7 @@ void PlayerManager::SendPositionPacket() {
   if (connection.extra_position_info) {
     buffer.WriteU16(energy);
     buffer.WriteU16(connection.ping / 10);
-    buffer.WriteU16(0);
+    buffer.WriteU16(player->flag_timer / 100);
 
     struct {
       u32 shields : 1;
@@ -484,6 +484,7 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   player->flags = buffer.ReadU16();
   player->koth = buffer.ReadU8();
   player->timestamp = GetCurrentTick() & 0xFFFF;
+  player->last_extra_timestamp = 0;
   player->lerp_time = 0.0f;
   player->warp_anim_t = Graphics::anim_ship_warp.duration;
   player->explode_anim_t = Graphics::anim_ship_explode.duration;
@@ -573,7 +574,7 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
     weapon_manager->PlayPositionalSound(AudioType::Explode1, killed->position);
   }
 
-  if (killer) {
+  if (killer && killer != killed) {
     killer->flags += flag_transfer;
     if (killer->id == player_id) {
       killer->bounty += connection.settings.BountyIncreaseForKill;
@@ -802,9 +803,9 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
       }
 
       if (size >= 27) {
-        player->timers = buffer.ReadU16();
+        player->flag_timer = buffer.ReadU16();
       } else {
-        player->timers = 0;
+        player->flag_timer = 0;
       }
 
       if (size >= 31) {
@@ -812,6 +813,8 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
       } else {
         player->items = 0;
       }
+
+      player->last_extra_timestamp = GetCurrentTick();
     }
 
     OnPositionPacket(*player, pkt_position);
@@ -860,9 +863,9 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
       }
 
       if (size >= 22) {
-        player->timers = buffer.ReadU16();
+        player->flag_timer = buffer.ReadU16();
       } else {
-        player->timers = 0;
+        player->flag_timer = 0;
       }
 
       if (size >= 26) {
@@ -870,6 +873,8 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
       } else {
         player->items = 0;
       }
+
+      player->last_extra_timestamp = GetCurrentTick();
     }
 
     Vector2f pkt_position(x / 16.0f, y / 16.0f);
@@ -927,9 +932,7 @@ void PlayerManager::OnFlagDrop(u8* pkt, size_t size) {
   Player* player = GetPlayerById(player_id);
 
   if (player) {
-    if (player->flags > 0) {
-      player->flags--;
-    }
+    player->flags = 0;
   }
 }
 

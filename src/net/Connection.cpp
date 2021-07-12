@@ -679,6 +679,16 @@ void Connection::SendFlagRequest(u16 flag_id) {
   packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
 }
 
+void Connection::SendFlagDrop() {
+#pragma pack(push, 1)
+  struct {
+    u8 type;
+  } pkt = {0x15};
+#pragma pack(pop)
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
+}
+
 ConnectResult Connection::Connect(const char* ip, u16 port) {
   inet_pton(AF_INET, ip, &this->remote_addr.addr);
 

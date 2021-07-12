@@ -62,7 +62,7 @@ struct Player {
   u16 bounty;
   u16 s2c_latency;
 
-  u16 timers;
+  u16 flag_timer;
   union {
     struct {
       u32 items;
@@ -92,9 +92,11 @@ struct Player {
   u32 last_bounce_tick;
 
   u16 attach_parent;
+  u16 flags;
+
   AttachInfo* children;
 
-  u16 flags;
+  u32 last_extra_timestamp;
 
   u16 timestamp;
   WeaponData weapon;

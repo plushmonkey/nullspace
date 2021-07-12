@@ -193,9 +193,11 @@ inline void UpdateTimedAnimationEffect(Animation* animation, float* time, float 
     }
   }
 
-  *time -= dt;
-  if (*time < 0.0f) {
-    *time = 0.0f;
+  if (time) {
+    *time -= dt;
+    if (*time < 0.0f) {
+      *time = 0.0f;
+    }
   }
 }
 
@@ -203,6 +205,7 @@ void ShipController::UpdateEffects(float dt) {
   UpdateTimedAnimationEffect(&portal_animation, &ship.portal_time, dt);
   UpdateTimedAnimationEffect(&super_animation, &ship.super_time, dt);
   UpdateTimedAnimationEffect(&shield_animation, &ship.shield_time, dt);
+  UpdateTimedAnimationEffect(&flag_animation, nullptr, dt);
 }
 
 void ShipController::UpdateExhaust(Player& self, bool thrust_forward, bool thrust_backward, float dt) {
@@ -630,7 +633,7 @@ void ShipController::Render(Camera& ui_camera, Camera& camera, SpriteRenderer& r
 }
 
 inline void RenderTimedIndicator(Camera& ui_camera, SpriteRenderer& renderer, Animation* animation, float y,
-                                 float duration, bool percent = false) {
+                                 float duration, TextColor color, bool percent = false) {
   SpriteRenderable& renderable = animation->GetFrame();
   Vector2f position(ui_camera.surface_dim.x - renderable.dimensions.x, y - renderable.dimensions.y * 0.5f);
 
@@ -644,7 +647,7 @@ inline void RenderTimedIndicator(Camera& ui_camera, SpriteRenderer& renderer, An
     sprintf(duration_text, "%.1f", duration);
   }
 
-  renderer.DrawText(ui_camera, duration_text, TextColor::Yellow, position + Vector2f(0, 4), Layer::Gauges,
+  renderer.DrawText(ui_camera, duration_text, color, position + Vector2f(0, 4), Layer::Gauges,
                     TextAlignment::Right);
 }
 
@@ -656,13 +659,13 @@ void ShipController::RenderIndicators(Camera& ui_camera, SpriteRenderer& rendere
   if (ship.portal_time > 0) {
     constexpr float kPortalIndicatorY = 133;
 
-    RenderTimedIndicator(ui_camera, renderer, &portal_animation, kPortalIndicatorY, ship.portal_time);
+    RenderTimedIndicator(ui_camera, renderer, &portal_animation, kPortalIndicatorY, ship.portal_time, TextColor::Yellow);
   }
 
   if (ship.super_time > 0.0f) {
     constexpr float kSuperIndicatorY = 101;
 
-    RenderTimedIndicator(ui_camera, renderer, &super_animation, kSuperIndicatorY, ship.super_time);
+    RenderTimedIndicator(ui_camera, renderer, &super_animation, kSuperIndicatorY, ship.super_time, TextColor::Yellow);
   }
 
   if (ship.shield_time > 0.0f) {
@@ -671,7 +674,15 @@ void ShipController::RenderIndicators(Camera& ui_camera, SpriteRenderer& rendere
     float max_shield_time = player_manager.connection.settings.ShipSettings[self->ship].ShieldsTime / 100.0f;
     float percent = ship.shield_time / max_shield_time;
 
-    RenderTimedIndicator(ui_camera, renderer, &shield_animation, kShieldIndicatorY, percent, true);
+    RenderTimedIndicator(ui_camera, renderer, &shield_animation, kShieldIndicatorY, percent, TextColor::Yellow, true);
+  }
+
+  if (self->flag_timer > 0) {
+    constexpr float kFlagIndicatorY = 117;
+
+    flag_animation.sprite = &Graphics::anim_flag_indicator;
+    float time = self->flag_timer / 100.0f;
+    RenderTimedIndicator(ui_camera, renderer, &flag_animation, kFlagIndicatorY, time, TextColor::DarkRed);
   }
 
   // TODO: Find real position
@@ -1578,6 +1589,9 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
   TileId tile_id = connection.map.GetTileId((u16)self->position.x, (u16)self->position.y);
 
   if (tile_id == kTileSafeId) {
+    if (self->flags > 0) {
+      connection.SendFlagDrop();
+    }
     return;
   }
 

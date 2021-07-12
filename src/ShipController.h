@@ -130,6 +130,7 @@ struct ShipController {
   Animation portal_animation;
   Animation super_animation;
   Animation shield_animation;
+  Animation flag_animation;
 
   size_t exhaust_count = 0;
   Exhaust exhausts[64];
