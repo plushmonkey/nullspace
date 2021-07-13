@@ -1687,7 +1687,12 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
       int chance = ((factor * 200000) / (damage * 1000)) + 1;
 
       if ((rand() % chance) == 0) {
-        s32 prize_id = rand() % (u32)Prize::Count;
+        s32 prize_id = 7;
+
+        while (prize_id == 7 || prize_id == 13 || prize_id == 14 || prize_id == 17 || prize_id == 18 ||
+               prize_id == 25) {
+          prize_id = rand() % (u32)Prize::Count;
+        }
 
         ApplyPrize(self, -prize_id, true);
       }
