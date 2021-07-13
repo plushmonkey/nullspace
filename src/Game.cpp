@@ -414,6 +414,7 @@ bool Game::Update(const InputState& input, float dt) {
       if (player->ship == 8) continue;
       if (player->enter_delay > 0.0f) continue;
       if (player->frequency == flag->owner) continue;
+      if (!player_manager.IsSynchronized(*player)) continue;
 
       float radius = connection.settings.ShipSettings[player->ship].GetRadius();
       Vector2f player_min = player->position - Vector2f(radius, radius);

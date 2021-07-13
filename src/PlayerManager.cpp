@@ -582,6 +582,7 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
     killed->enter_delay = (connection.settings.EnterDelay / 100.0f) + explode_animation.GetDuration();
     killed->explode_anim_t = 0.0f;
     killed->flags = 0;
+    killed->flag_timer = 0;
 
     DetachPlayer(*killed);
     DetachAllChildren(*killed);
@@ -591,6 +592,11 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
 
   if (killer && killer != killed) {
     killer->flags += flag_transfer;
+
+    if (flag_transfer > 0) {
+      killer->flag_timer = connection.settings.FlagDropDelay;
+    }
+
     if (killer->id == player_id) {
       killer->bounty += connection.settings.BountyIncreaseForKill;
     }
@@ -931,6 +937,7 @@ void PlayerManager::OnFlagDrop(u8* pkt, size_t size) {
 
   if (player) {
     player->flags = 0;
+    player->flag_timer = 0;
   }
 }
 
