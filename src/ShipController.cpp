@@ -1487,6 +1487,23 @@ void ShipController::ResetShip() {
 
   if (!self) return;
 
+  ship.shrapnel = 0;
+  ship.capability = 0;
+  ship.emped_time = 0.0f;
+  ship.multifire = false;
+  ship.rocket_end_tick = 0;
+  ship.emped_time = 0.0f;
+  ship.super_time = 0.0f;
+  ship.shield_time = 0.0f;
+  ship.portal_time = 0.0f;
+  ship.next_bomb_tick = ship.next_bullet_tick = ship.next_repel_tick = 0;
+
+  self->flag_timer = 0;
+  self->togglables = 0;
+  self->bounty = 0;
+
+  if (self->ship == 8) return;
+
   ShipSettings& ship_settings = player_manager.connection.settings.ShipSettings[self->ship];
 
   ship.energy = ship_settings.InitialEnergy;
@@ -1496,7 +1513,6 @@ void ShipController::ResetShip() {
   ship.bombs = ship_settings.InitialBombs;
   ship.thrust = ship_settings.InitialThrust;
   ship.speed = ship_settings.InitialSpeed;
-  ship.shrapnel = 0;
   ship.repels = ship_settings.InitialRepel;
   ship.bursts = ship_settings.InitialBurst;
   ship.decoys = ship_settings.InitialDecoy;
@@ -1504,18 +1520,6 @@ void ShipController::ResetShip() {
   ship.bricks = ship_settings.InitialBrick;
   ship.rockets = ship_settings.InitialRocket;
   ship.portals = ship_settings.InitialPortal;
-  ship.capability = 0;
-  ship.emped_time = 0.0f;
-  ship.multifire = false;
-  ship.rocket_end_tick = 0;
-  ship.emped_time = 0.0f;
-  ship.super_time = 0.0f;
-  ship.shield_time = 0.0f;
-  ship.portal_time = 0.0f;
-
-  ship.next_bomb_tick = ship.next_bullet_tick = ship.next_repel_tick = 0;
-
-  self->togglables = 0;
 
   if (ship_settings.StealthStatus == 2) {
     ship.capability |= ShipCapability_Stealth;
@@ -1532,8 +1536,6 @@ void ShipController::ResetShip() {
   if (ship_settings.AntiWarpStatus == 2) {
     ship.capability |= ShipCapability_Antiwarp;
   }
-
-  self->bounty = 0;
 
   u32 pristine_seed = player_manager.connection.security.prize_seed;
 
