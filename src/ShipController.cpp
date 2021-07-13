@@ -137,17 +137,16 @@ void ShipController::Update(const InputState& input, float dt) {
 
   u32 speed = afterburners ? ship_settings.MaximumSpeed : ship.speed;
 
-  // TODO: Check if this is calculated after rocket speed
+  if (rockets_enabled) {
+    speed = connection.settings.RocketSpeed;
+  }
+
   if (self->children) {
     speed -= ship_settings.TurretSpeedPenalty;
 
     if ((s32)speed < 0) {
       speed = 0;
     }
-  }
-
-  if (rockets_enabled) {
-    speed = connection.settings.RocketSpeed;
   }
 
   self->velocity.Truncate(speed / 10.0f / 16.0f);
