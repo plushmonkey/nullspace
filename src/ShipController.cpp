@@ -78,6 +78,9 @@ void ShipController::Update(const InputState& input, float dt) {
   bool thrust_backward = false;
   bool thrust_forward = false;
 
+  constexpr float kShutdownRotation = 40.0f / 400.0f;
+  bool engine_shutdown = TICK_GT(ship.shutdown_end_tick, tick);
+
   if (self->attach_parent == kInvalidPlayerId) {
     u32 thrust = afterburners ? ship_settings.MaximumThrust : ship.thrust;
 
@@ -87,6 +90,10 @@ void ShipController::Update(const InputState& input, float dt) {
       if ((s32)thrust < 0) {
         thrust = 0;
       }
+    }
+
+    if (engine_shutdown) {
+      thrust = 0;
     }
 
     if (rockets_enabled) {
@@ -116,8 +123,18 @@ void ShipController::Update(const InputState& input, float dt) {
     }
   }
 
+  if (engine_shutdown) {
+    thrust_forward = false;
+    thrust_backward = false;
+  }
+
   if (input.IsDown(InputAction::Left)) {
     float rotation = ship.rotation / 400.0f;
+
+    if (engine_shutdown) {
+      rotation = kShutdownRotation;
+    }
+
     self->orientation -= rotation * dt;
     if (self->orientation < 0) {
       self->orientation += 1.0f;
@@ -126,6 +143,11 @@ void ShipController::Update(const InputState& input, float dt) {
 
   if (input.IsDown(InputAction::Right)) {
     float rotation = ship.rotation / 400.0f;
+
+    if (engine_shutdown) {
+      rotation = kShutdownRotation;
+    }
+
     self->orientation += rotation * dt;
     if (self->orientation >= 1.0f) {
       self->orientation -= 1.0f;
@@ -1223,7 +1245,14 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify, bool da
       }
     } break;
     case Prize::EngineShutdown: {
-      // TODO: Implement
+      u32 ticks = player_manager.connection.settings.EngineShutdownTime;
+
+      if (negative) {
+        ticks *= 3;
+      }
+
+      ship.shutdown_end_tick = GetCurrentTick() + ticks;
+
       display_notification = true;
     } break;
     case Prize::Multifire: {
@@ -1381,8 +1410,27 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify, bool da
       }
     } break;
     case Prize::Multiprize: {
-      // TODO: Implement
-      display_notification = true;
+      if (!negative) {
+        u16 count = player_manager.connection.settings.MultiPrizeCount;
+
+        size_t attempts = 0;
+        for (u16 i = 0; i < count && attempts < 9999; ++i, ++attempts) {
+          s32 random_prize = GeneratePrize(false);
+
+          if (random_prize == 0 || random_prize == (s32)Prize::EngineShutdown || random_prize == (s32)Prize::Shields ||
+              random_prize == (s32)Prize::Super || random_prize == (s32)Prize::Multiprize ||
+              random_prize == (s32)Prize::Warp || random_prize == (s32)Prize::Brick) {
+            --i;
+            continue;
+          }
+
+          u16 bounty = self->bounty;
+          ApplyPrize(self, random_prize, false, false);
+          self->bounty = bounty;
+        }
+
+        display_notification = true;
+      }
     } break;
     case Prize::Brick: {
       display_notification = true;
@@ -1491,6 +1539,7 @@ void ShipController::ResetShip() {
   ship.emped_time = 0.0f;
   ship.multifire = false;
   ship.rocket_end_tick = 0;
+  ship.shutdown_end_tick = 0;
   ship.emped_time = 0.0f;
   ship.super_time = 0.0f;
   ship.shield_time = 0.0f;

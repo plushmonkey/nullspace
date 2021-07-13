@@ -96,6 +96,7 @@ struct Ship {
   u32 next_repel_tick = 0;
 
   u32 rocket_end_tick;
+  u32 shutdown_end_tick;
   float emped_time;
   float super_time;
   float shield_time;
