@@ -591,6 +591,24 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       energy_cost = ship_settings.BombFireEnergy + ship_settings.BombFireEnergyUpgrade * (self.weapon.level + 1);
       used_weapon = energy_cost < self.energy;
 
+      // Disable prox bombs if they are fired near other players with BombSafety on
+      if (used_weapon && self.weapon.type == WeaponType::ProximityBomb && connection.settings.BombSafety) {
+        float prox = (float)(connection.settings.ProximityDistance + self.weapon.level);
+
+        for (size_t i = 0; i < player_manager.player_count; ++i) {
+          Player* player = player_manager.players + i;
+
+          if (player->ship == 8) continue;
+          if (player->frequency == self.frequency) continue;
+          if (player->enter_delay > 0) continue;
+          if (!player_manager.IsSynchronized(*player)) continue;
+
+          if (self.position.DistanceSq(player->position) <= prox * prox) {
+            used_weapon = false;
+          }
+        }
+      }
+
       if (used_weapon) {
         // Apply thrust here before the firing velocity is calculated since this affects it.
         float thrust = ship_settings.BombThrust / 100.0f * 10.0f / 16.0f;
@@ -909,7 +927,7 @@ void ShipController::OnCollectedPrize(u8* pkt, size_t size) {
   }
 }
 
-void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify) {
+void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify, bool damage) {
   bool negative = (prize_id < 0);
   Prize prize = (Prize)prize_id;
 
@@ -1425,7 +1443,9 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify) {
     const char* max_msg = negative ? " MIN" : " MAX";
 
     if (g_Settings.notify_max_prizes || !max_notification) {
-      notifications_.PushFormatted(TextColor::Green, "%s%s", mesg, max_notification ? max_msg : "");
+      TextColor color = damage ? TextColor::Yellow : TextColor::Green;
+
+      notifications_.PushFormatted(color, "%s%s%s", damage ? "DAMAGE: " : "", mesg, max_notification ? max_msg : "");
     }
   }
 }
@@ -1694,7 +1714,7 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
           prize_id = rand() % (u32)Prize::Count;
         }
 
-        ApplyPrize(self, -prize_id, true);
+        ApplyPrize(self, -prize_id, true, true);
       }
     }
 

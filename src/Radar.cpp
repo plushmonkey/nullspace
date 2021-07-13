@@ -192,7 +192,7 @@ IndicatorRenderable Radar::GetIndicator(Player& self, Player& player) {
       color = ColorType::RadarEnemyTarget;
     }
 
-    if (player.flags > 0) {
+    if (player.flags > 0 && player_manager.connection.settings.FlaggerOnRadar) {
       color = ColorType::RadarEnemyFlag;
     }
   }

@@ -11,7 +11,7 @@ namespace null {
 using PlayerId = u16;
 constexpr PlayerId kInvalidPlayerId = 0xFFFF;
 constexpr u32 kPlayerTimeout = 200;
-constexpr u32 kExtraDataTimeout = 200;
+constexpr u32 kExtraDataTimeout = 300;
 
 enum StatusFlag {
   Status_Stealth = (1 << 0),

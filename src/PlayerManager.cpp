@@ -159,11 +159,12 @@ void PlayerManager::Update(float dt) {
   s32 position_delay = 100;
 
   if (self && self->ship != 8) {
-    position_delay = 10;
+    position_delay = connection.settings.SendPositionDelay;
+    if (position_delay < 5) {
+      position_delay = 5;
+    }
   }
 
-  // Continuum client seems to send position update every second while spectating.
-  // Subgame will kick the client if they stop sending packets for too long.
   if (connection.login_state == Connection::LoginState::Complete &&
       TICK_DIFF(current_tick, last_position_tick) >= position_delay) {
     SendPositionPacket();
@@ -409,7 +410,7 @@ void PlayerManager::SendPositionPacket() {
   u8 checksum = WeaponChecksum(buffer.data, buffer.GetSize());
   buffer.data[10] = checksum;
 
-  if (connection.extra_position_info) {
+  if (connection.extra_position_info || connection.settings.ExtraPositionData) {
     buffer.WriteU16(energy);
     buffer.WriteU16(connection.ping / 10);
     buffer.WriteU16(player->flag_timer / 100);
@@ -802,26 +803,18 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
       if (size >= 23) {
         player->last_extra_timestamp = GetCurrentTick();
         player->energy = (float)buffer.ReadU16();
-      } else {
-        player->energy = 0;
       }
 
       if (size >= 25) {
         player->s2c_latency = buffer.ReadU16();
-      } else {
-        player->s2c_latency = 0;
       }
 
       if (size >= 27) {
         player->flag_timer = buffer.ReadU16();
-      } else {
-        player->flag_timer = 0;
       }
 
       if (size >= 31) {
         player->items = buffer.ReadU32();
-      } else {
-        player->items = 0;
       }
     }
 
@@ -866,26 +859,18 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
       if (size >= 18) {
         player->last_extra_timestamp = GetCurrentTick();
         player->energy = (float)buffer.ReadU16();
-      } else {
-        player->energy = 0.0f;
       }
 
       if (size >= 20) {
         player->s2c_latency = buffer.ReadU16();
-      } else {
-        player->s2c_latency = 0;
       }
 
       if (size >= 22) {
         player->flag_timer = buffer.ReadU16();
-      } else {
-        player->flag_timer = 0;
       }
 
       if (size >= 26) {
         player->items = buffer.ReadU32();
-      } else {
-        player->items = 0;
       }
     }
 

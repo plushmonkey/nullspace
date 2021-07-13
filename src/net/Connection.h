@@ -78,6 +78,7 @@ struct Connection {
   ArenaSettings settings = {};
 
   u32 connect_tick = 0;
+  u32 login_tick = 0;
   u32 packets_sent = 0;
   u32 packets_received = 0;
   u32 weapons_received = 0;

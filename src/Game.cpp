@@ -429,7 +429,9 @@ bool Game::Update(const InputState& input, float dt) {
         u32 carry = connection.settings.CarryFlags;
         bool can_carry = carry > 0 && (carry == 1 || player->flags < carry - 1);
 
-        if (can_carry || (flag->flags & GameFlag_Turf)) {
+        u32 view_tick = connection.login_tick + connection.settings.EnterGameFlaggingDelay;
+
+        if (TICK_GT(tick, view_tick) && (can_carry || (flag->flags & GameFlag_Turf))) {
           if (player->id == player_manager.player_id &&
               TICK_DIFF(tick, flag->last_pickup_request_tick) >= kFlagPickupDelay) {
             // Send flag pickup
@@ -614,8 +616,16 @@ void Game::RenderGame(float dt) {
   Player* self = player_manager.GetSelf();
   u32 self_freq = specview.GetFrequency();
 
-  animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim, flags, flag_count,
-                                greens, green_count, self_freq, soccer);
+  size_t viewable_flag_count = flag_count;
+  u32 tick = GetCurrentTick();
+  bool hide_spec_flags = self && self->ship == 8 && connection.settings.HideFlags;
+
+  if (hide_spec_flags || !TICK_GT(tick, connection.login_tick + connection.settings.EnterGameFlaggingDelay)) {
+    viewable_flag_count = 0;
+  }
+
+  animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim, flags,
+                                viewable_flag_count, greens, green_count, self_freq, soccer);
   brick_manager.Render(camera, sprite_renderer, ui_camera.surface_dim, self_freq);
 
   if (self) {

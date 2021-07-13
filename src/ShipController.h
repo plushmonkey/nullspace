@@ -156,7 +156,7 @@ struct ShipController {
 
   void ResetShip();
 
-  void ApplyPrize(Player* self, s32 prize_id, bool notify);
+  void ApplyPrize(Player* self, s32 prize_id, bool notify, bool damage = false);
   s32 GeneratePrize(bool negative_allowed);
 
   void OnWeaponHit(Weapon& weapon);

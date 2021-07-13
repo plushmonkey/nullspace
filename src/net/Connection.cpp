@@ -580,6 +580,7 @@ void Connection::OnDownloadComplete(struct FileRequest* request, u8* data) {
   }
 
   login_state = LoginState::Complete;
+  login_tick = GetCurrentTick();
 }
 
 void Connection::SendSyncTimeRequestPacket(bool reliable) {
