@@ -142,7 +142,7 @@ struct ShipController {
   void UpdateEffects(float dt);
   void UpdateExhaust(Player& self, bool thrust_forward, bool thrust_backward, float dt);
 
-  void FireWeapons(Player& self, const InputState& input, float dt);
+  void FireWeapons(Player& self, const InputState& input, float dt, bool afterburners);
   void HandleStatusEnergy(Player& self, u32 status, u32 cost, float dt);
 
   void Render(Camera& ui_camera, Camera& camera, SpriteRenderer& renderer);

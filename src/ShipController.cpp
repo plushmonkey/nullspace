@@ -81,6 +81,14 @@ void ShipController::Update(const InputState& input, float dt) {
   if (self->attach_parent == kInvalidPlayerId) {
     u32 thrust = afterburners ? ship_settings.MaximumThrust : ship.thrust;
 
+    if (self->children) {
+      thrust -= ship_settings.TurretThrustPenalty;
+
+      if ((s32)thrust < 0) {
+        thrust = 0;
+      }
+    }
+
     if (rockets_enabled) {
       thrust = connection.settings.RocketThrust;
       self->velocity += OrientationToHeading(direction) * (thrust * (10.0f / 16.0f)) * dt;
@@ -129,6 +137,15 @@ void ShipController::Update(const InputState& input, float dt) {
 
   u32 speed = afterburners ? ship_settings.MaximumSpeed : ship.speed;
 
+  // TODO: Check if this is calculated after rocket speed
+  if (self->children) {
+    speed -= ship_settings.TurretSpeedPenalty;
+
+    if ((s32)speed < 0) {
+      speed = 0;
+    }
+  }
+
   if (rockets_enabled) {
     speed = connection.settings.RocketSpeed;
   }
@@ -163,7 +180,7 @@ void ShipController::Update(const InputState& input, float dt) {
     self->togglables &= ~Status_Safety;
   }
 
-  FireWeapons(*self, input, dt);
+  FireWeapons(*self, input, dt, afterburners);
   UpdateEffects(dt);
   UpdateExhaust(*self, thrust_forward, thrust_backward, dt);
 
@@ -331,7 +348,7 @@ inline void SetNextTick(u32* target, u32 next_tick) {
   }
 }
 
-void ShipController::FireWeapons(Player& self, const InputState& input, float dt) {
+void ShipController::FireWeapons(Player& self, const InputState& input, float dt, bool afterburners) {
   Connection& connection = player_manager.connection;
   ShipSettings& ship_settings = connection.settings.ShipSettings[self.ship];
   u32 tick = GetCurrentTick();
@@ -342,6 +359,8 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
   u16 energy_cost = 0;
 
   bool in_safe = connection.map.GetTileId(self.position) == kTileSafeId;
+
+  bool can_fastshoot = !afterburners || !ship_settings.DisableFastShooting;
 
   if (input.IsDown(InputAction::Repel)) {
     if (TICK_GT(tick, ship.next_repel_tick)) {
@@ -358,7 +377,9 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         ship.next_repel_tick = tick + kRepelDelayTicks;
       }
     }
-  } else if (input.IsDown(InputAction::Burst)) {
+  }
+
+  if (input.IsDown(InputAction::Burst)) {
     if (TICK_GT(tick, ship.next_bomb_tick)) {
       if (ship.bursts > 0) {
         self.weapon.type = WeaponType::Burst;
@@ -373,9 +394,11 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         ship.next_repel_tick = tick + kRepelDelayTicks;
       }
     }
-  } else if (input.IsDown(InputAction::Thor)) {
+  }
+
+  if (input.IsDown(InputAction::Thor)) {
     if (TICK_GT(tick, ship.next_bomb_tick)) {
-      if (ship.thors > 0) {
+      if (ship.thors > 0 && can_fastshoot) {
         self.weapon.type = WeaponType::Thor;
         used_weapon = true;
 
@@ -388,7 +411,9 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         ship.next_repel_tick = tick + kRepelDelayTicks;
       }
     }
-  } else if (input.IsDown(InputAction::Decoy)) {
+  }
+
+  if (input.IsDown(InputAction::Decoy)) {
     if (TICK_GT(tick, ship.next_bomb_tick)) {
       if (ship.decoys > 0) {
         self.weapon.type = WeaponType::Decoy;
@@ -403,7 +428,9 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         ship.next_repel_tick = tick + kRepelDelayTicks;
       }
     }
-  } else if (input.IsDown(InputAction::Brick)) {
+  }
+
+  if (input.IsDown(InputAction::Brick)) {
     if (TICK_GT(tick, ship.next_bomb_tick)) {
       if (ship.bricks > 0 && !in_safe) {
         --ship.bricks;
@@ -413,7 +440,9 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         SetNextTick(&ship.next_bullet_tick, tick + ship_settings.BombFireDelay);
       }
     }
-  } else if (input.IsDown(InputAction::Rocket)) {
+  }
+
+  if (input.IsDown(InputAction::Rocket)) {
     if (TICK_GT(tick, ship.next_bomb_tick) && TICK_GT(tick, ship.rocket_end_tick)) {
       if (ship.rockets > 0) {
         --ship.rockets;
@@ -425,7 +454,9 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         ship.next_repel_tick = tick + kRepelDelayTicks;
       }
     }
-  } else if (input.IsDown(InputAction::Portal)) {
+  }
+
+  if (input.IsDown(InputAction::Portal)) {
     float portal_time = connection.settings.WarpPointDelay / 100.0f;
 
     if (ship.portals > 0 && (portal_time - ship.portal_time) >= 0.5f) {
@@ -439,7 +470,10 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
       player_manager.sound_system.Play(AudioType::Portal);
     }
-  } else if (input.IsDown(InputAction::Warp)) {
+  }
+
+  // Prevent warping on portal placement if they have overlapping keybinds.
+  if (input.IsDown(InputAction::Warp) && !input.IsDown(InputAction::Portal)) {
     if (ship.portal_time > 0.0f) {
       ship.portal_time = 0.0f;
 
@@ -469,8 +503,10 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         ship.next_bomb_tick = tick + kRepelDelayTicks;
       }
     }
-  } else if (input.IsDown(InputAction::Bullet) && TICK_GT(tick, ship.next_bullet_tick)) {
-    if (ship.guns > 0) {
+  }
+
+  if (input.IsDown(InputAction::Bullet) && TICK_GT(tick, ship.next_bullet_tick)) {
+    if (ship.guns > 0 && can_fastshoot) {
       self.weapon.level = ship.guns - 1;
 
       if (self.flags > 0 && connection.settings.FlaggerGunUpgrade) {
@@ -494,7 +530,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         energy_cost = ship_settings.BulletFireEnergy * (self.weapon.level + 1);
       }
 
-      used_weapon = energy_cost < ship.energy;
+      used_weapon = energy_cost < self.energy;
 
       if (used_weapon) {
         SetNextTick(&ship.next_bullet_tick, tick + delay);
@@ -502,7 +538,9 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         ship.next_repel_tick = tick + kRepelDelayTicks;
       }
     }
-  } else if (input.IsDown(InputAction::Mine) && TICK_GT(tick, ship.next_bomb_tick)) {
+  }
+
+  if (input.IsDown(InputAction::Mine) && TICK_GT(tick, ship.next_bomb_tick)) {
     if (ship.bombs > 0) {
       self.weapon.level = ship.bombs - 1;
       self.weapon.type = (ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb;
@@ -521,7 +559,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       energy_cost =
           ship_settings.LandmineFireEnergy + ship_settings.LandmineFireEnergyUpgrade * (self.weapon.level + 1);
 
-      used_weapon = energy_cost < ship.energy;
+      used_weapon = energy_cost < self.energy;
 
       if (used_weapon) {
         SetNextTick(&ship.next_bomb_tick, tick + ship_settings.BombFireDelay);
@@ -533,8 +571,10 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         ship.next_repel_tick = tick + kRepelDelayTicks;
       }
     }
-  } else if (input.IsDown(InputAction::Bomb) && TICK_GT(tick, ship.next_bomb_tick)) {
-    if (ship.bombs > 0) {
+  }
+
+  if (input.IsDown(InputAction::Bomb) && TICK_GT(tick, ship.next_bomb_tick)) {
+    if (ship.bombs > 0 && can_fastshoot) {
       self.weapon.level = ship.bombs - 1;
       self.weapon.type = (ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb;
 
@@ -549,9 +589,13 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       }
 
       energy_cost = ship_settings.BombFireEnergy + ship_settings.BombFireEnergyUpgrade * (self.weapon.level + 1);
-      used_weapon = energy_cost < ship.energy;
+      used_weapon = energy_cost < self.energy;
 
       if (used_weapon) {
+        // Apply thrust here before the firing velocity is calculated since this affects it.
+        float thrust = ship_settings.BombThrust / 100.0f * 10.0f / 16.0f;
+        self.velocity -= OrientationToHeading((u8)(self.orientation * 40.0f)) * thrust;
+
         SetNextTick(&ship.next_bomb_tick, tick + ship_settings.BombFireDelay);
 
         if (!ship_settings.EmpBomb) {
@@ -1638,6 +1682,17 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
       self->energy = 0;
     }
   } else {
+    u16 factor = connection.settings.ShipSettings[self->ship].DamageFactor;
+    if (self->bounty > 0 && (u32)self->energy < ship.energy && factor != 0) {
+      int chance = ((factor * 200000) / (damage * 1000)) + 1;
+
+      if ((rand() % chance) == 0) {
+        s32 prize_id = rand() % (u32)Prize::Count;
+
+        ApplyPrize(self, -prize_id, true);
+      }
+    }
+
     self->energy -= damage;
   }
 }

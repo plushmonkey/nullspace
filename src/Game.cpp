@@ -195,10 +195,12 @@ static void OnPlayerPrizePkt(void* user, u8* pkt, size_t size) {
   Game* game = (Game*)user;
 
   buffer.ReadU8();   // type
-  buffer.ReadU32();  // timestmap
+  buffer.ReadU32();  // timestamp
 
   u16 x = buffer.ReadU16();
   u16 y = buffer.ReadU16();
+  u16 prize_id = buffer.ReadU16();
+  u16 player_id = buffer.ReadU16();
 
   // Loop through greens to remove any on that tile. This exists so players outside of position broadcast range will
   // still keep prize seed in sync.
@@ -211,6 +213,20 @@ static void OnPlayerPrizePkt(void* user, u8* pkt, size_t size) {
     if (green_x == x && green_y == y) {
       game->greens[i] = game->greens[--game->green_count];
       break;
+    }
+  }
+
+  // Perform prize sharing
+  Player* player = game->player_manager.GetPlayerById(player_id);
+  if (player && player->id != game->player_manager.player_id) {
+    Player* self = game->player_manager.GetSelf();
+
+    if (self && self->ship != 8 && self->frequency == player->frequency) {
+      u16 share_limit = game->connection.settings.ShipSettings[self->ship].PrizeShareLimit;
+
+      if (self->bounty < share_limit) {
+        game->ship_controller.ApplyPrize(self, prize_id, true);
+      }
     }
   }
 }

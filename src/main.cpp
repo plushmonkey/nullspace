@@ -557,6 +557,8 @@ static void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_
   ActionKey* keys = window_state->keys;
 
   const ActionKey* action = nullptr;
+  bool used_action = false;
+
   for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(kDefaultKeys); ++i) {
     int req_mods = keys[i].mods;
 
@@ -564,10 +566,12 @@ static void OnKeyboardChange(GLFWwindow* window, int key, int scancode, int key_
       action = keys + i;
 
       if (key_action != GLFW_RELEASE) {
-        window_state->input.OnAction(action->action);
+        if (!used_action) {
+          window_state->input.OnAction(action->action);
+          used_action = true;
+        }
 
         window_state->input.SetAction(action->action, true);
-        break;
       } else if (key_action == GLFW_RELEASE) {
         window_state->input.SetAction(action->action, false);
       }
