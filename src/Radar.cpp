@@ -272,4 +272,8 @@ void Radar::RenderFull(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer
   renderer.Draw(ui_camera, self_renderable, start, Layer::TopMost);
 }
 
+bool Radar::InRadarView(const Vector2f& position) {
+  return BoxContainsPoint(ctx.world_min, ctx.world_max, position);
+}
+
 }  // namespace null

@@ -19,6 +19,8 @@ SpriteRenderable* Graphics::text_sprites = nullptr;
 SpriteRenderable* Graphics::textf_sprites = nullptr;
 SpriteRenderable* Graphics::energyfont_sprites = nullptr;
 
+SpriteRenderable* Graphics::healthbar_sprites = nullptr;
+
 SpriteRenderable* Graphics::ship_sprites = nullptr;
 SpriteRenderable* Graphics::turret_sprites = nullptr;
 SpriteRenderable* Graphics::spectate_sprites = nullptr;
@@ -62,6 +64,10 @@ SpriteRenderable* Graphics::asteroid_small2_sprites = nullptr;
 SpriteRenderable* Graphics::asteroid_large_sprites = nullptr;
 SpriteRenderable* Graphics::space_station_sprites = nullptr;
 SpriteRenderable* Graphics::wormhole_sprites = nullptr;
+
+AnimatedSprite Graphics::anim_health_high;
+AnimatedSprite Graphics::anim_health_medium;
+AnimatedSprite Graphics::anim_health_low;
 
 AnimatedSprite Graphics::anim_bombs[4];
 AnimatedSprite Graphics::anim_emp_bombs[4];
@@ -235,6 +241,9 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
 
   CreateRocketAnimations(rocket_sprites, count);
 
+  healthbar_sprites = LoadTileSheet(renderer, "hlthbar", Vector2f(116, 28), &count);
+  if (!healthbar_sprites) return false;
+
   return true;
 }
 
@@ -331,6 +340,18 @@ bool Graphics::InitializeWeapons(SpriteRenderer& renderer) {
   if (!bullet_trail_sprites) return false;
 
   CreateBulletTrailAnimations(bullet_trail_sprites, count);
+
+  anim_health_high.frames = bullet_trail_sprites;
+  anim_health_high.frame_count = 14;
+  anim_health_high.duration = 1.4f;
+
+  anim_health_medium.frames = bullet_trail_sprites + 14;
+  anim_health_medium.frame_count = 14;
+  anim_health_medium.duration = 1.4f;
+
+  anim_health_low.frames = bullet_trail_sprites + 28;
+  anim_health_low.frame_count = 14;
+  anim_health_low.duration = 1.4f;
 
   repel_sprites = LoadTileSheet(renderer, "repel", Vector2f(96, 96), &count);
   if (!repel_sprites) return false;

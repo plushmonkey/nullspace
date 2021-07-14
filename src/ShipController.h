@@ -97,6 +97,8 @@ struct Ship {
 
   u32 rocket_end_tick;
   u32 shutdown_end_tick;
+  u32 fake_antiwarp_end_tick;
+
   float emped_time;
   float super_time;
   float shield_time;
@@ -128,6 +130,11 @@ struct ShipController {
   u32 next_exhaust_index = 0;
   u32 next_exhaust_tick = 0;
 
+  // Only activate warps/portals on key press
+  bool portal_input_cleared = true;
+  bool warp_input_cleared = true;
+
+  Animation health_animation;
   Animation portal_animation;
   Animation super_animation;
   Animation shield_animation;
@@ -147,6 +154,7 @@ struct ShipController {
   void HandleStatusEnergy(Player& self, u32 status, u32 cost, float dt);
 
   void Render(Camera& ui_camera, Camera& camera, SpriteRenderer& renderer);
+  void RenderEnergyDisplay(Camera& ui_camera, SpriteRenderer& renderer);
   void RenderIndicators(Camera& ui_camera, SpriteRenderer& renderer);
   void RenderItemIndicator(Camera& ui_camera, SpriteRenderer& renderer, int value, size_t index, float* y);
   size_t GetGunIconIndex();

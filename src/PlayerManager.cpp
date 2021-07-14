@@ -7,6 +7,7 @@
 #include "Buffer.h"
 #include "ChatController.h"
 #include "InputState.h"
+#include "Radar.h"
 #include "ShipController.h"
 #include "Sound.h"
 #include "SpectateView.h"
@@ -886,10 +887,6 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
 }
 
 void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, s32 tick_diff) {
-  if (player.position == Vector2f(0, 0) && position != Vector2f(0, 0)) {
-    player.warp_anim_t = 0.0f;
-  }
-
   Vector2f previous_pos = player.position;
   Vector2f previous_velocity = player.velocity;
 
@@ -1003,9 +1000,15 @@ void PlayerManager::AttachSelf(Player* destination) {
     return;
   }
 
-  connection.SendAttachRequest(destination->id);
+  if (!IsAntiwarped(*self, true)) {
+    connection.SendAttachRequest(destination->id);
 
-  self->attach_parent = destination->id;
+    if (ship_controller) {
+      ship_controller->ship.fake_antiwarp_end_tick = GetCurrentTick() + connection.settings.AntiwarpSettleDelay;
+    }
+
+    self->attach_parent = destination->id;
+  }
 }
 
 void PlayerManager::AttachPlayer(Player& requester, Player& destination) {
@@ -1252,6 +1255,39 @@ void PlayerManager::SimulatePlayer(Player& player, float dt) {
   }
 
   player.lerp_time -= dt;
+}
+
+bool PlayerManager::IsAntiwarped(Player& self, bool notify) {
+  float antiwarp_tiles = connection.settings.AntiWarpPixels / 16.0f;
+  float antiwarp_range_sq = antiwarp_tiles * antiwarp_tiles;
+
+  u32 tick = GetCurrentTick();
+
+  if (ship_controller && TICK_GT(ship_controller->ship.fake_antiwarp_end_tick, tick)) {
+    return true;
+  }
+
+  for (size_t i = 0; i < player_count; ++i) {
+    Player* player = players + i;
+
+    if (player->ship == 8) continue;
+    if (player->enter_delay > 0.0f) continue;
+    if (player->frequency == self.frequency) continue;
+    if (!(player->togglables & Status_Antiwarp)) continue;
+    if (!radar->InRadarView(player->position)) continue;
+
+    float dist_sq = player->position.DistanceSq(self.position);
+
+    if (dist_sq <= antiwarp_range_sq) {
+      if (notify) {
+        notifications->PushFormatted(TextColor::Yellow, "AntiWarp engaged by: %s", player->name);
+      }
+
+      return true;
+    }
+  }
+
+  return false;
 }
 
 }  // namespace null

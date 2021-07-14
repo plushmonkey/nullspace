@@ -20,6 +20,8 @@ struct Graphics {
   static SpriteRenderable* textf_sprites;
   static SpriteRenderable* energyfont_sprites;
 
+  static SpriteRenderable* healthbar_sprites;
+
   static SpriteRenderable* ship_sprites;
   static SpriteRenderable* turret_sprites;
   static SpriteRenderable* spectate_sprites;
@@ -99,6 +101,10 @@ struct Graphics {
   static AnimatedSprite anim_ship_warp;
   static AnimatedSprite anim_ship_exhaust;
   static AnimatedSprite anim_ship_rocket;
+
+  static AnimatedSprite anim_health_high;
+  static AnimatedSprite anim_health_medium;
+  static AnimatedSprite anim_health_low;
 
   static AnimatedSprite anim_prize;
   static AnimatedSprite anim_flag;

@@ -22,6 +22,8 @@ struct GameSettings {
 
   bool notify_max_prizes;
   u16 target_bounty;
+
+  u32 chat_namelen = 10;
 };
 
 extern GameSettings g_Settings;

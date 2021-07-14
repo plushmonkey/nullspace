@@ -1,5 +1,7 @@
 #include "ChatController.h"
 
+#include <cassert>
+#include <cctype>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
@@ -15,8 +17,6 @@
 
 namespace null {
 
-// TODO: Configurable namelen
-constexpr u32 namelen = 10;
 constexpr float kFontWidth = 8.0f;
 constexpr float kFontHeight = 12.0f;
 
@@ -121,18 +121,31 @@ void ChatController::SendInput() {
   }
 
   if (type == ChatType::Private) {
-    Player* selected = statbox.GetSelectedPlayer();
-
-    if (selected) {
-      target = selected->id;
-    }
-
     if (mesg[0] == '/') {
       ++mesg;
+
+      Player* selected = statbox.GetSelectedPlayer();
+
+      if (selected) {
+        target = selected->id;
+      }
     } else if (mesg[0] == ':') {
+      char* original_mesg = mesg;
+      char* target_name = mesg + 1;
+
       while (*mesg++) {
         if (*mesg == ':') {
+          size_t name_len = mesg - target_name;
           ++mesg;
+
+          Player* best = GetBestPlayerNameMatch(target_name, name_len);
+
+          if (!best) {
+            type = ChatType::RemotePrivate;
+            mesg = original_mesg;
+          } else {
+            target = best->id;
+          }
           break;
         }
       }
@@ -189,6 +202,40 @@ void ChatController::SendInput() {
   input[0] = 0;
 }
 
+Player* ChatController::GetBestPlayerNameMatch(char* name, size_t length) {
+  Player* best_match = nullptr;
+
+  // Loop through each player looking at the first 'length' characters of their name.
+  // If they match up to the length then add them as a candidate.
+  // If they match up to the length and the name is exactly the same length as the check name then return that one.
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* p = player_manager.players + i;
+
+    bool is_match = true;
+
+    for (size_t j = 0; j < NULLSPACE_ARRAY_SIZE(p->name) && j < length; ++j) {
+      char p_curr = tolower(p->name[j]);
+      char n_curr = tolower(name[j]);
+
+      if (p_curr != n_curr) {
+        is_match = false;
+        break;
+      }
+    }
+
+    if (is_match) {
+      best_match = p;
+
+      // If they match up until the length of the check name and they are the same length then it must be exact
+      if (strlen(p->name) == length) {
+        return p;
+      }
+    }
+  }
+
+  return best_match;
+}
+
 bool ChatController::HandleInputCommands() {
   if (input[0] == '=') {
     if (input[1] >= '0' && input[1] <= '9') {
@@ -239,6 +286,25 @@ bool ChatController::HandleInputCommands() {
       } else {
         connection.SendArenaLogin(ship, 0, 1920, 1080, 0xFFFF, "");
       }
+
+      return true;
+    } else if (strstr(input, "?namelen ") == input) {
+      char* arg = input + 9;
+
+      int new_len = atoi(arg);
+
+      if (new_len > 0) {
+        if (new_len > 24) {
+          new_len = 24;
+        }
+
+        g_Settings.chat_namelen = new_len;
+      }
+
+      char response_mesg[256];
+      sprintf(response_mesg, "Message Name Length: %d", g_Settings.chat_namelen);
+
+      ChatEntry* entry = PushEntry(response_mesg, strlen(response_mesg), ChatType::Arena);
 
       return true;
     }
@@ -323,6 +389,7 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
     y -= kFontHeight * linecount;
 
     switch (entry->type) {
+      case ChatType::RemotePrivate:
       case ChatType::Fuchsia:
       case ChatType::Arena: {
         char output[512];
@@ -346,7 +413,14 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
           ChatSpan* span = lines + j;
           u32 length = (u32)(span->end - span->begin);
 
-          sprintf(output, "%*s> %.*s", namelen, entry->sender, length, span->begin);
+          u32 spaces = 0;
+          u32 sender_length = (u32)strlen(entry->sender);
+
+          if (sender_length < g_Settings.chat_namelen) {
+            spaces = g_Settings.chat_namelen - sender_length;
+          }
+
+          sprintf(output, "%*s%.*s> %.*s", spaces, "", g_Settings.chat_namelen, entry->sender, length, span->begin);
 
           renderer.DrawText(camera, output, TextColor::Blue, Vector2f(0, y + j * kFontHeight), Layer::Chat);
         }
@@ -358,7 +432,14 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
           ChatSpan* span = lines + j;
           u32 length = (u32)(span->end - span->begin);
 
-          sprintf(output, "%*s> %.*s", namelen, entry->sender, length, span->begin);
+          u32 spaces = 0;
+          u32 sender_length = (u32)strlen(entry->sender);
+
+          if (sender_length < g_Settings.chat_namelen) {
+            spaces = g_Settings.chat_namelen - sender_length;
+          }
+
+          sprintf(output, "%*s%.*s> %.*s", spaces, "", g_Settings.chat_namelen, entry->sender, length, span->begin);
 
           renderer.DrawText(camera, output, TextColor::Yellow, Vector2f(0, y + j * kFontHeight), Layer::Chat);
         }
@@ -370,7 +451,14 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
           ChatSpan* span = lines + j;
           u32 length = (u32)(span->end - span->begin);
 
-          sprintf(output, "%*s> ", namelen, entry->sender);
+          u32 spaces = 0;
+          u32 sender_length = (u32)strlen(entry->sender);
+
+          if (sender_length < g_Settings.chat_namelen) {
+            spaces = g_Settings.chat_namelen - sender_length;
+          }
+
+          sprintf(output, "%*s%.*s> ", spaces, "", g_Settings.chat_namelen, entry->sender);
           float skip = strlen(output) * kFontWidth;
           renderer.DrawText(camera, output, TextColor::Green, Vector2f(0, y + j * kFontHeight), Layer::Chat);
 
@@ -386,7 +474,14 @@ void ChatController::Render(Camera& camera, SpriteRenderer& renderer) {
           ChatSpan* span = lines + j;
           u32 length = (u32)(span->end - span->begin);
 
-          sprintf(output, "%*s> %.*s", namelen, entry->sender, length, span->begin);
+          u32 spaces = 0;
+          u32 sender_length = (u32)strlen(entry->sender);
+
+          if (sender_length < g_Settings.chat_namelen) {
+            spaces = g_Settings.chat_namelen - sender_length;
+          }
+
+          sprintf(output, "%*s%.*s> %.*s", spaces, "", g_Settings.chat_namelen, entry->sender, length, span->begin);
 
           renderer.DrawText(camera, output, TextColor::Green, Vector2f(0, y + j * kFontHeight), Layer::Chat);
         }
@@ -480,6 +575,62 @@ void ChatController::OnCharacterPress(int codepoint, int mods) {
     return;
   }
 
+  if (size > 0 && codepoint == ':' && input[0] == ':') {
+    if (size == 1) {
+      char* target = history.GetPrevious(nullptr);
+
+      if (target) {
+        sprintf(input, ":%s:", target);
+        return;
+      }
+    } else {
+      char* current_target = input + 1;
+      char* end = current_target;
+
+      while (*end++) {
+        if (*end == ':') {
+          char current_name[20];
+          size_t namelen = end - current_target;
+
+          sprintf(current_name, "%.*s", (u32)namelen, current_target);
+
+          char* previous = history.GetPrevious(current_name);
+
+          if (previous) {
+            sprintf(input, ":%s:", previous);
+            return;
+          }
+
+#if 0
+          for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(private_history); ++i) {
+            if (strncmp(current_target, private_history[i], namelen) == 0 && private_history[i][namelen] == 0) {
+              size_t index = i - 1;
+
+              if (i == 0) {
+                index = private_index - 1;
+
+                if (index > NULLSPACE_ARRAY_SIZE(private_history)) {
+                  index = NULLSPACE_ARRAY_SIZE(private_history) - 1;
+                }
+              }
+
+              if (index == i) {
+                // There's only one in history and this one matches
+                return;
+              }
+
+              assert(index < NULLSPACE_ARRAY_SIZE(private_history));
+
+              sprintf(input, ":%s:", private_history[index]);
+              return;
+            }
+          }
+#endif
+        }
+      }
+    }
+  }
+
   input[size] = codepoint;
   input[size + 1] = 0;
 }
@@ -494,6 +645,28 @@ void ChatController::OnChatPacket(u8* packet, size_t size) {
   Player* player = player_manager.GetPlayerById(sender_id);
   if (player) {
     memcpy(entry->sender, player->name, 20);
+
+    if (entry->type == ChatType::Private && player->id != player_manager.player_id) {
+      history.InsertRecent(player->name);
+    }
+  }
+
+  if (entry->type == ChatType::RemotePrivate) {
+    if (entry->message[0] == '(') {
+      char* sender = entry->message + 1;
+      char* current = entry->message;
+
+      while (*current++) {
+        if (*current == ')') {
+          char name[20];
+
+          sprintf(name, "%.*s", (u32)(current - sender), sender);
+
+          history.InsertRecent(name);
+          break;
+        }
+      }
+    }
   }
 
   entry->sound = sound;
@@ -535,7 +708,7 @@ ChatType ChatController::GetInputType() {
       return ChatType::Private;
     } break;
     case ':': {
-      char* ptr = input + 1;
+      char* ptr = input;
       while (*ptr++) {
         if (*ptr == ':') {
           return ChatType::Private;
@@ -588,6 +761,77 @@ void ChatController::CreateCursor(SpriteRenderer& renderer) {
 
   cursor.animation.t = 0.0f;
   cursor.animation.sprite = &cursor.sprite;
+}
+
+void PrivateHistory::InsertRecent(char* name) {
+  RecentSenderNode* node = recent;
+  RecentSenderNode* alloc_node = nullptr;
+
+  size_t count = 0;
+
+  while (node) {
+    ++count;
+
+    if (strcmp(node->name, name) == 0) {
+      // Name is already in the list so set this one to the allocation node
+      alloc_node = node;
+
+      // Set the count high so it doesn't try to allocate
+      count = NULLSPACE_ARRAY_SIZE(nodes);
+      break;
+    }
+
+    alloc_node = node;
+    node = node->next;
+  }
+
+  if (count < NULLSPACE_ARRAY_SIZE(nodes)) {
+    // Allocate off the nodes until the recent list is fully populated
+    node = nodes + count;
+  } else {
+    // Pop the last node off or the node that was a match for existing name
+    RemoveNode(alloc_node);
+
+    node = alloc_node;
+  }
+
+  strcpy(node->name, name);
+  node->next = recent;
+  recent = node;
+}
+
+void PrivateHistory::RemoveNode(RecentSenderNode* node) {
+  RecentSenderNode* current = recent;
+
+  while (current) {
+    if (current->next == node) {
+      current->next = node->next;
+      break;
+    }
+
+    current = current->next;
+  }
+}
+
+char* PrivateHistory::GetPrevious(char* current) {
+  RecentSenderNode* node = recent;
+
+  while (current && node) {
+    if (strcmp(node->name, current) == 0) {
+      RecentSenderNode* next = node->next;
+
+      // If this is the last node in the list then return the first one
+      if (!next) {
+        next = recent;
+      }
+
+      return next->name;
+    }
+
+    node = node->next;
+  }
+
+  return recent ? recent->name : nullptr;
 }
 
 }  // namespace null

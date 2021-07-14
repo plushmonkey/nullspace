@@ -41,6 +41,8 @@ struct Radar {
 
   void AddTemporaryIndicator(const Vector2f& world_position, u32 end_tick, const Vector2f& dimensions, ColorType color);
 
+  bool InRadarView(const Vector2f& position);
+
  private:
   struct Context {
     Vector2f radar_position;

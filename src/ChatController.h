@@ -10,6 +10,7 @@ namespace null {
 struct Camera;
 struct Connection;
 struct PacketDispatcher;
+struct Player;
 struct PlayerManager;
 struct SpriteRenderer;
 struct StatBox;
@@ -41,6 +42,22 @@ struct ChatCursor {
   Animation animation;
 };
 
+struct RecentSenderNode {
+  char name[24];
+
+  struct RecentSenderNode* next;
+};
+
+struct PrivateHistory {
+  RecentSenderNode* recent = nullptr;
+
+  RecentSenderNode nodes[5];
+
+  void InsertRecent(char* name);
+  char* GetPrevious(char* current);
+  void RemoveNode(RecentSenderNode* node);
+};
+
 struct ChatController {
   Connection& connection;
   PlayerManager& player_manager;
@@ -53,6 +70,8 @@ struct ChatController {
   // Limiting to 250 to make the chat work exactly as would send instead of emulating Continuum's bad behavior
   char input[250] = {0};
   ChatCursor cursor;
+
+  PrivateHistory history;
 
   ChatController(PacketDispatcher& dispatcher, Connection& connection, PlayerManager& player_manager, StatBox& statbox);
 
@@ -69,6 +88,8 @@ struct ChatController {
   ChatType GetInputType();
 
   void CreateCursor(SpriteRenderer& renderer);
+
+  Player* GetBestPlayerNameMatch(char* name, size_t length);
 };
 
 }  // namespace null

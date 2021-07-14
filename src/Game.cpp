@@ -272,7 +272,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
   dispatcher.Register(ProtocolS2C::Security, OnSecurityRequestPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerPrize, OnPlayerPrizePkt, this);
 
-  player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications, &specview, &banner_pool);
+  player_manager.Initialize(&weapon_manager, &ship_controller, &chat, &notifications, &specview, &banner_pool, &radar);
   weapon_manager.Initialize(&ship_controller, &radar);
 
   connection.view_dim = ui_camera.surface_dim;

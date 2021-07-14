@@ -695,7 +695,10 @@ PingStatistics Connection::CalculatePingStatistics() {
   }
 
   result.ping_current = ping;
-  result.ping_avg = (u32)(ping_acc / history_count);
+
+  if (history_count > 0) {
+    result.ping_avg = (u32)(ping_acc / history_count);
+  }
 
   return result;
 }

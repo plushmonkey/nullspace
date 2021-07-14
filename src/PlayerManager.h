@@ -15,6 +15,7 @@ struct ChatController;
 struct Connection;
 struct InputState;
 struct PacketDispatcher;
+struct Radar;
 struct ShipController;
 struct SpectateView;
 struct SoundSystem;
@@ -31,6 +32,7 @@ struct PlayerManager {
   NotificationSystem* notifications = nullptr;
   SpectateView* specview = nullptr;
   BannerPool* banners = nullptr;
+  Radar* radar = nullptr;
 
   u16 player_id = 0;
   u32 last_position_tick = 0;
@@ -53,13 +55,14 @@ struct PlayerManager {
 
   inline void Initialize(WeaponManager* weapon_manager, ShipController* ship_controller,
                          ChatController* chat_controller, NotificationSystem* notifications, SpectateView* specview,
-                         BannerPool* banners) {
+                         BannerPool* banners, Radar* radar) {
     this->weapon_manager = weapon_manager;
     this->ship_controller = ship_controller;
     this->chat_controller = chat_controller;
     this->notifications = notifications;
     this->specview = specview;
     this->banners = banners;
+    this->radar = radar;
 
     warp_animation.sprite = &Graphics::anim_ship_warp;
     explode_animation.sprite = &Graphics::anim_ship_explode;
@@ -100,6 +103,8 @@ struct PlayerManager {
   void DetachPlayer(Player& player);
   void DetachAllChildren(Player& player);
   size_t GetTurretCount(Player& player);
+
+  bool IsAntiwarped(Player& self, bool notify);
 
   inline bool IsSynchronized(Player& player) {
     return player.id == player_id || TICK_DIFF(GetCurrentTick(), player.timestamp) < kPlayerTimeout;

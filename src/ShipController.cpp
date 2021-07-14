@@ -245,10 +245,16 @@ inline void UpdateTimedAnimationEffect(Animation* animation, float* time, float 
 }
 
 void ShipController::UpdateEffects(float dt) {
+  health_animation.sprite = &Graphics::anim_health_high;
+  if (health_animation.t < 0.0f) {
+    health_animation.t = 0.0f;
+  }
+
   UpdateTimedAnimationEffect(&portal_animation, &ship.portal_time, dt);
   UpdateTimedAnimationEffect(&super_animation, &ship.super_time, dt);
   UpdateTimedAnimationEffect(&shield_animation, &ship.shield_time, dt);
   UpdateTimedAnimationEffect(&flag_animation, nullptr, dt);
+  UpdateTimedAnimationEffect(&health_animation, nullptr, dt);
 }
 
 void ShipController::UpdateExhaust(Player& self, bool thrust_forward, bool thrust_backward, float dt) {
@@ -477,10 +483,14 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
     }
   }
 
-  if (input.IsDown(InputAction::Portal)) {
+  bool portal_input = input.IsDown(InputAction::Portal);
+
+  if (portal_input_cleared && portal_input) {
     float portal_time = connection.settings.WarpPointDelay / 100.0f;
 
-    if (ship.portals > 0 && (portal_time - ship.portal_time) >= 0.5f) {
+    portal_input_cleared = false;
+
+    if (ship.portals > 0 && !player_manager.IsAntiwarped(self, true)) {
       --ship.portals;
 
       portal_animation.sprite = &Graphics::anim_portal;
@@ -491,39 +501,52 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
       player_manager.sound_system.Play(AudioType::Portal);
     }
+  } else if (!portal_input) {
+    portal_input_cleared = true;
   }
 
   // Prevent warping on portal placement if they have overlapping keybinds.
-  if (input.IsDown(InputAction::Warp) && !input.IsDown(InputAction::Portal)) {
-    if (ship.portal_time > 0.0f) {
-      ship.portal_time = 0.0f;
+  bool warp_input = input.IsDown(InputAction::Warp);
+  if (warp_input_cleared && warp_input && !portal_input) {
+    warp_input_cleared = false;
 
-      self.togglables |= Status_Flash;
-      self.warp_anim_t = 0.0f;
-      self.position = ship.portal_location;
+    if (!player_manager.IsAntiwarped(self, true)) {
+      if (ship.portal_time > 0.0f) {
+        ship.portal_time = 0.0f;
 
-      player_manager.SendPositionPacket();
-      ship.next_bomb_tick = tick + kRepelDelayTicks;
+        self.togglables |= Status_Flash;
+        self.warp_anim_t = 0.0f;
+        self.position = ship.portal_location;
 
-      player_manager.sound_system.Play(AudioType::Warp);
-    } else {
-      if (TICK_GT(tick, ship.next_bomb_tick)) {
-        if (self.energy < ship.energy) {
-          notifications_.PushFormatted(TextColor::Yellow, "Not enough energy to warp.");
-        } else {
-          self.togglables |= Status_Flash;
-          self.warp_anim_t = 0.0f;
-          self.energy = 1.0f;
-          self.velocity = Vector2f(0, 0);
-
-          player_manager.Spawn(false);
-
-          player_manager.sound_system.Play(AudioType::Warp);
-        }
+        player_manager.SendPositionPacket();
 
         ship.next_bomb_tick = tick + kRepelDelayTicks;
+        ship.fake_antiwarp_end_tick = tick + connection.settings.AntiwarpSettleDelay;
+
+        player_manager.sound_system.Play(AudioType::Warp);
+      } else {
+        if (TICK_GT(tick, ship.next_bomb_tick)) {
+          if (self.energy < ship.energy) {
+            notifications_.PushFormatted(TextColor::Yellow, "Not enough energy to warp.");
+          } else {
+            self.togglables |= Status_Flash;
+            self.warp_anim_t = 0.0f;
+            self.energy = 1.0f;
+            self.velocity = Vector2f(0, 0);
+
+            player_manager.Spawn(false);
+
+            ship.fake_antiwarp_end_tick = tick + connection.settings.AntiwarpSettleDelay;
+
+            player_manager.sound_system.Play(AudioType::Warp);
+          }
+
+          ship.next_bomb_tick = tick + kRepelDelayTicks;
+        }
       }
     }
+  } else if (!warp_input) {
+    warp_input_cleared = true;
   }
 
   if (input.IsDown(InputAction::Bullet) && TICK_GT(tick, ship.next_bullet_tick)) {
@@ -783,6 +806,8 @@ void ShipController::RenderIndicators(Camera& ui_camera, SpriteRenderer& rendere
     RenderTimedIndicator(ui_camera, renderer, &flag_animation, kFlagIndicatorY, time, TextColor::DarkRed);
   }
 
+  RenderEnergyDisplay(ui_camera, renderer);
+
   // TODO: Find real position
   float y_top = ((ui_camera.surface_dim.y * 0.57f) + 1.0f) - 25.0f * 4;
   float y = y_top;
@@ -856,6 +881,42 @@ void ShipController::RenderIndicators(Camera& ui_camera, SpriteRenderer& rendere
     renderer.Draw(ui_camera, Graphics::empty_icon_sprites[1], Vector2f(x + 22, y), Layer::Gauges);
   }
   y += 25.0f;
+}
+
+void ShipController::RenderEnergyDisplay(Camera& ui_camera, SpriteRenderer& renderer) {
+  Player* self = player_manager.GetSelf();
+
+  if (!self) return;
+
+  // Render energy display
+  SpriteRenderable& healthbar = Graphics::healthbar_sprites[0];
+  Vector2f health_center(ui_camera.surface_dim.x * 0.5f, healthbar.dimensions.y * 0.5f);
+  Vector2f health_position(ui_camera.surface_dim.x * 0.5f - healthbar.dimensions.x * 0.5f, 0);
+
+  SpriteRenderable top_display = Graphics::anim_health_high.frames[0];
+  top_display.dimensions = Vector2f(240, 2);
+
+  float energy_percent = self->energy / ship.energy;
+  float view_width = energy_percent * 240.0f;
+
+  if (energy_percent > 0.5f) {
+    health_animation.sprite = &Graphics::anim_health_high;
+  } else if (energy_percent > 0.25f) {
+    health_animation.sprite = &Graphics::anim_health_medium;
+  } else {
+    health_animation.sprite = &Graphics::anim_health_low;
+  }
+
+  SpriteRenderable energy_display = health_animation.GetFrame();
+  energy_display.dimensions = Vector2f(view_width, 6);
+
+  renderer.Draw(ui_camera, top_display, health_center - Vector2f(240, 4), Layer::Gauges);
+  renderer.Draw(ui_camera, top_display, health_center - Vector2f(0, 4), Layer::Gauges);
+
+  renderer.Draw(ui_camera, energy_display, health_center - Vector2f(view_width, 0), Layer::Gauges);
+  renderer.Draw(ui_camera, energy_display, health_center, Layer::Gauges);
+
+  renderer.Draw(ui_camera, healthbar, health_position, Layer::Gauges);
 }
 
 void ShipController::RenderItemIndicator(Camera& ui_camera, SpriteRenderer& renderer, int value, size_t index,
