@@ -7,7 +7,9 @@
 
 #include "ArenaSettings.h"
 #include "BrickManager.h"
+#include "PlayerManager.h"
 #include "Tick.h"
+#include "net/Connection.h"
 
 namespace null {
 
@@ -212,11 +214,45 @@ void Map::SeedDoors(u32 seed) {
   table[6] = (~(bottom >> 5) & 2) | 0xA8;
   table[7] = 0xAA - ((bottom & 0x80) != 0);
 
+  PlayerManager* player_manager = nullptr;
+  Player* self = nullptr;
+  Vector2f self_min;
+  Vector2f self_max;
+
+  if (brick_manager) {
+    player_manager = &brick_manager->player_manager;
+
+    if (player_manager) {
+      self = player_manager->GetSelf();
+
+      if (self) {
+        float radius = player_manager->connection.settings.ShipSettings[self->ship].GetRadius();
+
+        self_min = self->position - Vector2f(radius, radius);
+        self_max = self->position + Vector2f(radius, radius);
+      }
+    }
+  }
+
   for (size_t i = 0; i < door_count; ++i) {
     Tile* door = doors + i;
 
     u8 id = table[door->id - kFirstDoorId];
+
+    constexpr TileId kOpenDoorId = kLastDoorId + 1;
+
+    TileId previous_id = tiles[door->y * 1024 + door->x];
     tiles[door->y * 1024 + door->x] = id;
+
+    // If the tile just changed from open to closed then check for collisions
+    if (self && previous_id == kOpenDoorId && id != kOpenDoorId) {
+      Vector2f door_position((float)door->x, (float)door->y);
+
+      // Perform door warp on overlap
+      if (self && BoxBoxOverlap(self_min, self_max, door_position, door_position + Vector2f(1, 1))) {
+        player_manager->Spawn(false);
+      }
+    }
   }
 }
 

@@ -12,6 +12,7 @@ struct Camera;
 struct Connection;
 struct Map;
 struct PacketDispatcher;
+struct PlayerManager;
 struct SpriteRenderer;
 
 struct BrickTile {
@@ -46,6 +47,7 @@ struct BrickMap : public HashMap<BrickTile, Brick*, BrickHasher, kBrickMapBucket
 struct BrickManager {
   MemoryArena& arena;
   Connection& connection;
+  PlayerManager& player_manager;
 
   Brick* bricks = nullptr;
   Brick* free = nullptr;
@@ -53,7 +55,7 @@ struct BrickManager {
   BrickMap brick_map;
   float animation_t = 0.0f;
 
-  BrickManager(MemoryArena& arena, Connection& connection, PacketDispatcher& dispatcher);
+  BrickManager(MemoryArena& arena, Connection& connection, PlayerManager& player_manager, PacketDispatcher& dispatcher);
 
   void Update(Map& map, u32 frequency, float dt);
   void Render(Camera& camera, SpriteRenderer& renderer, const Vector2f& surface_dim, u32 frequency);

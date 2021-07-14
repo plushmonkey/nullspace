@@ -4,6 +4,7 @@
 
 #include "Buffer.h"
 #include "Map.h"
+#include "PlayerManager.h"
 #include "Tick.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
@@ -40,6 +41,17 @@ static void OnBrickDroppedPkt(void* user, u8* pkt, size_t size) {
 
   float distance = start.Distance(end);
 
+  Player* self = manager->player_manager.GetSelf();
+  Vector2f self_min;
+  Vector2f self_max;
+
+  if (self && self->ship != 8) {
+    float radius = manager->connection.settings.ShipSettings[self->ship].GetRadius();
+
+    self_min = self->position - Vector2f(radius, radius);
+    self_max = self->position + Vector2f(radius, radius);
+  }
+
   Vector2f position = start;
   for (float i = 0; i <= distance; ++i) {
     u16 x = (u16)position.x;
@@ -47,12 +59,21 @@ static void OnBrickDroppedPkt(void* user, u8* pkt, size_t size) {
 
     manager->InsertBrick(x, y, team, brick_id, local_timestamp);
 
+    Vector2f brick_position((float)x, (float)y);
+
+    // Perform brick warp on overlap
+    if (self && self->frequency != team &&
+        BoxBoxOverlap(self_min, self_max, brick_position, brick_position + Vector2f(1, 1))) {
+      manager->player_manager.Spawn(false);
+    }
+
     position += direction;
   }
 }
 
-BrickManager::BrickManager(MemoryArena& arena, Connection& connection, PacketDispatcher& dispatcher)
-    : arena(arena), connection(connection), brick_map(arena) {
+BrickManager::BrickManager(MemoryArena& arena, Connection& connection, PlayerManager& player_manager,
+                           PacketDispatcher& dispatcher)
+    : arena(arena), connection(connection), player_manager(player_manager), brick_map(arena) {
   dispatcher.Register(ProtocolS2C::BrickDropped, OnBrickDroppedPkt, this);
 }
 
