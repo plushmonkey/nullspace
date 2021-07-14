@@ -360,7 +360,7 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
       current_position += Vector2f(1.0f, 0);
     }
 
-    renderer.DrawText(camera, display, color, current_position, Layer::Ships);
+    renderer.DrawText(camera, display, color, current_position.PixelRounded(), Layer::Ships);
   }
 }
 
@@ -891,12 +891,18 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, s
   }
 
   Vector2f previous_pos = player.position;
+  Vector2f previous_velocity = player.velocity;
 
   // Hard set the new position so we can simulate from it to catch up to where the player would be now after ping ticks
   player.position = position;
 
+  // Clear lerp time so it doesn't affect real simulation.
+  player.lerp_time = 0.0f;
+
   if (tick_diff < 0) {
     tick_diff = 0;
+  } else if (tick_diff > 10) {
+    tick_diff = 10;
   }
 
   // Client sends ppk to server with server timestamp, server calculates the tick difference on arrival and sets that to
@@ -913,6 +919,7 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, s
 
   // Set the player back to where they were before the simulation so they can be lerped to new position.
   player.position = previous_pos;
+  player.velocity = previous_velocity;
 
   float abs_dx = abs(projected_pos.x - player.position.x);
   float abs_dy = abs(projected_pos.y - player.position.y);
@@ -923,7 +930,7 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, s
     player.lerp_time = 0.0f;
   } else {
     player.lerp_time = 200.0f / 1000.0f;
-    player.lerp_velocity = (projected_pos - player.position.PixelRounded()) * (1.0f / player.lerp_time);
+    player.lerp_velocity = (projected_pos - player.position);
   }
 }
 
