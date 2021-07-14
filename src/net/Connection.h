@@ -39,6 +39,18 @@ struct Security {
   u32 checksum_key = 0;
 };
 
+struct TimeSyncResult {
+  u32 ping;
+  s32 time_diff;
+};
+
+struct PingStatistics {
+  u32 ping_low;
+  u32 ping_high;
+  u32 ping_avg;
+  u32 ping_current;
+};
+
 struct Connection {
   enum class TickResult { Success, ConnectionClosed, ConnectionError };
   enum class LoginState {
@@ -85,6 +97,10 @@ struct Connection {
   // GetCurrentTick() + time_diff = Server tick
   s32 time_diff = 0;
   u32 ping = 0;
+
+  size_t sync_index = 0;
+  TimeSyncResult sync_history[32];
+
   bool extra_position_info = false;
 
   u32 last_sync_tick = 0;
@@ -124,6 +140,8 @@ struct Connection {
   void SendFlagRequest(u16 flag_id);
   void SendFlagDrop();
   void SendDropBrick(const Vector2f& position);
+
+  PingStatistics CalculatePingStatistics();
 };
 
 }  // namespace null

@@ -468,6 +468,8 @@ void PlayerManager::OnPlayerIdChange(u8* pkt, size_t size) {
 
   this->player_count = 0;
   this->received_initial_list = false;
+
+  memset(player_lookup, 0, sizeof(player_lookup));
 }
 
 void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
@@ -480,6 +482,8 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   assert(player_index < NULLSPACE_ARRAY_SIZE(players));
 
   Player* player = players + player_index;
+
+  memset(player, 0, sizeof(Player));
 
   player->ship = buffer.ReadU8();
   u8 audio = buffer.ReadU8();
@@ -498,17 +502,10 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   player->attach_parent = buffer.ReadU16();
   player->flags = buffer.ReadU16();
   player->koth = buffer.ReadU8();
-  player->timestamp = GetCurrentTick() & 0xFFFF;
-  player->last_extra_timestamp = 0;
-  player->lerp_time = 0.0f;
+  player->timestamp = GetCurrentTick();
   player->warp_anim_t = Graphics::anim_ship_warp.duration;
   player->explode_anim_t = Graphics::anim_ship_explode.duration;
   player->bombflash_anim_t = Graphics::anim_bombflash.duration;
-  player->enter_delay = 0.0f;
-  player->last_bounce_tick = 0;
-  player->children = nullptr;
-
-  memset(&player->weapon, 0, sizeof(player->weapon));
 
   player_lookup[player->id] = (u16)player_index;
 

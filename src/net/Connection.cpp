@@ -271,11 +271,34 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         u32 current_tick = GetCurrentTick();
         u32 rtt = current_tick - sent_timestamp;
 
-        ping = (u32)((rtt / 2.0f) * 10.0f);
-        time_diff = ((rtt * 3) / 5) + server_timestamp - current_tick;
-        if (time_diff >= -10 && time_diff <= 10) {
-          time_diff = 0;
+        u32 current_ping = (u32)((rtt / 2.0f) * 10.0f);
+        s32 current_time_diff = ((rtt * 3) / 5) + server_timestamp - current_tick;
+
+        if (current_time_diff >= -10 && current_time_diff <= 10) {
+          current_time_diff = 0;
         }
+
+        size_t current_index = sync_index++ % NULLSPACE_ARRAY_SIZE(sync_history);
+        TimeSyncResult* sync = sync_history + current_index;
+
+        sync->ping = current_ping;
+        sync->time_diff = current_time_diff;
+
+        size_t history_count = sync_index;
+        if (history_count > NULLSPACE_ARRAY_SIZE(sync_history)) {
+          history_count = NULLSPACE_ARRAY_SIZE(sync_history);
+        }
+
+        s64 time_acc = 0;
+        u64 ping_acc = 0;
+
+        for (size_t i = 0; i < history_count; ++i) {
+          time_acc += sync_history[i].time_diff;
+          ping_acc += sync_history[i].ping;
+        }
+
+        time_diff = (s32)(time_acc / history_count);
+        ping = current_ping;
       } break;
       case ProtocolCore::Disconnect: {
         this->connected = false;
@@ -368,6 +391,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
       case ProtocolS2C::JoinGame: {
         printf("Successfully joined game.\n");
+        weapons_received = 0;
+        sync_index = 0;
       } break;
       case ProtocolS2C::PlayerEntering: {
         // Skip the entire packet so the next one can be read if it exists
@@ -562,6 +587,8 @@ void Connection::SendArenaLogin(u8 ship, u16 audio, u16 xres, u16 yres, u16 aren
 
   packet_sequencer.SendReliableMessage(*this, write.read, write.GetSize());
   login_state = LoginState::ArenaLogin;
+  map.checksum = 0;
+  memset(&security, 0, sizeof(security));
 }
 
 void Connection::OnDownloadComplete(struct FileRequest* request, u8* data) {
@@ -619,23 +646,58 @@ void Connection::SendSecurityPacket() {
   u8 data[kMaxPacketSize];
   NetworkBuffer buffer(data, kMaxPacketSize);
 
+  PingStatistics stat = CalculatePingStatistics();
+
   buffer.WriteU8(0x1A);
   buffer.WriteU32(weapons_received);  // Weapon count
   buffer.WriteU32(settings_checksum);
   buffer.WriteU32(exe_checksum);
   buffer.WriteU32(map_checksum);
-  buffer.WriteU32(0);     // S2C slow total
-  buffer.WriteU32(0);     // S2C fast total
-  buffer.WriteU16(0);     // S2C slow current
-  buffer.WriteU16(0);     // S2C fast current
-  buffer.WriteU16(0);     // S2C reliable out
-  buffer.WriteU16(ping);  // Ping
-  buffer.WriteU16(ping);  // Ping average
-  buffer.WriteU16(ping);  // Ping low
-  buffer.WriteU16(ping);  // Ping high
-  buffer.WriteU8(0);      // slow frame
+  buffer.WriteU32(0);                       // S2C slow total
+  buffer.WriteU32(0);                       // S2C fast total
+  buffer.WriteU16(0);                       // S2C slow current
+  buffer.WriteU16(0);                       // S2C fast current
+  buffer.WriteU16(0);                       // S2C reliable out
+  buffer.WriteU16(stat.ping_current / 10);  // Ping
+  buffer.WriteU16(stat.ping_avg / 10);      // Ping average
+  buffer.WriteU16(stat.ping_low / 10);      // Ping low
+  buffer.WriteU16(stat.ping_high / 10);     // Ping high
+  buffer.WriteU8(0);                        // slow frame
 
   packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
+}
+
+PingStatistics Connection::CalculatePingStatistics() {
+  PingStatistics result = {};
+
+  u64 ping_acc = 0;
+
+  result.ping_low = 0xFFFFFFFF;
+  result.ping_high = 0;
+
+  size_t history_count = sync_index;
+  if (history_count > NULLSPACE_ARRAY_SIZE(sync_history)) {
+    history_count = NULLSPACE_ARRAY_SIZE(sync_history);
+  }
+
+  for (size_t i = 0; i < history_count; ++i) {
+    TimeSyncResult* sync = sync_history + i;
+
+    ping_acc += sync->ping;
+
+    if (sync->ping < result.ping_low) {
+      result.ping_low = sync->ping;
+    }
+
+    if (sync->ping > result.ping_high) {
+      result.ping_high = sync->ping;
+    }
+  }
+
+  result.ping_current = ping;
+  result.ping_avg = (u32)(ping_acc / history_count);
+
+  return result;
 }
 
 void Connection::SendAttachRequest(u16 destination_pid) {

@@ -123,7 +123,7 @@ static void OnPlayerIdPkt(void* user, u8* pkt, size_t size) {
   game->OnPlayerId(pkt, size);
 }
 
-static void OnArenaSettings(void* user, u8* pkt, size_t size) {
+static void OnArenaSettingsPkt(void* user, u8* pkt, size_t size) {
   Game* game = (Game*)user;
   game->RecreateRadar();
 }
@@ -265,7 +265,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
   dispatcher.Register(ProtocolS2C::FlagPosition, OnFlagPositionPkt, this);
   dispatcher.Register(ProtocolS2C::FlagClaim, OnFlagClaimPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerId, OnPlayerIdPkt, this);
-  dispatcher.Register(ProtocolS2C::ArenaSettings, OnArenaSettings, this);
+  dispatcher.Register(ProtocolS2C::ArenaSettings, OnArenaSettingsPkt, this);
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
   dispatcher.Register(ProtocolS2C::TurfFlagUpdate, OnTurfFlagUpdatePkt, this);
   dispatcher.Register(ProtocolS2C::PlayerDeath, OnPlayerDeathPkt, this);
@@ -589,8 +589,6 @@ void Game::Render(float dt) {
     fps = fps * 0.99f + (1.0f / dt) * 0.01f;
   }
 
-  lvz.Render(ui_camera, camera);
-
   animation.Update(dt);
 
   if (connection.login_state == Connection::LoginState::Complete) {
@@ -608,6 +606,8 @@ void Game::Render(float dt) {
 }
 
 void Game::RenderGame(float dt) {
+  lvz.Render(ui_camera, camera);
+
   if (g_Settings.render_stars) {
     background_renderer.Render(camera, sprite_renderer, ui_camera.surface_dim);
   }
@@ -954,6 +954,7 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
 }
 
 void Game::Cleanup() {
+  brick_manager.Clear();
   work_queue.Clear();
   sound_system.Cleanup();
   banner_pool.Cleanup();
