@@ -463,6 +463,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           SendPassword(true);
         }
       } break;
+      case ProtocolS2C::FrequencyChange: {
+      } break;
       case ProtocolS2C::CreateTurret: {
       } break;
       case ProtocolS2C::ArenaSettings: {

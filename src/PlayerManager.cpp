@@ -762,10 +762,6 @@ void PlayerManager::OnPlayerFrequencyChange(u8* pkt, size_t size) {
 
     player->frequency = frequency;
 
-    // Hide the player until they send a new position packet
-    player->position = Vector2f(0, 0);
-    player->velocity = Vector2f(0, 0);
-
     player->lerp_time = 0.0f;
     player->warp_anim_t = 0.0f;
     player->enter_delay = 0.0f;
@@ -796,10 +792,6 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
 
     player->ship = ship;
     player->frequency = freq;
-
-    // Hide the player until they send a new position packet
-    player->position = Vector2f(0, 0);
-    player->velocity = Vector2f(0, 0);
 
     player->lerp_time = 0.0f;
     player->warp_anim_t = 0.0f;
@@ -884,7 +876,9 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
       }
     }
 
-    OnPositionPacket(*player, pkt_position, velocity, timestamp_diff + player->ping);
+    player->ping += timestamp_diff;
+
+    OnPositionPacket(*player, pkt_position, velocity, player->ping);
   }
 }
 
@@ -951,7 +945,9 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
     player->timestamp = local_timestamp;
     s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
 
-    OnPositionPacket(*player, pkt_position, velocity, timestamp_diff + player->ping);
+    player->ping += timestamp_diff;
+
+    OnPositionPacket(*player, pkt_position, velocity, player->ping);
   }
 }
 
@@ -1089,18 +1085,17 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, c
 
   // Set the player back to where they were before the simulation so they can be lerped to new position.
   player.position = previous_pos;
-  player.velocity = velocity;
 
   float abs_dx = abs(projected_pos.x - player.position.x);
   float abs_dy = abs(projected_pos.y - player.position.y);
 
-  // Jump to the position if very out of sync
-  if (abs_dx >= 4.0f || abs_dy >= 4.0f) {
+  // Jump to the position if very out of sync or just warped
+  if (abs_dx >= 4.0f || abs_dy >= 4.0f || (player.togglables & Status_Flash)) {
     player.position = projected_pos;
     player.lerp_time = 0.0f;
   } else {
     player.lerp_time = 200.0f / 1000.0f;
-    player.lerp_velocity = (projected_pos - player.position);
+    player.lerp_velocity = (projected_pos - player.position) * (1.0f / player.lerp_time);
   }
 }
 
