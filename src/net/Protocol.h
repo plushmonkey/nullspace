@@ -129,6 +129,8 @@ enum class ProtocolS2C {
   ModifyLVZ,
   ToggleSendDamage,
   WatchDamage,
+  BatchedSmallPosition,
+  BatchedLargePosition,
   Redirect = 0x3B,
 
   Count

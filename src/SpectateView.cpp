@@ -89,6 +89,10 @@ bool SpectateView::Update(const InputState& input, float dt) {
   u16 previous_spectate_id = spectate_id;
 
   if (moved) {
+    if (previous_spectate_id != kInvalidSpectateId) {
+      connection.SendSpectateRequest(kInvalidSpectateId);
+    }
+
     spectate_id = kInvalidSpectateId;
   } else if (input.IsDown(InputAction::Bullet)) {
     SpectateSelected();

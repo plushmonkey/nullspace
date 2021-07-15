@@ -23,12 +23,6 @@ namespace null {
 constexpr u32 kRepelDelayTicks = 50;
 constexpr u32 kMaxExhaustIndex = 1024;
 
-static void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
-  ShipController* controller = (ShipController*)user;
-
-  controller->OnPlayerFreqAndShipChange(pkt, size);
-}
-
 static void OnCollectedPrizePkt(void* user, u8* pkt, size_t size) {
   ShipController* controller = (ShipController*)user;
 
@@ -49,7 +43,6 @@ static void OnPlayerEnterPkt(void* user, u8* pkt, size_t size) {
 ShipController::ShipController(PlayerManager& player_manager, WeaponManager& weapon_manager,
                                PacketDispatcher& dispatcher, NotificationSystem& notifications)
     : player_manager(player_manager), weapon_manager(weapon_manager), notifications_(notifications) {
-  dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
   dispatcher.Register(ProtocolS2C::CollectedPrize, OnCollectedPrizePkt, this);
   dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
 }
@@ -974,24 +967,6 @@ size_t ShipController::GetBombIconIndex() {
   }
 
   return start + ship.bombs - 1;
-}
-
-void ShipController::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
-  NetworkBuffer buffer(pkt, size, size);
-
-  buffer.ReadU8();
-
-  u8 new_ship = buffer.ReadU8();
-  u16 pid = buffer.ReadU16();
-  u16 freq = buffer.ReadU16();
-
-  if (pid != player_manager.player_id) return;
-
-  Player* player = player_manager.GetPlayerById(pid);
-
-  if (player) {
-    player_manager.Spawn();
-  }
 }
 
 void ShipController::OnCollectedPrize(u8* pkt, size_t size) {

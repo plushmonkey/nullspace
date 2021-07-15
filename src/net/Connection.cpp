@@ -562,6 +562,10 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
       case ProtocolS2C::WatchDamage: {
       } break;
+      case ProtocolS2C::BatchedSmallPosition: {
+      } break;
+      case ProtocolS2C::BatchedLargePosition: {
+      } break;
       default: {
         printf("Received unhandled non-core packet of type 0x%02X\n", (int)type);
       } break;

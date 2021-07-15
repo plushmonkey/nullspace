@@ -32,6 +32,11 @@ static void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
   statbox->OnPlayerFreqAndShipChange(pkt, size);
 }
 
+static void OnPlayerFrequencyChangePkt(void* user, u8* pkt, size_t size) {
+  StatBox* statbox = (StatBox*)user;
+  statbox->OnPlayerFrequencyChange(pkt, size);
+}
+
 static void OnPlayerBannerChangePkt(void* user, u8* pkt, size_t size) {
   StatBox* statbox = (StatBox*)user;
 
@@ -44,6 +49,7 @@ StatBox::StatBox(PlayerManager& player_manager, BannerPool& banners, PacketDispa
   dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerLeaving, OnPlayerLeavePkt, this);
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
+  dispatcher.Register(ProtocolS2C::FrequencyChange, OnPlayerFrequencyChangePkt, this);
   dispatcher.Register(ProtocolS2C::PlayerBannerChange, OnPlayerBannerChangePkt, this);
 }
 
@@ -500,6 +506,10 @@ void StatBox::OnPlayerLeave(u8* pkt, size_t size) {
 }
 
 void StatBox::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
+  UpdateView();
+}
+
+void StatBox::OnPlayerFrequencyChange(u8* pkt, size_t size) {
   UpdateView();
 }
 

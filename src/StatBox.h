@@ -75,6 +75,7 @@ struct StatBox {
   void OnPlayerEnter(u8* pkt, size_t size);
   void OnPlayerLeave(u8* pkt, size_t size);
   void OnPlayerFreqAndShipChange(u8* pkt, size_t size);
+  void OnPlayerFrequencyChange(u8* pkt, size_t size);
 
   StatTextOutput* AddTextOutput(const Vector2f& position, TextColor color, TextAlignment alignment);
   StatRenderableOutput* AddRenderableOutput(SpriteRenderable* renderable, const Vector2f& position,

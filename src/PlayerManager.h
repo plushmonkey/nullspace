@@ -90,13 +90,16 @@ struct PlayerManager {
   void OnPlayerLeave(u8* pkt, size_t size);
   void OnPlayerDeath(u8* pkt, size_t size);
   void OnPlayerFreqAndShipChange(u8* pkt, size_t size);
+  void OnPlayerFrequencyChange(u8* pkt, size_t size);
   void OnLargePositionPacket(u8* pkt, size_t size);
+  void OnBatchedLargePositionPacket(u8* pkt, size_t size);
   void OnSmallPositionPacket(u8* pkt, size_t size);
+  void OnBatchedSmallPositionPacket(u8* pkt, size_t size);
   void OnFlagDrop(u8* pkt, size_t size);
   void OnCreateTurretLink(u8* pkt, size_t size);
   void OnDestroyTurretLink(u8* pkt, size_t size);
 
-  void OnPositionPacket(Player& player, const Vector2f& position, s32 tick_diff);
+  void OnPositionPacket(Player& player, const Vector2f& position, s32 sim_ticks);
 
   void AttachSelf(Player* destination);
   void AttachPlayer(Player& requester, Player& destination);

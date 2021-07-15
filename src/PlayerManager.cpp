@@ -48,6 +48,11 @@ static void OnPlayerFreqAndShipChangePkt(void* user, u8* pkt, size_t size) {
   manager->OnPlayerFreqAndShipChange(pkt, size);
 }
 
+static void OnPlayerFrequencyChangePkt(void* user, u8* pkt, size_t size) {
+  PlayerManager* manager = (PlayerManager*)user;
+  manager->OnPlayerFrequencyChange(pkt, size);
+}
+
 static void OnLargePositionPkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
   manager->OnLargePositionPacket(pkt, size);
@@ -56,6 +61,16 @@ static void OnLargePositionPkt(void* user, u8* pkt, size_t size) {
 static void OnSmallPositionPkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
   manager->OnSmallPositionPacket(pkt, size);
+}
+
+static void OnBatchedSmallPositionPkt(void* user, u8* pkt, size_t size) {
+  PlayerManager* manager = (PlayerManager*)user;
+  manager->OnBatchedSmallPositionPacket(pkt, size);
+}
+
+static void OnBatchedLargePositionPkt(void* user, u8* pkt, size_t size) {
+  PlayerManager* manager = (PlayerManager*)user;
+  manager->OnBatchedLargePositionPacket(pkt, size);
 }
 
 static void OnPlayerDeathPkt(void* user, u8* pkt, size_t size) {
@@ -110,8 +125,11 @@ PlayerManager::PlayerManager(MemoryArena& perm_arena, Connection& connection, Pa
   dispatcher.Register(ProtocolS2C::PlayerLeaving, OnPlayerLeavePkt, this);
   dispatcher.Register(ProtocolS2C::JoinGame, OnJoinGamePkt, this);
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
+  dispatcher.Register(ProtocolS2C::FrequencyChange, OnPlayerFrequencyChangePkt, this);
   dispatcher.Register(ProtocolS2C::LargePosition, OnLargePositionPkt, this);
   dispatcher.Register(ProtocolS2C::SmallPosition, OnSmallPositionPkt, this);
+  dispatcher.Register(ProtocolS2C::BatchedSmallPosition, OnBatchedSmallPositionPkt, this);
+  dispatcher.Register(ProtocolS2C::BatchedLargePosition, OnBatchedLargePositionPkt, this);
   dispatcher.Register(ProtocolS2C::PlayerDeath, OnPlayerDeathPkt, this);
   dispatcher.Register(ProtocolS2C::DropFlag, OnFlagDropPkt, this);
   dispatcher.Register(ProtocolS2C::SetCoordinates, OnSetCoordinatesPkt, this);
@@ -728,6 +746,39 @@ void PlayerManager::Spawn(bool reset) {
   SendPositionPacket();
 }
 
+void PlayerManager::OnPlayerFrequencyChange(u8* pkt, size_t size) {
+  NetworkBuffer buffer(pkt, size, size);
+
+  buffer.ReadU8();
+
+  u16 pid = buffer.ReadU16();
+  u16 frequency = buffer.ReadU16();
+
+  Player* player = GetPlayerById(pid);
+
+  if (player) {
+    DetachPlayer(*player);
+    DetachAllChildren(*player);
+
+    player->frequency = frequency;
+
+    // Hide the player until they send a new position packet
+    player->position = Vector2f(0, 0);
+    player->velocity = Vector2f(0, 0);
+
+    player->lerp_time = 0.0f;
+    player->warp_anim_t = 0.0f;
+    player->enter_delay = 0.0f;
+    player->flags = 0;
+
+    weapon_manager->ClearWeapons(*player);
+
+    if (player->id == player_id) {
+      Spawn(true);
+    }
+  }
+}
+
 void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
   NetworkBuffer buffer(pkt, size, size);
 
@@ -756,6 +807,10 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
     player->flags = 0;
 
     weapon_manager->ClearWeapons(*player);
+
+    if (player->id == player_id) {
+      Spawn(true);
+    }
   }
 }
 
@@ -822,7 +877,7 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
       }
     }
 
-    OnPositionPacket(*player, pkt_position, timestamp_diff);
+    OnPositionPacket(*player, pkt_position, timestamp_diff + player->ping);
   }
 }
 
@@ -882,11 +937,123 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
     player->timestamp = local_timestamp;
     s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
 
-    OnPositionPacket(*player, pkt_position, timestamp_diff);
+    OnPositionPacket(*player, pkt_position, timestamp_diff + player->ping);
   }
 }
 
-void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, s32 tick_diff) {
+void PlayerManager::OnBatchedLargePositionPacket(u8* pkt, size_t size) {
+  NetworkBuffer buffer(pkt, size, size);
+
+  buffer.ReadU8();  // Type
+
+  u32 server_tick = (GetCurrentTick() + connection.time_diff);
+
+  while (buffer.write - buffer.read >= 11) {
+    u16 player_id = buffer.ReadU16() & 0x3FF;
+
+    u16 packed = buffer.ReadU16();
+    u16 direction = (packed >> 10);
+    u16 timestamp = (packed & 0x3FF);
+
+    s32 tick_diff = (server_tick & 0x3FF) - timestamp;
+    u32 server_timestamp = 0;
+
+    if (tick_diff < -300) {
+      server_timestamp = server_tick - (tick_diff + 0x400);
+    } else {
+      if (tick_diff < 0) {
+        tick_diff = 0;
+      }
+      server_timestamp = server_tick - tick_diff;
+    }
+
+    u32 packed_pos = buffer.ReadU32();
+    u32 x = packed_pos & 0x3FFF;
+    u32 y = (packed_pos >> 0x0E) & 0x3FFF;
+
+    u16 packed_velocity = buffer.ReadU16();
+    s16 vel_y = (packed_velocity << 0x12) >> 0x12;
+
+    s8 multiplier = buffer.ReadU8();
+
+    s32 vel_x = ((packed_velocity >> 0x0E) + (multiplier * 4)) * 0x10 + (packed_pos >> 0x1C);
+
+    Vector2f velocity(vel_x / 16.0f / 10.0f, vel_y / 16.0f / 10.0f);
+    Vector2f position(x / 16.0f, y / 16.0f);
+
+    Player* player = GetPlayerById(player_id);
+    u32 local_timestamp = server_timestamp - connection.time_diff;
+
+    if (player && !TICK_GT(player->timestamp, local_timestamp)) {
+      player->timestamp = local_timestamp;
+
+      s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
+
+      player->velocity = velocity;
+      player->orientation = direction / 40.0f;
+
+      OnPositionPacket(*player, position, timestamp_diff);
+    }
+  }
+}
+
+void PlayerManager::OnBatchedSmallPositionPacket(u8* pkt, size_t size) {
+  NetworkBuffer buffer(pkt, size, size);
+
+  buffer.ReadU8();  // Type
+
+  u32 server_tick = (GetCurrentTick() + connection.time_diff);
+
+  while (buffer.write - buffer.read >= 10) {
+    u8 player_id = buffer.ReadU8();
+
+    u16 packed = buffer.ReadU16();
+    u16 direction = (packed >> 10);
+    s16 timestamp = (packed & 0x3FF);
+
+    s32 tick_diff = (server_tick & 0x3FF) - timestamp;
+    u32 server_timestamp = 0;
+
+    if (tick_diff < -300) {
+      server_timestamp = server_tick - (tick_diff + 0x400);
+    } else {
+      if (tick_diff < 0) {
+        tick_diff = 0;
+      }
+      server_timestamp = server_tick - tick_diff;
+    }
+
+    u32 packed_pos = buffer.ReadU32();
+    u32 x = packed_pos & 0x3FFF;
+    u32 y = (packed_pos >> 0x0E) & 0x3FFF;
+
+    u16 packed_velocity = buffer.ReadU16();
+    s16 vel_y = (packed_velocity << 0x12) >> 0x12;
+
+    s8 multiplier = buffer.ReadU8();
+
+    s32 vel_x = ((packed_velocity >> 0x0E) + (multiplier * 4)) * 0x10 + (packed_pos >> 0x1C);
+
+    Vector2f velocity(vel_x / 16.0f / 10.0f, vel_y / 16.0f / 10.0f);
+    Vector2f position(x / 16.0f, y / 16.0f);
+
+    Player* player = GetPlayerById(player_id);
+    u32 local_timestamp = server_timestamp - connection.time_diff;
+
+    if (player && !TICK_GT(player->timestamp, local_timestamp)) {
+      player->timestamp = local_timestamp;
+
+      s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
+
+      player->velocity = velocity;
+      player->orientation = direction / 40.0f;
+
+      OnPositionPacket(*player, position, timestamp_diff);
+    }
+  }
+}
+
+void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, s32 sim_ticks) {
   Vector2f previous_pos = player.position;
   Vector2f previous_velocity = player.velocity;
 
@@ -896,16 +1063,9 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, s
   // Clear lerp time so it doesn't affect real simulation.
   player.lerp_time = 0.0f;
 
-  if (tick_diff < 0) {
-    tick_diff = 0;
-  } else if (tick_diff > 10) {
-    tick_diff = 10;
-  }
-
   // Client sends ppk to server with server timestamp, server calculates the tick difference on arrival and sets that to
   // ping. The player should be simulated however many ticks it took to reach server plus the tick difference between
   // this client and the server.
-  s32 sim_ticks = player.ping + tick_diff;
 
   // Simulate per tick because the simulation can be unstable with large dt
   for (int i = 0; i < sim_ticks; ++i) {

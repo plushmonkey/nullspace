@@ -160,7 +160,6 @@ struct ShipController {
   size_t GetGunIconIndex();
   size_t GetBombIconIndex();
 
-  void OnPlayerFreqAndShipChange(u8* pkt, size_t size);
   void OnCollectedPrize(u8* pkt, size_t size);
 
   void ResetShip();
