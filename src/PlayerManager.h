@@ -82,8 +82,8 @@ struct PlayerManager {
   inline u16 GetPlayerIndex(u16 id) { return player_lookup[id]; }
 
   void SendPositionPacket();
-  void SimulatePlayer(Player& player, float dt);
-  bool SimulateAxis(Player& player, float dt, int axis);
+  void SimulatePlayer(Player& player, float dt, bool extrapolating);
+  bool SimulateAxis(Player& player, float dt, int axis, bool extrapolating);
 
   void OnPlayerIdChange(u8* pkt, size_t size);
   void OnPlayerEnter(u8* pkt, size_t size);
@@ -99,7 +99,7 @@ struct PlayerManager {
   void OnCreateTurretLink(u8* pkt, size_t size);
   void OnDestroyTurretLink(u8* pkt, size_t size);
 
-  void OnPositionPacket(Player& player, const Vector2f& position, s32 sim_ticks);
+  void OnPositionPacket(Player& player, const Vector2f& position, const Vector2f& velocity, s32 sim_ticks);
 
   void AttachSelf(Player* destination);
   void AttachPlayer(Player& requester, Player& destination);

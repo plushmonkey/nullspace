@@ -150,7 +150,7 @@ void PlayerManager::Update(float dt) {
 
     if (player->ship == 8) continue;
 
-    SimulatePlayer(*player, dt);
+    SimulatePlayer(*player, dt, false);
 
     player->explode_anim_t += dt;
     player->warp_anim_t += dt;
@@ -822,7 +822,7 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
   u8 direction = buffer.ReadU8();
   u16 timestamp = buffer.ReadU16();
   u16 x = buffer.ReadU16();
-  s16 vel_y = (s16)buffer.ReadU16();
+  s16 vel_y_s16 = (s16)buffer.ReadU16();
   u16 pid = buffer.ReadU16();
 
   Player* player = GetPlayerById(pid);
@@ -831,10 +831,17 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
   u32 server_timestamp = ((GetCurrentTick() + connection.time_diff) & 0xFFFF0000) | timestamp;
   u32 local_timestamp = server_timestamp - connection.time_diff;
 
+  // Throw away bad timestamps so the player doesn't get desynchronized.
+  if (local_timestamp > GetCurrentTick() + 300) {
+    return;
+  }
+
   if (player && TICK_GT(local_timestamp, player->timestamp)) {
     player->orientation = direction / 40.0f;
-    player->velocity.y = vel_y / 16.0f / 10.0f;
-    player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
+    float vel_y = vel_y_s16 / 16.0f / 10.0f;
+    float vel_x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
+
+    Vector2f velocity(vel_x, vel_y);
 
     u8 checksum = buffer.ReadU8();
     player->togglables = buffer.ReadU8();
@@ -877,7 +884,7 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
       }
     }
 
-    OnPositionPacket(*player, pkt_position, timestamp_diff + player->ping);
+    OnPositionPacket(*player, pkt_position, velocity, timestamp_diff + player->ping);
   }
 }
 
@@ -899,15 +906,22 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
   u32 server_timestamp = ((GetCurrentTick() + connection.time_diff) & 0xFFFF0000) | timestamp;
   u32 local_timestamp = server_timestamp - connection.time_diff;
 
+  // Throw away bad timestamps so the player doesn't get desynchronized.
+  if (local_timestamp > GetCurrentTick() + 300) {
+    return;
+  }
+
   // Only perform update if the packet is newer than the previous one.
   if (player && TICK_GT(local_timestamp, player->timestamp)) {
     player->orientation = direction / 40.0f;
     player->ping = ping;
     player->bounty = bounty;
     player->togglables = buffer.ReadU8();
-    player->velocity.y = (s16)buffer.ReadU16() / 16.0f / 10.0f;
+    float vel_y = (s16)buffer.ReadU16() / 16.0f / 10.0f;
     u16 y = buffer.ReadU16();
-    player->velocity.x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
+    float vel_x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
+
+    Vector2f velocity(vel_x, vel_y);
 
     if (player->togglables & Status_Flash) {
       player->warp_anim_t = 0.0f;
@@ -937,7 +951,7 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
     player->timestamp = local_timestamp;
     s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
 
-    OnPositionPacket(*player, pkt_position, timestamp_diff + player->ping);
+    OnPositionPacket(*player, pkt_position, velocity, timestamp_diff + player->ping);
   }
 }
 
@@ -989,10 +1003,9 @@ void PlayerManager::OnBatchedLargePositionPacket(u8* pkt, size_t size) {
 
       s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
 
-      player->velocity = velocity;
       player->orientation = direction / 40.0f;
 
-      OnPositionPacket(*player, position, timestamp_diff);
+      OnPositionPacket(*player, position, velocity, timestamp_diff);
     }
   }
 }
@@ -1045,20 +1058,20 @@ void PlayerManager::OnBatchedSmallPositionPacket(u8* pkt, size_t size) {
 
       s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
 
-      player->velocity = velocity;
       player->orientation = direction / 40.0f;
 
-      OnPositionPacket(*player, position, timestamp_diff);
+      OnPositionPacket(*player, position, velocity, timestamp_diff);
     }
   }
 }
 
-void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, s32 sim_ticks) {
+void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, const Vector2f& velocity,
+                                     s32 sim_ticks) {
   Vector2f previous_pos = player.position;
-  Vector2f previous_velocity = player.velocity;
 
   // Hard set the new position so we can simulate from it to catch up to where the player would be now after ping ticks
   player.position = position;
+  player.velocity = velocity;
 
   // Clear lerp time so it doesn't affect real simulation.
   player.lerp_time = 0.0f;
@@ -1069,14 +1082,14 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, s
 
   // Simulate per tick because the simulation can be unstable with large dt
   for (int i = 0; i < sim_ticks; ++i) {
-    SimulatePlayer(player, (1.0f / 100.0f));
+    SimulatePlayer(player, (1.0f / 100.0f), true);
   }
 
   Vector2f projected_pos = player.position;
 
   // Set the player back to where they were before the simulation so they can be lerped to new position.
   player.position = previous_pos;
-  player.velocity = previous_velocity;
+  player.velocity = velocity;
 
   float abs_dx = abs(projected_pos.x - player.position.x);
   float abs_dy = abs(projected_pos.y - player.position.y);
@@ -1321,7 +1334,7 @@ size_t PlayerManager::GetTurretCount(Player& player) {
   return count;
 }
 
-bool PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
+bool PlayerManager::SimulateAxis(Player& player, float dt, int axis, bool extrapolating) {
   float bounce_factor = 16.0f / connection.settings.BounceFactor;
   Map& map = connection.map;
 
@@ -1376,7 +1389,7 @@ bool PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
   if (collided) {
     u32 tick = GetCurrentTick();
     // Don't perform a bunch of wall slowdowns so the player doesn't get very slow against walls.
-    if (TICK_DIFF(tick, player.last_bounce_tick) < 1) {
+    if (!extrapolating && TICK_DIFF(tick, player.last_bounce_tick) < 1) {
       bounce_factor = 1.0f;
     }
 
@@ -1393,23 +1406,25 @@ bool PlayerManager::SimulateAxis(Player& player, float dt, int axis) {
   return false;
 }
 
-void PlayerManager::SimulatePlayer(Player& player, float dt) {
-  if (!IsSynchronized(player)) {
+void PlayerManager::SimulatePlayer(Player& player, float dt, bool extrapolating) {
+  if (!extrapolating && !IsSynchronized(player)) {
     player.velocity = Vector2f(0, 0);
     player.lerp_time = 0.0f;
     return;
   }
 
-  bool x_bounce = SimulateAxis(player, dt, 0);
-  bool y_bounce = SimulateAxis(player, dt, 1);
+  bool x_bounce = SimulateAxis(player, dt, 0, extrapolating);
+  bool y_bounce = SimulateAxis(player, dt, 1, extrapolating);
 
   if (x_bounce || y_bounce) {
-    player.last_bounce_tick = GetCurrentTick();
+    if (!extrapolating) {
+      player.last_bounce_tick = GetCurrentTick();
+    }
 
     constexpr float kBounceSoundThreshold = 3.0f;
     constexpr float kBounceSoundThresholdSq = kBounceSoundThreshold * kBounceSoundThreshold;
 
-    if (player.velocity.LengthSq() >= kBounceSoundThresholdSq) {
+    if (!extrapolating && player.velocity.LengthSq() >= kBounceSoundThresholdSq) {
       weapon_manager->PlayPositionalSound(AudioType::Bounce, player.position);
     }
   }
