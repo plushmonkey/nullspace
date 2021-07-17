@@ -7,7 +7,7 @@
 #include "Memory.h"
 #include "Settings.h"
 #include "Tick.h"
-#include "net/Checksum.h"
+#include "WorkQueue.h"
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -158,6 +158,7 @@ struct nullspace {
   MemoryArena trans_arena;
   MemoryArena work_arena;
   WorkQueue* work_queue;
+  Worker* worker;
   Game* game = nullptr;
   GLFWwindow* window = nullptr;
   WindowState window_state;
@@ -196,6 +197,8 @@ struct nullspace {
     work_arena = MemoryArena(work_memory, kWorkSize);
 
     work_queue = new WorkQueue(work_arena);
+    worker = new Worker(*work_queue);
+    worker->Launch();
 
     perm_global = &perm_arena;
 
@@ -221,12 +224,6 @@ struct nullspace {
 
     kPlayerName = name;
     kPlayerPassword = password;
-
-    if (g_Settings.encrypt_method == EncryptMethod::Continuum &&
-        !MemoryChecksumGenerator::Initialize(perm_arena, "cont_mem_text", "cont_mem_data")) {
-      // TODO: Error pop up
-      return false;
-    }
 
     game = memory_arena_construct_type(&perm_arena, Game, perm_arena, trans_arena, *work_queue, surface_width,
                                        surface_height);

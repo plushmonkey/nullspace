@@ -11,7 +11,7 @@
 #include <stdio.h>
 #endif
 
-#include "../Tick.h"
+#include "../../Tick.h"
 #include "Checksum.h"
 #include "MD5.h"
 
@@ -303,133 +303,10 @@ void decrypt(void* target, const void* source, u32 packetlen, const u32* key) {
   }
 }
 
-struct expansion {
-  unsigned int key;
-  unsigned int table[20];
-
-  expansion() {}
-  expansion(unsigned int key) : key(key) {}
-};
-
-struct security_file {
-  unsigned int version;
-  expansion _expansions1[1024];  // This is always zeroed
-  expansion expansions[1024];
-};
-
-std::unique_ptr<security_file> read_security_file(const char* filename) {
-  std::unique_ptr<security_file> result;
-  FILE* f = fopen(filename, "rb");
-
-  if (f == nullptr) {
-    return result;
-  }
-
-  result = std::make_unique<security_file>();
-
-  fread(result.get(), sizeof(security_file), 1, f);
-
-  fclose(f);
-
-  return result;
-}
-
-bool generate(u32 key) {
-#ifdef _WIN32
-  std::string keystr = "\"generator.exe\" " + std::to_string(key);
-
-  STARTUPINFOA info = {sizeof(info)};
-  PROCESS_INFORMATION pinfo = {0};
-  bool success = false;
-
-  if (CreateProcessA("generator.exe", &keystr[0], nullptr, nullptr, false, 0, nullptr, nullptr, &info, &pinfo)) {
-    WaitForSingleObject(pinfo.hProcess, 0xFFFFFFFF);
-    CloseHandle(pinfo.hProcess);
-    CloseHandle(pinfo.hThread);
-    success = true;
-  } else {
-    printf("Failed to create generator process. Falling back to scrty1.\n");
-  }
-
-  return success;
-#else
-  char execute[256];
-  sprintf(execute, "wine generator.exe %d", key);
-  FILE* f = popen(execute, "r");
-  if (!f) {
-    return false;
-  }
-  pclose(f);
-  return true;
-#endif
-}
-
-void GeneratorWorkRun(Work* work) {
-  GeneratorWork* data = (GeneratorWork*)work->user;
-
-  data->success = data->crypt->LoadTable(data->table, data->key);
-}
-
-void GeneratorWorkComplete(Work* work) {
-  GeneratorWork* data = (GeneratorWork*)work->user;
-
-  data->callback(data->key, data->table, data->success, data->user);
-}
-
-const WorkDefinition kGeneratorDefinition = {GeneratorWorkRun, GeneratorWorkComplete};
-
-void ContinuumEncrypt::LoadTable(u32 key, void* user, LoadTableCallback callback) {
-  work.key = key;
-  work.user = user;
-  work.callback = callback;
-  work.success = false;
-  work.crypt = this;
-
-  work_queue.Submit(kGeneratorDefinition, &work);
-}
-
-bool ContinuumEncrypt::LoadTable(u32* table, u32 key) {
-  // TODO: Probably use some network service as oracle instead of generator.exe
-  bool find_key = false;
-
-  // Use generator.exe to perform first two steps of key expansion
-  if (!generate(key)) {
-    find_key = true;
-  }
-
-  auto scrty1 = read_security_file("scrty1");
-  if (!scrty1) {
-    fprintf(stderr, "Could not read scrty1 file. Provide generator or scrty1 file from server.\n");
-    return false;
-  }
-
-  size_t index = 0;
-
-  // Fall back to using scrty1 file if generator didn't work
-  if (find_key) {
-    for (size_t i = 0; i < 1024; ++i) {
-      if (scrty1->expansions[i].key == key) {
-        index = i;
-        goto has_index;
-      }
-    }
-
-    return false;
-  }
-
-has_index:
-  memcpy(table, scrty1->expansions[index].table, sizeof(int) * 20);
-  return true;
-}
-
-bool ContinuumEncrypt::ExpandKey(u32 key1, u32 key2) {
+void ContinuumEncrypt::FinalizeExpansion(u32 key) {
   constexpr u32 kContinuumStateMangler = 432;
 
-  this->key1 = this->key2 = 0;
-
-  if (!LoadTable(expanded_key, key2)) {
-    return false;
-  }
+  this->key1 = key;
 
   // Perform final step of key expansion by running it through a modified MD5 hasher
   expanded_key[0] ^= key1;
@@ -443,10 +320,7 @@ bool ContinuumEncrypt::ExpandKey(u32 key1, u32 key2) {
     last = (expanded_key[i] ^= ctx.buf[i & 3] + last);
   }
 
-  this->key1 = key1;
-  this->key2 = key2;
-
-  return true;
+  this->expanding = false;
 }
 
 size_t ContinuumEncrypt::Encrypt(const u8* pkt, u8* dest, size_t size) {

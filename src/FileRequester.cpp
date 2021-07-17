@@ -6,9 +6,9 @@
 #include "Inflate.h"
 #include "Memory.h"
 #include "Platform.h"
-#include "net/Checksum.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
+#include "net/security/Checksum.h"
 
 namespace null {
 

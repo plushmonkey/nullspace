@@ -10,9 +10,11 @@
 #include "../Memory.h"
 #include "../Settings.h"
 #include "../Types.h"
-#include "Crypt.h"
 #include "PacketDispatcher.h"
 #include "PacketSequencer.h"
+#include "Socket.h"
+#include "security/Crypt.h"
+#include "security/SecuritySolver.h"
 
 namespace null {
 
@@ -25,12 +27,6 @@ struct RemoteAddress {
 
   RemoteAddress() : addr(0), port(0), family(0) {}
 };
-
-#ifdef _WIN64
-using SocketType = long long;
-#else
-using SocketType = int;
-#endif
 
 struct Security {
   u32 prize_seed = 0;
@@ -75,6 +71,7 @@ struct Connection {
   SocketType fd = -1;
   RemoteAddress remote_addr;
   bool connected = false;
+  SecuritySolver security_solver;
   EncryptMethod encrypt_method = EncryptMethod::Continuum;
   ContinuumEncrypt encrypt;
   VieEncrypt vie_encrypt;
@@ -128,6 +125,7 @@ struct Connection {
 
   void SendDisconnect();
   void SendEncryptionRequest(EncryptMethod method);
+  void SendSecurity(u32 settings_checksum, u32 exe_checksum, u32 map_checksum);
   void SendSpectateRequest(u16 pid);
   void SendShipRequest(u8 ship);
   void SendDeath(u16 killer, u16 bounty);

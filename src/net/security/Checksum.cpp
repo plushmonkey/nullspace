@@ -3,53 +3,13 @@
 #include <cassert>
 #include <cstdio>
 
-#include "../ArenaSettings.h"
-#include "../Memory.h"
+#include "../../ArenaSettings.h"
+#include "../../Memory.h"
 #include "MD5.h"
 
 namespace null {
 
-const char* MemoryChecksumGenerator::text_section_ = nullptr;
-const char* MemoryChecksumGenerator::data_section_ = nullptr;
-
-char* LoadFile(MemoryArena& arena, const char* path) {
-#pragma warning(push)
-#pragma warning(disable : 4996)
-  FILE* f = fopen(path, "rb");
-#pragma warning(pop)
-
-  if (!f) {
-    return nullptr;
-  }
-
-  fseek(f, 0, SEEK_END);
-  long size = ftell(f);
-  fseek(f, 0, SEEK_SET);
-
-  char* data = (char*)arena.Allocate(size);
-
-  fread(data, 1, size, f);
-  fclose(f);
-
-  return data;
-}
-
-bool MemoryChecksumGenerator::Initialize(MemoryArena& arena, const char* text_section_filename,
-                                         const char* data_section_filename) {
-  char* mem_text = LoadFile(arena, "cont_mem_text");
-  char* mem_data = LoadFile(arena, "cont_mem_data");
-
-  if (!mem_text || !mem_data) {
-    fprintf(stderr, "Requires Continuum dumped memory files cont_mem_text and cont_mem_data\n");
-    return false;
-  }
-
-  text_section_ = mem_text;
-  data_section_ = mem_data;
-
-  return true;
-}
-
+#if 0  // No longer used since the network solver is used, but kept here to preserve the method
 u32 MemoryChecksumGenerator::Generate(u32 key) {
   constexpr u32 kChecksumMangler = 7193;
 
@@ -126,6 +86,7 @@ u32 MemoryChecksumGenerator::Generate(u32 key) {
 
   return result;
 }
+#endif
 
 static u8 crc8_table[256] = {
     0x00, 0x5e, 0xbc, 0xe2, 0x61, 0x3f, 0xdd, 0x83, 0xc2, 0x9c, 0x7e, 0x20, 0xa3, 0xfd, 0x1f, 0x41, 0x9d, 0xc3, 0x21,

@@ -25,8 +25,8 @@
 #include "../ArenaSettings.h"
 #include "../Platform.h"
 #include "../Tick.h"
-#include "Checksum.h"
 #include "Protocol.h"
+#include "security/Checksum.h"
 
 //#define PACKET_SHEDDING 20
 
@@ -34,6 +34,9 @@ namespace null {
 
 extern const char* kPlayerName;
 extern const char* kPlayerPassword;
+
+const char* kSecurityServiceIp = "127.0.0.1";
+const u16 kSecurityServicePort = 8085;
 
 #ifdef __ANDROID__
 constexpr bool kDownloadLvz = false;
@@ -83,7 +86,7 @@ Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQue
       temp_arena(temp_arena),
       dispatcher(dispatcher),
       remote_addr(),
-      encrypt(work_queue),
+      security_solver(work_queue, kSecurityServiceIp, kSecurityServicePort),
       requester(perm_arena, temp_arena, *this, dispatcher),
       packet_sequencer(perm_arena, temp_arena),
       buffer(perm_arena, kMaxPacketSize),
@@ -107,6 +110,11 @@ Connection::TickResult Connection::Tick() {
       TICK_DIFF(current_tick, connect_tick) >= kConnectTimeout) {
     login_state = Connection::LoginState::ConnectTimeout;
     return TickResult::ConnectionError;
+  }
+
+  // Don't read new packets until the encryption is finalized
+  if (encrypt_method == EncryptMethod::Continuum && encrypt.expanding) {
+    return TickResult::Success;
   }
 
   // Continuum client seems to send sync request every 5 seconds
@@ -346,32 +354,39 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
         this->Send((u8*)&response, sizeof(response));
 
-        if (!encrypt.ExpandKey(key1, key2)) {
-          fprintf(stderr, "Failed to expand key.\n");
-        } else {
-          printf("Successfully expanded continuum encryption keys.\n");
-        }
+        encrypt.key1 = key1;
+        encrypt.key2 = key2;
+        encrypt.expanding = true;
+
+        security_solver.ExpandKey(key2, [this](u32* table) {
+          if (table) {
+            printf("Successfully expanded continuum encryption keys.\n");
+            memcpy(encrypt.expanded_key, table, sizeof(encrypt.expanded_key));
+            encrypt.FinalizeExpansion(encrypt.key1);
+          } else {
+            fprintf(stderr, "Failed to expand key.\n");
+          }
+        });
       } break;
       case ProtocolCore::ContinuumKeyExpansionRequest: {
         u32 seed = buffer.ReadU32();
 
         printf("Sending key expansion response for key %08X\n", seed);
 
-        encrypt.LoadTable(seed, this, [](u32 key, u32* table, bool success, void* user) {
-          if (success) {
+        security_solver.ExpandKey(seed, [seed, this](u32* table) {
+          if (table) {
             u8 data[kMaxPacketSize];
             NetworkBuffer buffer(data, kMaxPacketSize);
 
             buffer.WriteU8(0x00);
             buffer.WriteU8(0x13);
-            buffer.WriteU32(key);
+            buffer.WriteU32(seed);
 
             for (size_t i = 0; i < 20; ++i) {
               buffer.WriteU32(table[i]);
             }
 
-            Connection* conn = (Connection*)user;
-            conn->Send(buffer);
+            this->Send(buffer);
           } else {
             fprintf(stderr, "Failed to load table for key expansion request.\n");
           }
@@ -637,18 +652,29 @@ void Connection::SendSyncTimeRequestPacket(bool reliable) {
 }
 
 void Connection::SendSecurityPacket() {
-  u32 settings_checksum = SettingsChecksum(security.checksum_key, settings);
-  u32 map_checksum = map.GetChecksum(security.checksum_key);
+  if (encrypt_method != EncryptMethod::Continuum) {
+    u32 settings_checksum = SettingsChecksum(security.checksum_key, settings);
+    u32 map_checksum = map.GetChecksum(security.checksum_key);
+    u32 exe_checksum = VieChecksum(security.checksum_key);
 
-  u32 exe_checksum = 0;
-  if (encrypt_method == EncryptMethod::Continuum) {
-    exe_checksum = MemoryChecksumGenerator::Generate(security.checksum_key);
+    printf("Sending security packet with checksum seed %08X\n", security.checksum_key);
+    SendSecurity(settings_checksum, exe_checksum, map_checksum);
   } else {
-    exe_checksum = VieChecksum(security.checksum_key);
+    security_solver.GetChecksum(security.checksum_key, [this](u32* checksum) {
+      if (checksum) {
+        u32 settings_checksum = SettingsChecksum(security.checksum_key, settings);
+        u32 map_checksum = map.GetChecksum(security.checksum_key);
+
+        printf("Sending security packet with checksum seed %08X\n", security.checksum_key);
+        SendSecurity(settings_checksum, *checksum, map_checksum);
+      } else {
+        fprintf(stderr, "Failed to load checksum from network solver.\n");
+      }
+    });
   }
+}
 
-  printf("Sending security packet with checksum seed %08X\n", security.checksum_key);
-
+void Connection::SendSecurity(u32 settings_checksum, u32 exe_checksum, u32 map_checksum) {
   u8 data[kMaxPacketSize];
   NetworkBuffer buffer(data, kMaxPacketSize);
 

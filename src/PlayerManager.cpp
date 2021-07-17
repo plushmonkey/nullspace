@@ -13,9 +13,9 @@
 #include "SpectateView.h"
 #include "Tick.h"
 #include "WeaponManager.h"
-#include "net/Checksum.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
+#include "net/security/Checksum.h"
 #include "render/Animation.h"
 #include "render/Camera.h"
 #include "render/Graphics.h"
@@ -761,6 +761,7 @@ void PlayerManager::OnPlayerFrequencyChange(u8* pkt, size_t size) {
     DetachAllChildren(*player);
 
     player->frequency = frequency;
+    player->velocity = Vector2f(0, 0);
 
     player->lerp_time = 0.0f;
     player->warp_anim_t = 0.0f;
@@ -792,6 +793,7 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
 
     player->ship = ship;
     player->frequency = freq;
+    player->velocity = Vector2f(0, 0);
 
     player->lerp_time = 0.0f;
     player->warp_anim_t = 0.0f;
