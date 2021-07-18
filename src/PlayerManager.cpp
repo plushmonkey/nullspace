@@ -1314,6 +1314,8 @@ void PlayerManager::DetachPlayer(Player& player) {
     }
 
     player.attach_parent = kInvalidPlayerId;
+    // Make player not synchronized so they don't appear until a position packet comes in.
+    player.timestamp = 0;
   }
 }
 
@@ -1327,6 +1329,8 @@ void PlayerManager::DetachAllChildren(Player& player) {
     Player* child = GetPlayerById(remove->player_id);
     if (child && child->attach_parent == player.id) {
       child->attach_parent = kInvalidPlayerId;
+      // Make player not synchronized so they don't appear until a position packet comes in.
+      child->timestamp = 0;
 
       Player* self = GetSelf();
 

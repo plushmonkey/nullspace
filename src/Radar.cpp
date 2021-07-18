@@ -133,6 +133,7 @@ void Radar::RenderDecoy(Camera& ui_camera, SpriteRenderer& renderer, Player& sel
 void Radar::RenderPlayer(Camera& ui_camera, SpriteRenderer& renderer, Player& self, Player& player) {
   if (player.ship >= 8) return;
   if (player.attach_parent != kInvalidPlayerId) return;
+  if (!player_manager.IsSynchronized(player)) return;
 
   bool visible =
       !(player.togglables & Status_Stealth) || self.togglables & Status_XRadar || player.frequency == ctx.team_freq;
