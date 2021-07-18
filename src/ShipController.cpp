@@ -572,7 +572,6 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       if (used_weapon) {
         SetNextTick(&ship.next_bullet_tick, tick + delay);
         SetNextTick(&ship.next_bomb_tick, ship.next_bullet_tick);
-        ship.next_repel_tick = tick + kRepelDelayTicks;
       }
     }
   }

@@ -349,10 +349,7 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
 
     if (dist_sq <= effect_radius_sq) {
       if (connection.map.GetTileId(player.position) != kTileSafeId) {
-        Vector2f direction = Normalize(player.position - weapon.position);
-
-        player.velocity = direction * speed;
-        player.lerp_time = 0.0f;
+        player.last_repel_timestamp = GetCurrentTick();
       }
     }
   }

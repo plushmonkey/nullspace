@@ -101,6 +101,7 @@ struct Player {
 
   u32 last_extra_timestamp;
   u32 timestamp;
+  u32 last_repel_timestamp;
 
   float enter_delay;
 
