@@ -903,11 +903,18 @@ void ShipController::RenderEnergyDisplay(Camera& ui_camera, SpriteRenderer& rend
   Vector2f health_center(ui_camera.surface_dim.x * 0.5f, healthbar.dimensions.y * 0.5f);
   Vector2f health_position(ui_camera.surface_dim.x * 0.5f - healthbar.dimensions.x * 0.5f, 0);
 
+  SpriteRenderable top_display_full = Graphics::anim_health_high.frames[5];
+  top_display_full.dimensions = Vector2f(240, 2);
+
   SpriteRenderable top_display = Graphics::anim_health_high.frames[0];
-  top_display.dimensions = Vector2f(240, 2);
+
+  float ship_energy_percent =
+      (float)ship.energy / player_manager.connection.settings.ShipSettings[self->ship].MaximumEnergy;
+
+  top_display.dimensions = Vector2f(ship_energy_percent * 240, 2);
 
   float energy_percent = self->energy / ship.energy;
-  float view_width = energy_percent * 240.0f;
+  float view_width = energy_percent * top_display.dimensions.x;
 
   if (energy_percent > 0.5f) {
     health_animation.sprite = &Graphics::anim_health_high;
@@ -920,7 +927,10 @@ void ShipController::RenderEnergyDisplay(Camera& ui_camera, SpriteRenderer& rend
   SpriteRenderable energy_display = health_animation.GetFrame();
   energy_display.dimensions = Vector2f(view_width, 6);
 
-  renderer.Draw(ui_camera, top_display, health_center - Vector2f(240, 4), Layer::Gauges);
+  renderer.Draw(ui_camera, top_display_full, health_center - Vector2f(240, 4), Layer::Gauges);
+  renderer.Draw(ui_camera, top_display_full, health_center - Vector2f(0, 4), Layer::Gauges);
+
+  renderer.Draw(ui_camera, top_display, health_center - Vector2f(top_display.dimensions.x, 4), Layer::Gauges);
   renderer.Draw(ui_camera, top_display, health_center - Vector2f(0, 4), Layer::Gauges);
 
   renderer.Draw(ui_camera, energy_display, health_center - Vector2f(view_width, 0), Layer::Gauges);
@@ -1663,6 +1673,40 @@ void ShipController::ResetShip() {
 
   self->energy = (float)ship.energy;
   self->bounty = ship_settings.InitialBounty;
+}
+
+void ShipController::UpdateSettings() {
+  Player* self = player_manager.GetSelf();
+
+  if (!self || self->ship == 8) return;
+
+  ShipSettings& ship_settings = player_manager.connection.settings.ShipSettings[self->ship];
+
+  u32 initial_energy = ship_settings.InitialEnergy;
+  u32 initial_recharge = ship_settings.InitialRecharge;
+  u32 initial_rotation = ship_settings.InitialRotation;
+  u32 initial_speed = ship_settings.InitialSpeed;
+  u32 initial_thrust = ship_settings.InitialThrust;
+
+  if (ship.energy < initial_energy) {
+    ship.energy = initial_energy;
+  }
+
+  if (ship.recharge < initial_recharge) {
+    ship.recharge = initial_recharge;
+  }
+
+  if (ship.rotation < initial_rotation) {
+    ship.rotation = initial_rotation;
+  }
+
+  if (ship.speed < initial_speed) {
+    ship.speed = initial_speed;
+  }
+
+  if (ship.thrust < initial_thrust) {
+    ship.thrust = initial_thrust;
+  }
 }
 
 void ShipController::OnWeaponHit(Weapon& weapon) {

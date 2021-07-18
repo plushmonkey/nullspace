@@ -163,6 +163,7 @@ struct ShipController {
   void OnCollectedPrize(u8* pkt, size_t size);
 
   void ResetShip();
+  void UpdateSettings();
 
   void ApplyPrize(Player* self, s32 prize_id, bool notify, bool damage = false);
   s32 GeneratePrize(bool negative_allowed);

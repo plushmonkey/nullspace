@@ -126,6 +126,7 @@ static void OnPlayerIdPkt(void* user, u8* pkt, size_t size) {
 static void OnArenaSettingsPkt(void* user, u8* pkt, size_t size) {
   Game* game = (Game*)user;
   game->RecreateRadar();
+  game->ship_controller.UpdateSettings();
 }
 
 static void OnTurfFlagUpdatePkt(void* user, u8* pkt, size_t size) {
