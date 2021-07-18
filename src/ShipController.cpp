@@ -504,6 +504,9 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
     warp_input_cleared = false;
 
     if (!player_manager.IsAntiwarped(self, true)) {
+      bool warped = false;
+      Vector2f previous_pos = self.position;
+
       if (ship.portal_time > 0.0f) {
         ship.portal_time = 0.0f;
 
@@ -517,6 +520,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         ship.fake_antiwarp_end_tick = tick + connection.settings.AntiwarpSettleDelay;
 
         player_manager.sound_system.Play(AudioType::Warp);
+        warped = true;
       } else {
         if (TICK_GT(tick, ship.next_bomb_tick)) {
           if (self.energy < ship.energy) {
@@ -532,10 +536,17 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
             ship.fake_antiwarp_end_tick = tick + connection.settings.AntiwarpSettleDelay;
 
             player_manager.sound_system.Play(AudioType::Warp);
+            warped = true;
           }
 
           ship.next_bomb_tick = tick + kRepelDelayTicks;
         }
+      }
+
+      if (warped) {
+        Vector2f anim_pos = previous_pos - Graphics::anim_ship_warp.frames[0].dimensions * (0.5f / 16.0f);
+
+        this->weapon_manager.animation.AddAnimation(Graphics::anim_ship_warp, anim_pos.PixelRounded());
       }
     }
   } else if (!warp_input) {

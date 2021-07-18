@@ -1103,6 +1103,11 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, c
   if (abs_dx >= 4.0f || abs_dy >= 4.0f || (player.togglables & Status_Flash)) {
     player.position = projected_pos;
     player.lerp_time = 0.0f;
+
+    if (player.togglables & Status_Flash) {
+      Vector2f anim_pos = previous_pos - Graphics::anim_ship_warp.frames[0].dimensions * (0.5f / 16.0f);
+      weapon_manager->animation.AddAnimation(Graphics::anim_ship_warp, anim_pos.PixelRounded());
+    }
   } else {
     player.lerp_time = new_lerp_time;
     player.lerp_velocity = (projected_pos - player.position) * (1.0f / player.lerp_time);
