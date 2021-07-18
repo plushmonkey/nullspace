@@ -93,6 +93,7 @@ Connection::Connection(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQue
       last_sync_tick(GetCurrentTick()),
       last_position_tick(GetCurrentTick()) {
   map_arena = perm_arena.CreateArena(Megabytes(16));
+  send_arena = perm_arena.CreateArena(Megabytes(2));
 }
 
 Connection::TickResult Connection::Tick() {
@@ -521,6 +522,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
       case ProtocolS2C::DropFlag: {
       } break;
+      case ProtocolS2C::ShipReset: {
+      } break;
       case ProtocolS2C::Spectate: {
         if (size == 2) {
           extra_position_info = buffer.ReadU8() != 0;
@@ -844,9 +847,9 @@ size_t Connection::Send(u8* data, size_t size) {
     constexpr size_t kMaxSize = 520 - 6 - 2;
     assert(size <= kMaxSize * 2);
 
-    ArenaSnapshot snapshot = temp_arena.GetSnapshot();
+    ArenaSnapshot snapshot = send_arena.GetSnapshot();
 
-    u8* small_chunk_body = temp_arena.Allocate(520);
+    u8* small_chunk_body = send_arena.Allocate(520);
 
     small_chunk_body[0] = 0x00;
     small_chunk_body[1] = 0x08;
@@ -855,7 +858,7 @@ size_t Connection::Send(u8* data, size_t size) {
     packet_sequencer.SendReliableMessage(*this, small_chunk_body, 520 - 6);
 
     size_t remaining = size - kMaxSize;
-    u8* small_chunk_tail = temp_arena.Allocate(520);
+    u8* small_chunk_tail = send_arena.Allocate(520);
 
     small_chunk_tail[0] = 0x00;
     small_chunk_tail[1] = 0x09;
@@ -863,12 +866,14 @@ size_t Connection::Send(u8* data, size_t size) {
 
     packet_sequencer.SendReliableMessage(*this, small_chunk_tail, remaining + 2);
 
-    temp_arena.Revert(snapshot);
+    send_arena.Revert(snapshot);
 
     return size;
   }
 
   std::lock_guard<std::mutex> lock(send_mutex);
+
+  send_arena.Reset();
 
   sockaddr_in addr;
   addr.sin_family = remote_addr.family;
@@ -877,11 +882,11 @@ size_t Connection::Send(u8* data, size_t size) {
 
   if (encrypt_method == EncryptMethod::Continuum && (encrypt.key1 || encrypt.key2)) {
     // Allocate enough space for both the crc and possibly the crc escape
-    u8* dest = temp_arena.Allocate(size + 2);
+    u8* dest = send_arena.Allocate(size + 2);
     size = encrypt.Encrypt(data, dest, size);
     data = dest;
   } else if (encrypt_method == EncryptMethod::Subspace) {
-    u8* dest = temp_arena.Allocate(size);
+    u8* dest = send_arena.Allocate(size);
     size = vie_encrypt.Encrypt(data, dest, size);
     data = dest;
   }

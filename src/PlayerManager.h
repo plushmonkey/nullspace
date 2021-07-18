@@ -35,7 +35,8 @@ struct PlayerManager {
   Radar* radar = nullptr;
 
   u16 player_id = 0;
-  u32 last_position_tick = 0;
+  // This is in server time
+  s32 last_position_tick = 0;
   bool received_initial_list = false;
 
   AttachInfo* attach_free = nullptr;

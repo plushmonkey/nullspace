@@ -8,6 +8,7 @@
 
 #include "Platform.h"
 #include "PlayerManager.h"
+#include "ShipController.h"
 #include "StatBox.h"
 #include "Tick.h"
 #include "net/Connection.h"
@@ -236,6 +237,15 @@ Player* ChatController::GetBestPlayerNameMatch(char* name, size_t length) {
   return best_match;
 }
 
+inline int GetShipStatusPercent(u32 upgrade, u32 maximum, u32 current) {
+  if (upgrade == 0) return 100;
+
+  u32 maximum_upgrades = maximum / upgrade;
+  u32 current_upgrades = current / upgrade;
+
+  return (current_upgrades * 100) / maximum_upgrades;
+}
+
 bool ChatController::HandleInputCommands() {
   if (input[0] == '=') {
     if (input[1] >= '0' && input[1] <= '9') {
@@ -305,6 +315,32 @@ bool ChatController::HandleInputCommands() {
       sprintf(response_mesg, "Message Name Length: %d", g_Settings.chat_namelen);
 
       ChatEntry* entry = PushEntry(response_mesg, strlen(response_mesg), ChatType::Arena);
+
+      return true;
+    } else if (strstr(input, "?status") == input && strlen(input) == 7) {
+      ShipController* ship_controller = player_manager.ship_controller;
+      Player* self = player_manager.GetSelf();
+
+      if (self && self->ship != 8 && ship_controller) {
+        ShipSettings& ship_settings = connection.settings.ShipSettings[self->ship];
+
+        int recharge = GetShipStatusPercent(ship_settings.UpgradeRecharge, ship_settings.MaximumRecharge,
+                                            ship_controller->ship.recharge);
+        int thruster = GetShipStatusPercent(ship_settings.UpgradeThrust, ship_settings.MaximumThrust,
+                                            ship_controller->ship.thrust);
+        int speed =
+            GetShipStatusPercent(ship_settings.UpgradeSpeed, ship_settings.MaximumSpeed, ship_controller->ship.speed);
+
+        int rotation = GetShipStatusPercent(ship_settings.UpgradeRotation, ship_settings.MaximumRotation,
+                                            ship_controller->ship.rotation);
+        u32 shrapnel = ship_controller->ship.shrapnel;
+
+        char output[256];
+        sprintf(output, "Recharge:%d%%  Thruster:%d%%  Speed:%d%%  Rotation:%d%%  Shrapnel:%u", recharge, thruster,
+                speed, rotation, shrapnel);
+
+        PushEntry(output, strlen(output), ChatType::Arena);
+      }
 
       return true;
     }

@@ -1,6 +1,7 @@
 #ifndef NULLSPACE_TEXTUREMAP_H_
 #define NULLSPACE_TEXTUREMAP_H_
 
+#include <cassert>
 #include <cstring>
 
 #include "../HashMap.h"
@@ -58,6 +59,9 @@ struct TextureMap : public HashMap<TextureKey, TextureData, TextureHasher> {
 
   void Insert(const char* name, u32 id, u32 width, u32 height) {
     TextureKey key;
+
+    assert(strlen(name) < sizeof(key.name));
+    if (strlen(name) > sizeof(key.name)) return;
 
     strcpy(key.name, name);
 

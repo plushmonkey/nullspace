@@ -318,8 +318,10 @@ bool Game::Update(const InputState& input, float dt) {
 
   connection.map.UpdateDoors(connection.settings);
 
-  player_manager.Update(dt);
+  // Update ship controller before player manager so it will send the position packet with any weapons fired before the
+  // player manager sends its position packet.
   ship_controller.Update(input, dt);
+  player_manager.Update(dt);
   weapon_manager.Update(dt);
 
   chat.Update(dt);

@@ -184,8 +184,9 @@ void PlayerManager::Update(float dt) {
     }
   }
 
+  s32 server_timestamp = current_tick + connection.time_diff;
   if (connection.login_state == Connection::LoginState::Complete &&
-      TICK_DIFF(current_tick, last_position_tick) >= position_delay) {
+      TICK_DIFF(server_timestamp, last_position_tick) >= position_delay) {
     SendPositionPacket();
   }
 }
@@ -413,18 +414,28 @@ void PlayerManager::SendPositionPacket() {
 
   u8 direction = (u8)(player->orientation * 40.0f);
 
-  buffer.WriteU8(0x03);                           // Type
-  buffer.WriteU8(direction);                      // Direction
-  buffer.WriteU32(GetCurrentTick() + time_diff);  // Timestamp
-  buffer.WriteU16(vel_x);                         // X velocity
-  buffer.WriteU16(y);                             // Y
-  buffer.WriteU8(0);                              // Checksum
-  buffer.WriteU8(player->togglables);             // Togglables
-  buffer.WriteU16(x);                             // X
-  buffer.WriteU16(vel_y);                         // Y velocity
-  buffer.WriteU16(player->bounty);                // Bounty
-  buffer.WriteU16(energy);                        // Energy
-  buffer.WriteU16(weapon);                        // Weapon info
+  u32 local_timestamp = GetCurrentTick();
+
+  s32 server_timestamp = local_timestamp + time_diff;
+
+  // Override the timestamp if the time_diff changes or it's being sent on the same tick as last packet.
+  // This is necessary because packets will be thrown away server side if the timestamp isn't newer.
+  if (server_timestamp <= last_position_tick) {
+    server_timestamp = last_position_tick + 1;
+  }
+
+  buffer.WriteU8(0x03);                // Type
+  buffer.WriteU8(direction);           // Direction
+  buffer.WriteU32(server_timestamp);   // Timestamp
+  buffer.WriteU16(vel_x);              // X velocity
+  buffer.WriteU16(y);                  // Y
+  buffer.WriteU8(0);                   // Checksum
+  buffer.WriteU8(player->togglables);  // Togglables
+  buffer.WriteU16(x);                  // X
+  buffer.WriteU16(vel_y);              // Y velocity
+  buffer.WriteU16(player->bounty);     // Bounty
+  buffer.WriteU16(energy);             // Energy
+  buffer.WriteU16(weapon);             // Weapon info
 
   u8 checksum = WeaponChecksum(buffer.data, buffer.GetSize());
   buffer.data[10] = checksum;
@@ -459,7 +470,7 @@ void PlayerManager::SendPositionPacket() {
   }
 
   connection.Send(buffer);
-  last_position_tick = GetCurrentTick();
+  last_position_tick = server_timestamp;
   player->togglables &= ~Status_Flash;
 }
 

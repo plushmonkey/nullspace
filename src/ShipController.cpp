@@ -40,11 +40,18 @@ static void OnPlayerEnterPkt(void* user, u8* pkt, size_t size) {
   }
 }
 
+static void OnShipResetPkt(void* user, u8* pkt, size_t size) {
+  ShipController* controller = (ShipController*)user;
+
+  controller->ResetShip();
+}
+
 ShipController::ShipController(PlayerManager& player_manager, WeaponManager& weapon_manager,
                                PacketDispatcher& dispatcher, NotificationSystem& notifications)
     : player_manager(player_manager), weapon_manager(weapon_manager), notifications_(notifications) {
   dispatcher.Register(ProtocolS2C::CollectedPrize, OnCollectedPrizePkt, this);
   dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
+  dispatcher.Register(ProtocolS2C::ShipReset, OnShipResetPkt, this);
 }
 
 void ShipController::Update(const InputState& input, float dt) {

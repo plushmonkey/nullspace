@@ -66,6 +66,7 @@ struct Connection {
   MemoryArena& perm_arena;
   MemoryArena& temp_arena;
   MemoryArena map_arena;
+  MemoryArena send_arena;
   PacketDispatcher& dispatcher;
 
   SocketType fd = -1;
