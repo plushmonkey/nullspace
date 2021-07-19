@@ -523,8 +523,6 @@ void LvzController::ProcessObjects(struct ObjectImageList* object_images, u8* da
 
     ptr += sizeof(ObjectDefinition);
   }
-
-  return;
 }
 
 void LoadShip(SpriteRenderer& renderer, const char* filename, u8* data, size_t size, int ship) {

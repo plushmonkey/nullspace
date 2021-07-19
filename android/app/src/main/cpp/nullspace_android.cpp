@@ -53,7 +53,7 @@ void InitializeSettings() {
     g_Settings.window_type = WindowType::Windowed;
     g_Settings.render_stars = true;
 
-    g_Settings.encrypt_method = EncryptMethod::Subspace;
+    g_Settings.encrypt_method = EncryptMethod::Continuum;
     
     g_Settings.sound_enabled = true;
     g_Settings.sound_volume = 0.25f;
@@ -79,6 +79,7 @@ ServerInfo kServers[] = {
         {"SSCE Hyperspace", "162.248.95.143", 5005},
         {"SSCJ Devastation", "69.164.220.203", 7022},
         {"SSCJ MetalGear CTF", "69.164.220.203", 14000},
+        {"SSCU Extreme Games", "208.118.63.35", 7900},
 };
 
 constexpr size_t kServerIndex = 0;
@@ -100,6 +101,7 @@ struct nullspace {
     MemoryArena trans_arena;
     MemoryArena work_arena;
     WorkQueue* work_queue;
+    Worker* worker;
     Game* game = nullptr;
     int surface_width = 0;
     int surface_height = 0;
@@ -130,6 +132,8 @@ struct nullspace {
         work_arena = MemoryArena(work_memory, kWorkSize);
 
         work_queue = new WorkQueue(work_arena);
+        worker = new Worker(*work_queue);
+        worker->Launch();
 
         perm_global = &perm_arena;
 

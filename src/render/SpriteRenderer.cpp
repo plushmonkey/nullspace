@@ -106,8 +106,6 @@ SpriteRenderable* SpriteRenderer::CreateSheet(TextureData* texture_data, const V
   *count = 0;
 
   glBindTexture(GL_TEXTURE_2D, texture_id);
-  glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
-  glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
 
   for (int top = 0; top < height; top += (int)dimensions.y) {
     for (int left = 0; left < width; left += (int)dimensions.x) {

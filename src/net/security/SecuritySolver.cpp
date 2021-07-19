@@ -11,9 +11,11 @@
 #else
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 #define WSAEWOULDBLOCK EWOULDBLOCK
 #define closesocket close
@@ -93,6 +95,27 @@ SocketType SecurityNetworkService::Connect() {
   return socket;
 }
 
+int ProcessRequest(SocketType socket, void* request, int request_size, void* response, int response_size) {
+  if (send(socket, (const char*)request, request_size, 0) != request_size) {
+    return -1;
+  }
+
+  int total_received = 0;
+
+  while (total_received < response_size) {
+    int bytes_received = recv(socket, (char*)response + total_received, response_size - total_received, 0);
+
+    if (bytes_received <= 0) {
+      closesocket(socket);
+      break;
+    }
+
+    total_received += bytes_received;
+  }
+
+  return total_received;
+}
+
 void ExpansionWorkRun(Work* work) {
   SecurityNetworkWork* expansion_work = (SecurityNetworkWork*)work->user;
   SecurityNetworkService* service = &expansion_work->solver->service;
@@ -107,27 +130,11 @@ void ExpansionWorkRun(Work* work) {
   request.type = RequestType::Keystream;
   request.key2 = expansion_work->expansion.key2;
 
-  if (send(socket, (const char*)&request, sizeof(request), 0) != sizeof(request)) {
-    return;
-  }
+  KeystreamResponsePacket response;
+  int response_size = ProcessRequest(socket, &request, sizeof(request), &response, sizeof(response));
 
-  char buffer[256];
-
-  int bytes_received = recv(socket, buffer, sizeof(buffer), 0);
-  if (bytes_received <= 0) {
-    closesocket(socket);
-    return;
-  }
-
-  if (buffer[0] != (char)ResponseType::Keystream) {
-    return;
-  }
-
-  assert(bytes_received == sizeof(KeystreamResponsePacket));
-  if (bytes_received == sizeof(KeystreamResponsePacket)) {
-    KeystreamResponsePacket* response = (KeystreamResponsePacket*)buffer;
-
-    memcpy(expansion_work->expansion.table, response->table, sizeof(expansion_work->expansion.table));
+  if (response_size == sizeof(response) && response.type == ResponseType::Keystream) {
+    memcpy(expansion_work->expansion.table, response.table, sizeof(expansion_work->expansion.table));
 
     expansion_work->state = SecurityWorkState::Success;
   }
@@ -165,28 +172,12 @@ void ChecksumWorkRun(Work* work) {
   request.type = RequestType::Checksum;
   request.key = checksum_work->checksum.key;
 
-  if (send(socket, (const char*)&request, sizeof(request), 0) != sizeof(request)) {
-    return;
-  }
+  ChecksumResponsePacket response;
 
-  char buffer[256];
+  int response_size = ProcessRequest(socket, &request, sizeof(request), &response, sizeof(response));
 
-  int bytes_received = recv(socket, buffer, sizeof(buffer), 0);
-  if (bytes_received <= 0) {
-    closesocket(socket);
-    return;
-  }
-
-  if (buffer[0] != (char)ResponseType::Checksum) {
-    return;
-  }
-
-  assert(bytes_received == sizeof(ChecksumResponsePacket));
-  if (bytes_received == sizeof(ChecksumResponsePacket)) {
-    ChecksumResponsePacket* response = (ChecksumResponsePacket*)buffer;
-
-    checksum_work->checksum.checksum = response->checksum;
-
+  if (response_size == sizeof(response) && response.type == ResponseType::Checksum) {
+    checksum_work->checksum.checksum = response.checksum;
     checksum_work->state = SecurityWorkState::Success;
   }
 
