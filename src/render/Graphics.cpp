@@ -65,6 +65,8 @@ SpriteRenderable* Graphics::asteroid_large_sprites = nullptr;
 SpriteRenderable* Graphics::space_station_sprites = nullptr;
 SpriteRenderable* Graphics::wormhole_sprites = nullptr;
 
+SpriteRenderable* Graphics::powerball_sprites = nullptr;
+
 AnimatedSprite Graphics::anim_health_high;
 AnimatedSprite Graphics::anim_health_medium;
 AnimatedSprite Graphics::anim_health_low;
@@ -115,6 +117,10 @@ AnimatedSprite Graphics::anim_asteroid_small2;
 AnimatedSprite Graphics::anim_asteroid_large;
 AnimatedSprite Graphics::anim_space_station;
 AnimatedSprite Graphics::anim_wormhole;
+
+AnimatedSprite Graphics::anim_powerball;
+AnimatedSprite Graphics::anim_powerball_phased;
+AnimatedSprite Graphics::anim_powerball_trail;
 
 SpriteRenderable* Graphics::character_set[256] = {};
 
@@ -243,6 +249,21 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
 
   healthbar_sprites = LoadTileSheet(renderer, "hlthbar", Vector2f(116, 28), &count);
   if (!healthbar_sprites) return false;
+
+  powerball_sprites = LoadTileSheet(renderer, "powerb", Vector2f(16, 16), &count);
+  if (!powerball_sprites) return false;
+
+  anim_powerball.duration = 1.0f;
+  anim_powerball.frames = powerball_sprites;
+  anim_powerball.frame_count = count / 3;
+
+  anim_powerball_phased.duration = 1.0f;
+  anim_powerball_phased.frames = powerball_sprites + anim_powerball.frame_count;
+  anim_powerball_phased.frame_count = count / 3;
+
+  anim_powerball_trail.duration = 1.0f;
+  anim_powerball_trail.frames = powerball_sprites + anim_powerball.frame_count + anim_powerball_phased.frame_count;
+  anim_powerball_trail.frame_count = count / 3;
 
   return true;
 }

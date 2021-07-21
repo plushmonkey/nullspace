@@ -23,8 +23,8 @@
 #include <thread>
 
 #include "../ArenaSettings.h"
+#include "../Clock.h"
 #include "../Platform.h"
-#include "../Tick.h"
 #include "Protocol.h"
 #include "security/Checksum.h"
 
@@ -36,7 +36,7 @@ extern const char* kPlayerName;
 extern const char* kPlayerPassword;
 
 #ifndef __ANDROID__
- const char* kSecurityServiceIp = "127.0.0.1";
+const char* kSecurityServiceIp = "127.0.0.1";
 const u16 kSecurityServicePort = 8085;
 #else
 const char* kSecurityServiceIp = "10.0.2.2";

@@ -2,10 +2,10 @@
 
 #include <cassert>
 
+#include "../Clock.h"
 #include "../Game.h"
 #include "../Map.h"
 #include "../Math.h"
-#include "../Tick.h"
 #include "Camera.h"
 #include "Graphics.h"
 #include "SpriteRenderer.h"

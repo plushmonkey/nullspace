@@ -4,9 +4,9 @@
 #include <cstdio>
 
 #include "Buffer.h"
+#include "Clock.h"
 #include "Memory.h"
 #include "Settings.h"
-#include "Tick.h"
 #include "WorkQueue.h"
 
 #ifdef _WIN32

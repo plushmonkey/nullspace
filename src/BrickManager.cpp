@@ -3,9 +3,9 @@
 #include <cassert>
 
 #include "Buffer.h"
+#include "Clock.h"
 #include "Map.h"
 #include "PlayerManager.h"
-#include "Tick.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
 #include "render/Camera.h"

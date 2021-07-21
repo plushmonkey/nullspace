@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "Tick.h"
+#include "Clock.h"
 #include "render/Camera.h"
 
 namespace null {

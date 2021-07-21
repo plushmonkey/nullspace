@@ -1,5 +1,5 @@
-#ifndef NULLSPACE_TICK_H_
-#define NULLSPACE_TICK_H_
+#ifndef NULLSPACE_CLOCK_H_
+#define NULLSPACE_CLOCK_H_
 
 #include "Types.h"
 
@@ -11,6 +11,10 @@ using Tick = u32;
 #define TICK_GT(a, b) (TICK_DIFF(a, b) > 0)
 
 Tick GetCurrentTick();
+
+constexpr s64 kTickDurationMicro = 10000;
+
+u64 GetMicrosecondTick();
 
 }  // namespace null
 

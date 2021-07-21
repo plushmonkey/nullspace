@@ -6,12 +6,12 @@
 
 #include "Buffer.h"
 #include "ChatController.h"
+#include "Clock.h"
 #include "InputState.h"
 #include "Radar.h"
 #include "ShipController.h"
 #include "Sound.h"
 #include "SpectateView.h"
-#include "Tick.h"
 #include "WeaponManager.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"

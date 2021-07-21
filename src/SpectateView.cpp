@@ -2,10 +2,10 @@
 
 #include <cstdio>
 
+#include "Clock.h"
 #include "InputState.h"
 #include "PlayerManager.h"
 #include "StatBox.h"
-#include "Tick.h"
 #include "net/Connection.h"
 #include "render/Camera.h"
 #include "render/Graphics.h"

@@ -11,7 +11,7 @@
 #include <stdio.h>
 #endif
 
-#include "../../Tick.h"
+#include "../../Clock.h"
 #include "Checksum.h"
 #include "MD5.h"
 

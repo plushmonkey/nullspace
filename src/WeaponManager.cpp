@@ -5,12 +5,12 @@
 #include <cmath>
 
 #include "Buffer.h"
+#include "Clock.h"
 #include "PlayerManager.h"
 #include "Radar.h"
 #include "ShipController.h"
 #include "Sound.h"
 #include "SpectateView.h"
-#include "Tick.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
 #include "render/Camera.h"

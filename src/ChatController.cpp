@@ -6,11 +6,11 @@
 #include <cstdio>
 #include <cstring>
 
+#include "Clock.h"
 #include "Platform.h"
 #include "PlayerManager.h"
 #include "ShipController.h"
 #include "StatBox.h"
-#include "Tick.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
 #include "render/Camera.h"

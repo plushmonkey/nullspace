@@ -6,7 +6,7 @@
 #include <cstring>
 
 #include "../Buffer.h"
-#include "../Tick.h"
+#include "../Clock.h"
 #include "Connection.h"
 
 //#define DEBUG_SEQUENCER

@@ -3,10 +3,10 @@
 #include <cassert>
 #include <cstdio>
 
+#include "Clock.h"
 #include "Memory.h"
 #include "Platform.h"
 #include "Random.h"
-#include "Tick.h"
 #include "render/Animation.h"
 #include "render/Graphics.h"
 
@@ -257,7 +257,7 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
       statbox(player_manager, banner_pool, dispatcher),
       chat(dispatcher, connection, player_manager, statbox),
       specview(connection, statbox),
-      soccer(connection, specview),
+      soccer(player_manager),
       ship_controller(player_manager, weapon_manager, dispatcher, notifications),
       lvz(perm_arena, temp_arena, connection.requester, sprite_renderer, dispatcher),
       radar(player_manager) {
@@ -324,6 +324,8 @@ bool Game::Update(const InputState& input, float dt) {
   ship_controller.Update(input, dt);
   player_manager.Update(dt);
   weapon_manager.Update(dt);
+
+  soccer.Update(dt);
 
   chat.Update(dt);
 
@@ -631,6 +633,7 @@ void Game::RenderGame(float dt) {
   animated_tile_renderer.Render(sprite_renderer, connection.map, camera, ui_camera.surface_dim, flags,
                                 viewable_flag_count, greens, green_count, self_freq, soccer);
   brick_manager.Render(camera, sprite_renderer, ui_camera.surface_dim, self_freq);
+  soccer.Render(camera, sprite_renderer);
 
   if (self) {
     animation.Render(camera, sprite_renderer);
@@ -925,6 +928,7 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
 
   // TODO: Handle and display errors
 
+  soccer.Clear();
   lvz.Reset();
 
   if (g_Settings.sound_enabled && !sound_system.Initialize()) {

@@ -4,12 +4,12 @@
 #include <cstring>
 
 #include "ArenaSettings.h"
+#include "Clock.h"
 #include "InputState.h"
 #include "PlayerManager.h"
 #include "Radar.h"
 #include "Random.h"
 #include "Settings.h"
-#include "Tick.h"
 #include "WeaponManager.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"

@@ -1,8 +1,8 @@
 #ifndef NULLSPACE_PLAYER_H_
 #define NULLSPACE_PLAYER_H_
 
+#include "Clock.h"
 #include "Math.h"
-#include "Tick.h"
 #include "Types.h"
 #include "render/Animation.h"
 

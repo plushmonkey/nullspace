@@ -66,6 +66,8 @@ struct Graphics {
   static SpriteRenderable* space_station_sprites;
   static SpriteRenderable* wormhole_sprites;
 
+  static SpriteRenderable* powerball_sprites;
+
   static AnimatedSprite anim_bombs[4];
   static AnimatedSprite anim_emp_bombs[4];
   static AnimatedSprite anim_bombs_bounceable[4];
@@ -116,6 +118,10 @@ struct Graphics {
   static AnimatedSprite anim_asteroid_large;
   static AnimatedSprite anim_space_station;
   static AnimatedSprite anim_wormhole;
+
+  static AnimatedSprite anim_powerball;
+  static AnimatedSprite anim_powerball_phased;
+  static AnimatedSprite anim_powerball_trail;
 
   static bool Initialize(SpriteRenderer& renderer);
 

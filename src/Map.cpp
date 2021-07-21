@@ -7,8 +7,8 @@
 
 #include "ArenaSettings.h"
 #include "BrickManager.h"
+#include "Clock.h"
 #include "PlayerManager.h"
-#include "Tick.h"
 #include "net/Connection.h"
 
 namespace null {

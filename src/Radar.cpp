@@ -4,9 +4,9 @@
 #include <cstdio>
 #include <ctime>
 
+#include "Clock.h"
 #include "Game.h"
 #include "PlayerManager.h"
-#include "Tick.h"
 #include "render/Camera.h"
 #include "render/Graphics.h"
 #include "render/SpriteRenderer.h"
