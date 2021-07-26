@@ -620,9 +620,8 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
         if (!ship_settings.EmpBomb) {
           SetNextTick(&ship.next_bullet_tick, ship.next_bomb_tick);
+          ship.next_repel_tick = tick + kRepelDelayTicks;
         }
-
-        ship.next_repel_tick = tick + kRepelDelayTicks;
       }
     }
   }
@@ -672,9 +671,8 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
         if (!ship_settings.EmpBomb) {
           SetNextTick(&ship.next_bullet_tick, ship.next_bomb_tick);
+          ship.next_repel_tick = tick + kRepelDelayTicks;
         }
-
-        ship.next_repel_tick = tick + kRepelDelayTicks;
       }
     }
   }
