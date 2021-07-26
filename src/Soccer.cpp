@@ -7,7 +7,9 @@
 #include "PlayerManager.h"
 #include "Radar.h"
 #include "SpectateView.h"
+#include "WeaponManager.h"
 #include "net/Connection.h"
+#include "render/Animation.h"
 
 namespace null {
 
@@ -33,6 +35,26 @@ inline void SimulateAxis(Powerball& ball, Map& map, u32* pos, s16* vel) {
   }
 }
 
+inline Vector2f GetBallPosition(PlayerManager& player_manager, Powerball& ball, u64 microtick) {
+  // Ball is carried if timestamp is zero
+  if (ball.timestamp == 0) {
+    Player* carrier = player_manager.GetPlayerById(ball.carrier_id);
+
+    if (carrier && carrier->ship != 8) {
+      Vector2f heading = OrientationToHeading((u8)(carrier->orientation * 40.0f));
+      float radius = player_manager.connection.settings.ShipSettings[carrier->ship].GetRadius();
+
+      return carrier->position + heading * (radius - 0.1f);
+    }
+  }
+
+  Vector2f current_position(ball.x / 16000.0f, ball.y / 16000.0f);
+  Vector2f next_position(ball.next_x / 16000.0f, ball.next_y / 16000.0f);
+  float t = (microtick - ball.last_micro_tick) / (float)kTickDurationMicro;
+
+  return current_position * (1 - t) + (t * next_position);
+}
+
 Soccer::Soccer(PlayerManager& player_manager) : player_manager(player_manager), connection(player_manager.connection) {
   connection.dispatcher.Register(ProtocolS2C::PowerballPosition, OnPowerballPositionPkt, this);
 
@@ -45,30 +67,34 @@ void Soccer::Render(Camera& camera, SpriteRenderer& renderer) {
   animation.t = anim_t;
 
   u64 microtick = GetMicrosecondTick();
+  u32 tick = GetCurrentTick();
 
   for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(balls); ++i) {
     Powerball* ball = balls + i;
 
     if (ball->id != kInvalidBallId) {
-      // TODO: Select sprite based on ball state
       animation.sprite = &Graphics::anim_powerball;
 
+      if (ball->timestamp != 0 && TICK_DIFF(tick, ball->last_touch_timestamp) < connection.settings.PassDelay) {
+        animation.sprite = &Graphics::anim_powerball_phased;
+      }
+
       SpriteRenderable& renderable = animation.GetFrame();
-      Vector2f current_position(ball->x / 16000.0f, ball->y / 16000.0f);
-      Vector2f next_position(ball->next_x / 16000.0f, ball->next_y / 16000.0f);
-      float t = (microtick - ball->last_micro_tick) / (float)kTickDurationMicro;
-      Vector2f position = current_position * (1 - t) + (t * next_position);
+
+      Vector2f position = GetBallPosition(player_manager, *ball, microtick);
       Vector2f render_position = position - renderable.dimensions * (0.5f / 16.0f);
 
-      renderer.Draw(camera, renderable, render_position, Layer::AfterWeapons);
+      renderer.Draw(camera, renderable, Vector3f(render_position, (float)Layer::AfterWeapons + 0.9f));
       player_manager.radar->AddTemporaryIndicator(position, 0, Vector2f(2, 2), ColorType::RadarTeamFlag, true);
     }
   }
 }
 
 void Soccer::Update(float dt) {
-  // TODO: Every tick drop an animation for the trail if the ball is moving
   u64 microtick = GetMicrosecondTick();
+  u32 tick = GetCurrentTick();
+
+  s32 pass_delay = connection.settings.PassDelay;
 
   for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(balls); ++i) {
     Powerball* ball = balls + i;
@@ -76,8 +102,44 @@ void Soccer::Update(float dt) {
     if (ball->id == kInvalidBallId) continue;
 
     while ((s64)(microtick - ball->last_micro_tick) >= kTickDurationMicro) {
-      Simulate(*ball);
+      Simulate(*ball, true);
       ball->last_micro_tick += kTickDurationMicro;
+    }
+
+    // Check for nearby player touches if the ball isn't currently phased
+    if (TICK_DIFF(tick, ball->last_touch_timestamp) >= pass_delay) {
+      Vector2f position(ball->x / 16000.0f, ball->y / 16000.0f);
+
+      float closest_distance = FLT_MAX;
+      Player* closest_player = nullptr;
+
+      // Loop over players to find anyone close enough to pick up the ball
+      for (size_t j = 0; j < player_manager.player_count; ++j) {
+        Player* player = player_manager.players + j;
+
+        if (player->ship == 8) continue;
+        if (player->enter_delay > 0.0f) continue;
+        if (!player_manager.IsSynchronized(*player)) continue;
+        if (player->id == ball->carrier_id && (ball->vel_x != 0 || ball->vel_y != 0)) continue;
+
+        float pickup_radius = connection.settings.ShipSettings[player->ship].SoccerBallProximity / 16.0f;
+        float dist_sq = position.DistanceSq(player->position);
+
+        if (dist_sq <= pickup_radius * pickup_radius && dist_sq < closest_distance) {
+          closest_distance = dist_sq;
+          closest_player = player;
+        }
+      }
+
+      if (closest_player) {
+        if (closest_player->id == player_manager.player_id && TICK_DIFF(tick, last_pickup_request) >= 100) {
+          // Send pickup
+          connection.SendBallPickup((u8)ball->id, ball->timestamp);
+          last_pickup_request = tick;
+        }
+
+        ball->last_touch_timestamp = GetCurrentTick();
+      }
     }
   }
 
@@ -88,11 +150,28 @@ void Soccer::Update(float dt) {
   }
 }
 
-void Soccer::Simulate(Powerball& ball) {
+void Soccer::Simulate(Powerball& ball, bool drop_trail) {
   if (ball.friction <= 0) return;
 
   SimulateAxis(ball, connection.map, &ball.x, &ball.vel_x);
   SimulateAxis(ball, connection.map, &ball.y, &ball.vel_y);
+
+  // Drop trail if the ball is moving
+  if (drop_trail && (ball.vel_x != 0 || ball.vel_y != 0)) {
+    if (--ball.trail_delay <= 0) {
+      Vector2f offset = Graphics::anim_powerball_trail.frames[0].dimensions * (0.5f / 16.0f);
+      Vector2f position = Vector2f(ball.x / 16000.0f, ball.y / 16000.0f) - offset;
+
+      AnimationSystem& anim_system = player_manager.weapon_manager->animation;
+      Animation* anim = anim_system.AddAnimation(Graphics::anim_powerball_trail, position.PixelRounded());
+
+      if (anim) {
+        anim->layer = Layer::AfterWeapons;
+      }
+
+      ball.trail_delay = 5;
+    }
+  }
 
   s32 friction = ball.friction / 1000;
   ball.vel_x = (ball.vel_x * friction) / 1000;
@@ -146,6 +225,7 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
     ball->next_y = ball->y;
     ball->vel_x = velocity_x;
     ball->vel_y = velocity_y;
+    ball->frequency = 0xFFFF;
 
     u32 current_timestamp = GetCurrentTick() + connection.time_diff;
     s32 sim_ticks = TICK_DIFF(current_timestamp, timestamp);
@@ -158,30 +238,59 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
       sim_ticks = 0;
     }
 
-    // TODO: Figure out when to set different things for the ball to determine its state.
+    // The way this is setup seems like it could desynchronize state depending on brick setup at the time.
+    // Maybe initial synchronization should ignore current bricks?
+    //
+    // This also seems to send owner id of 0xFFFF so how can a new client join and fully synchronize without knowing
+    // the ball friction? Each ship has its own friction but the ship can't be determined based on the data sent.
+    //
+    // I don't think there's a way to actually solve this. Does Continuum also not synchronize correctly in certain
+    // situations?
+
+    u8 ship = 0;
 
     if (owner_id != kInvalidPlayerId) {
       Player* carrier = player_manager.GetPlayerById(owner_id);
 
       if (carrier) {
         ball->frequency = carrier->frequency;
-        u8 ship = carrier->ship;
-        if (ship == 8) ship = 1;
 
-        ball->friction_delta = connection.settings.ShipSettings[ship].SoccerBallFriction;
-        ball->friction = 1000000;
+        ship = carrier->ship;
+
+        if (ship == 8) {
+          ship = 0;
+        }
       }
+
+      if (owner_id == player_manager.player_id) {
+        last_pickup_request = GetCurrentTick();
+      }
+
+      ball->last_touch_timestamp = GetCurrentTick();
+    }
+
+    if (ball->vel_x != 0 || ball->vel_y != 0) {
+      ball->friction_delta = connection.settings.ShipSettings[ship].SoccerBallFriction;
+      ball->friction = 1000000;
+    } else {
+      ball->friction = 0;
     }
 
     ball->carrier_id = owner_id;
 
     for (s32 i = 0; i < sim_ticks; ++i) {
-      Simulate(*ball);
+      Simulate(*ball, false);
     }
 
     ball->last_micro_tick = GetMicrosecondTick();
 
     ball->timestamp = timestamp;
+  } else if (timestamp == 0) {
+    // Ball is carried if the timestamp is zero.
+    ball->timestamp = 0;
+    ball->carrier_id = owner_id;
+    ball->vel_x = ball->vel_y = 0;
+    ball->last_micro_tick = GetMicrosecondTick();
   }
 }
 

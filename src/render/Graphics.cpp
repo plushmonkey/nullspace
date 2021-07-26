@@ -261,7 +261,7 @@ bool Graphics::Initialize(SpriteRenderer& renderer) {
   anim_powerball_phased.frames = powerball_sprites + anim_powerball.frame_count;
   anim_powerball_phased.frame_count = count / 3;
 
-  anim_powerball_trail.duration = 1.0f;
+  anim_powerball_trail.duration = 0.3f;
   anim_powerball_trail.frames = powerball_sprites + anim_powerball.frame_count + anim_powerball_phased.frame_count;
   anim_powerball_trail.frame_count = count / 3;
 

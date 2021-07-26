@@ -1,6 +1,7 @@
 #ifndef NULLSPACE_SOCCER_H_
 #define NULLSPACE_SOCCER_H_
 
+#include "Clock.h"
 #include "Math.h"
 #include "Types.h"
 #include "render/Animation.h"
@@ -34,6 +35,9 @@ struct Powerball {
 
   u32 timestamp;
   u64 last_micro_tick;
+
+  u32 last_touch_timestamp;
+  s32 trail_delay;
 };
 
 struct Soccer {
@@ -41,6 +45,7 @@ struct Soccer {
   Connection& connection;
 
   float anim_t = 0.0f;
+  u32 last_pickup_request = 0;
 
   Powerball balls[8];
 
@@ -49,7 +54,7 @@ struct Soccer {
   void Render(Camera& camera, SpriteRenderer& renderer);
 
   void Update(float dt);
-  void Simulate(Powerball& ball);
+  void Simulate(Powerball& ball, bool drop_trail);
 
   void Clear();
 

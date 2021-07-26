@@ -817,6 +817,18 @@ void Connection::SendDropBrick(const Vector2f& position) {
   packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
 }
 
+void Connection::SendBallPickup(u8 ball_id, u32 timestamp) {
+#pragma pack(push, 1)
+  struct {
+    u8 type;
+    u8 ball_id;
+    u32 timestamp;
+  } pkt = {0x20, ball_id, timestamp};
+#pragma pack(pop)
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
+}
+
 ConnectResult Connection::Connect(const char* ip, u16 port) {
   inet_pton(AF_INET, ip, &this->remote_addr.addr);
 

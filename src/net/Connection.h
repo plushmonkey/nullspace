@@ -139,6 +139,7 @@ struct Connection {
   void SendFlagRequest(u16 flag_id);
   void SendFlagDrop();
   void SendDropBrick(const Vector2f& position);
+  void SendBallPickup(u8 ball_id, u32 timestamp);
 
   PingStatistics CalculatePingStatistics();
 };
