@@ -169,13 +169,14 @@ void Radar::RenderPlayers(Camera& ui_camera, SpriteRenderer& renderer, Player& s
 }
 
 void Radar::AddTemporaryIndicator(const Vector2f& world_position, u32 end_tick, const Vector2f& dimensions,
-                                  ColorType color) {
+                                  ColorType color, bool full_map_display) {
   if (temporary_indicator_count < NULLSPACE_ARRAY_SIZE(temporary_indicators)) {
     TemporaryRadarIndicator* temp_indicator = temporary_indicators + temporary_indicator_count++;
     temp_indicator->indicator.dim = dimensions;
     temp_indicator->indicator.color = color;
     temp_indicator->world_position = world_position;
     temp_indicator->end_tick = end_tick;
+    temp_indicator->full_map_display = full_map_display;
   }
 }
 
@@ -260,6 +261,20 @@ void Radar::RenderFull(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer
   SpriteRenderable& radar_renderable = tile_renderer.radar_renderable;
   Vector2f position = ui_camera.surface_dim - radar_renderable.dimensions - Vector2f(kRadarBorder, kRadarBorder);
   renderer.Draw(ui_camera, radar_renderable, position, Layer::TopMost);
+
+  for (size_t i = 0; i < temporary_indicator_count; ++i) {
+    TemporaryRadarIndicator* temp_indicator = temporary_indicators + i;
+
+    if (temp_indicator->full_map_display) {
+      float u = temp_indicator->world_position.x / 1024.0f;
+      float v = temp_indicator->world_position.y / 1024.0f;
+
+      Vector2f offset = Vector2f(radar_renderable.dimensions.x * u, radar_renderable.dimensions.y * v);
+      SpriteRenderable renderable = Graphics::GetColor(temp_indicator->indicator.color, temp_indicator->indicator.dim);
+
+      renderer.Draw(ui_camera, renderable, position + offset, Layer::TopMost);
+    }
+  }
 
   Vector2f half_extents = radar_renderable.dimensions * 0.5f;
   Graphics::DrawBorder(renderer, ui_camera, position + half_extents, half_extents);

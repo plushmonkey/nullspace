@@ -23,6 +23,7 @@ struct TemporaryRadarIndicator {
   IndicatorRenderable indicator;
   Vector2f world_position;
   u32 end_tick;
+  bool full_map_display;
 };
 constexpr size_t kMaxTemporaryRadarIndicators = 256;
 
@@ -39,7 +40,8 @@ struct Radar {
 
   void RenderDecoy(Camera& ui_camera, SpriteRenderer& renderer, Player& self, Player& player, const Vector2f& position);
 
-  void AddTemporaryIndicator(const Vector2f& world_position, u32 end_tick, const Vector2f& dimensions, ColorType color);
+  void AddTemporaryIndicator(const Vector2f& world_position, u32 end_tick, const Vector2f& dimensions, ColorType color,
+                             bool full_map_display = false);
 
   bool InRadarView(const Vector2f& position);
 

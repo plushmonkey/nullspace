@@ -61,7 +61,7 @@ void Soccer::Render(Camera& camera, SpriteRenderer& renderer) {
       Vector2f render_position = position - renderable.dimensions * (0.5f / 16.0f);
 
       renderer.Draw(camera, renderable, render_position, Layer::AfterWeapons);
-      player_manager.radar->AddTemporaryIndicator(position, 0, Vector2f(2, 2), ColorType::RadarTeamFlag);
+      player_manager.radar->AddTemporaryIndicator(position, 0, Vector2f(2, 2), ColorType::RadarTeamFlag, true);
     }
   }
 }
@@ -142,6 +142,8 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
   if (TICK_GT(timestamp, ball->timestamp)) {
     ball->x = x * 1000;
     ball->y = y * 1000;
+    ball->next_x = ball->x;
+    ball->next_y = ball->y;
     ball->vel_x = velocity_x;
     ball->vel_y = velocity_y;
 
