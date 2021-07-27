@@ -14,6 +14,7 @@ struct Soccer;
 
 struct TileRenderer {
   ShaderProgram shader;
+  ShaderProgram fly_under_shader;
 
   GLuint door_texture = -1;
   GLuint tilemap_texture = -1;

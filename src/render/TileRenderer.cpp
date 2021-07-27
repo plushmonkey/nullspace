@@ -80,9 +80,77 @@ void main() {
 }
 )";
 
+const char kFlyUnderVertexShaderCode[] = NULL_SHADER_VERSION
+    R"(
+in vec2 position;
+
+uniform mat4 mvp;
+
+out vec2 varying_position;
+
+void main() {
+  gl_Position = mvp * vec4(position, 8.9, 1.0);
+  varying_position = position;
+}
+)";
+
+const char kFlyUnderFragmentShaderCode[] = NULL_SHADER_VERSION
+    R"(
+precision mediump float;
+precision mediump int;)"
+
+// Don't define precision for these types since it doesn't work on older desktop opengl versions.
+#ifdef __ANDROID__
+    R"(
+precision mediump sampler2DArray;
+precision mediump usampler2D;)"
+#endif
+    R"(
+
+in vec2 varying_position;
+
+// This tilemap needs to be 3d for clamping to edge of tiles. There's some bleeding if it's 2d
+uniform sampler2DArray tilemap;
+// TODO: This could be packed instead of uint for values that can only be 0-255
+uniform usampler2D tiledata;
+
+out vec4 color;
+
+void main() {
+  uint tile_id;
+
+  float x = varying_position.x;
+  float y = varying_position.y;
+
+  if (x < 0.0 || y < 0.0 || x > 1024.0 || y > 1024.0) {
+    discard;
+  } else {
+    ivec2 fetchp = ivec2(varying_position);
+    tile_id = texelFetch(tiledata, fetchp, 0).r;
+  }
+
+  if (tile_id < 176u || tile_id > 190u) {
+    discard;
+  }
+
+  // Calculate uv by getting fraction of traversed tile
+  vec2 uv = (varying_position - floor(varying_position));
+
+  color = texture(tilemap, vec3(uv, tile_id - 1u));
+  if (color.r == 0.0 && color.g == 0.0 && color.b == 0.0) {
+    discard;
+  }
+}
+)";
+
 bool TileRenderer::Initialize() {
   if (!shader.Initialize(kGridVertexShaderCode, kGridFragmentShaderCode)) {
     fprintf(stderr, "Failed to load tile shader.\n");
+    return false;
+  }
+
+  if (!fly_under_shader.Initialize(kFlyUnderVertexShaderCode, kFlyUnderFragmentShaderCode)) {
+    fprintf(stderr, "Failed to load fly under shader.\n");
     return false;
   }
 
@@ -116,11 +184,32 @@ bool TileRenderer::Initialize() {
   glUniform1i(tilemap_uniform, 0);
   glUniform1i(tiledata_uniform, 1);
 
+  fly_under_shader.Use();
+
+  glUniform1i(tilemap_uniform, 0);
+  glUniform1i(tiledata_uniform, 1);
+
   return true;
 }
 
 void TileRenderer::Render(Camera& camera) {
   if (tiledata_texture == -1 || tilemap_texture == -1) return;
+
+  mat4 proj = camera.GetProjection();
+  mat4 view = camera.GetView();
+  mat4 mvp = proj * view;
+
+  fly_under_shader.Use();
+  glBindVertexArray(vao);
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D_ARRAY, tilemap_texture);
+
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, tiledata_texture);
+
+  glUniformMatrix4fv(mvp_uniform, 1, GL_FALSE, (const GLfloat*)mvp.data);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
 
   shader.Use();
   glBindVertexArray(vao);
@@ -131,12 +220,7 @@ void TileRenderer::Render(Camera& camera) {
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(GL_TEXTURE_2D, tiledata_texture);
 
-  mat4 proj = camera.GetProjection();
-  mat4 view = camera.GetView();
-  mat4 mvp = proj * view;
-
   glUniformMatrix4fv(mvp_uniform, 1, GL_FALSE, (const GLfloat*)mvp.data);
-
   glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
@@ -387,6 +471,8 @@ u32 TileRenderer::GetRadarTileColor(u8 id, u16 x, u16 y, Soccer& soccer) {
 
 void TileRenderer::Cleanup() {
   shader.Cleanup();
+  fly_under_shader.Cleanup();
+
   glDeleteTextures(1, &door_texture);
   glDeleteTextures(1, &tilemap_texture);
   glDeleteTextures(1, &tiledata_texture);
