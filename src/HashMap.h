@@ -17,7 +17,7 @@ struct HashMap {
 
   MemoryArena& arena;
   Element* elements[buckets];
-  Element* free;
+  Element* free = nullptr;
   Hasher hasher;
 
   HashMap(MemoryArena& arena) : arena(arena) {
