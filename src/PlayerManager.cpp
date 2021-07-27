@@ -10,6 +10,7 @@
 #include "InputState.h"
 #include "Radar.h"
 #include "ShipController.h"
+#include "Soccer.h"
 #include "Sound.h"
 #include "SpectateView.h"
 #include "WeaponManager.h"
@@ -326,23 +327,36 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
 
     char display[48];
 
+    bool display_ball = player.ball_carrier && !is_decoy;
+
     if (player.flags > 0) {
-      sprintf(display, "%s(%d:%d)[%d]", player.name, player.bounty, player.flags, player.ping * 10);
+      sprintf(display, "%s(%d:%d)[%d] %s", player.name, player.bounty, player.flags, player.ping * 10,
+              display_ball ? "(Ball)" : "");
     } else {
-      sprintf(display, "%s(%d)[%d]", player.name, player.bounty, player.ping * 10);
+      sprintf(display, "%s(%d)[%d] %s", player.name, player.bounty, player.ping * 10, display_ball ? "(Ball)" : "");
     }
 
     TextColor color = TextColor::Blue;
 
     if (player.frequency == self_freq) {
       color = TextColor::Yellow;
-    } else if (player.flags > 0) {
+    } else if (player.flags > 0 || (player.ball_carrier && !is_decoy)) {
       color = TextColor::DarkRed;
     }
 
     Vector2f current_position = position.PixelRounded() + offset;
 
     if (!is_decoy) {
+      if (player.ball_carrier && player.id == player_id &&
+          connection.settings.ShipSettings[player.ship].SoccerBallThrowTimer > 0) {
+        char ball_time_output[16];
+
+        sprintf(ball_time_output, "%.1f", soccer->carry_timer);
+
+        renderer.DrawText(camera, ball_time_output, TextColor::Red, current_position, Layer::Ships);
+        current_position.y += (12.0f / 16.0f);
+      }
+
       float max_energy = (float)ship_controller->ship.energy;
 
       if (player.id == player_id && player.energy < max_energy * 0.5f) {
@@ -610,6 +624,7 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
     killed->explode_anim_t = 0.0f;
     killed->flags = 0;
     killed->flag_timer = 0;
+    killed->ball_carrier = false;
 
     DetachPlayer(*killed);
     DetachAllChildren(*killed);
@@ -778,6 +793,7 @@ void PlayerManager::OnPlayerFrequencyChange(u8* pkt, size_t size) {
     player->warp_anim_t = 0.0f;
     player->enter_delay = 0.0f;
     player->flags = 0;
+    player->ball_carrier = false;
 
     weapon_manager->ClearWeapons(*player);
 
@@ -810,6 +826,7 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
     player->warp_anim_t = 0.0f;
     player->enter_delay = 0.0f;
     player->flags = 0;
+    player->ball_carrier = false;
 
     weapon_manager->ClearWeapons(*player);
 
@@ -1138,6 +1155,7 @@ void PlayerManager::OnFlagDrop(u8* pkt, size_t size) {
 
 void PlayerManager::AttachSelf(Player* destination) {
   if (!destination) return;
+  if (soccer->IsCarryingBall()) return;
 
   Player* self = GetSelf();
 

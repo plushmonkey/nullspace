@@ -6,14 +6,13 @@
 #include "Clock.h"
 #include "PlayerManager.h"
 #include "Radar.h"
+#include "ShipController.h"
 #include "SpectateView.h"
 #include "WeaponManager.h"
 #include "net/Connection.h"
 #include "render/Animation.h"
 
 namespace null {
-
-constexpr u16 kInvalidBallId = 0xFFFF;
 
 static void OnPowerballPositionPkt(void* user, u8* pkt, size_t size) {
   Soccer* soccer = (Soccer*)user;
@@ -44,7 +43,13 @@ inline Vector2f GetBallPosition(PlayerManager& player_manager, Powerball& ball, 
       Vector2f heading = OrientationToHeading((u8)(carrier->orientation * 40.0f));
       float radius = player_manager.connection.settings.ShipSettings[carrier->ship].GetRadius();
 
-      return carrier->position + heading * (radius - 0.1f);
+      float extension = radius - 0.25f;
+
+      if (extension < 0) {
+        extension = 0.0f;
+      }
+
+      return carrier->position.PixelRounded() + heading * extension;
     }
   }
 
@@ -85,9 +90,34 @@ void Soccer::Render(Camera& camera, SpriteRenderer& renderer) {
       Vector2f render_position = position - renderable.dimensions * (0.5f / 16.0f);
 
       renderer.Draw(camera, renderable, Vector3f(render_position, (float)Layer::AfterWeapons + 0.9f));
-      player_manager.radar->AddTemporaryIndicator(position, 0, Vector2f(2, 2), ColorType::RadarTeamFlag, true);
+      RenderIndicator(*ball, position);
     }
   }
+}
+
+void Soccer::RenderIndicator(Powerball& ball, const Vector2f& position) {
+  if (ball.timestamp == 0) {
+    Player* carrier = player_manager.GetPlayerById(ball.carrier_id);
+
+    if (carrier) {
+      u32 self_freq = player_manager.specview->GetFrequency();
+
+      if (carrier->frequency == self_freq) {
+        RadarIndicatorFlags flags =
+            carrier->id == player_manager.player_id ? RadarIndicatorFlag_FullMap : RadarIndicatorFlag_All;
+
+        player_manager.radar->AddTemporaryIndicator(position, 0, Vector2f(3, 3), ColorType::RadarTeam, flags);
+      } else {
+        player_manager.radar->AddTemporaryIndicator(position, 0, Vector2f(3, 3), ColorType::RadarEnemyFlag,
+                                                    RadarIndicatorFlag_All);
+      }
+
+      return;
+    }
+  }
+
+  player_manager.radar->AddTemporaryIndicator(position, 0, Vector2f(2, 2), ColorType::RadarTeamFlag,
+                                              RadarIndicatorFlag_All);
 }
 
 void Soccer::Update(float dt) {
@@ -106,8 +136,31 @@ void Soccer::Update(float dt) {
       ball->last_micro_tick += kTickDurationMicro;
     }
 
+    // Update timer if the carrier is this player
+    if (ball->timestamp == 0 && ball->carrier_id == player_manager.player_id) {
+      carry_id = ball->id;
+      carry_timer -= dt;
+
+      Player* self = player_manager.GetSelf();
+      if (self && self->ship != 8) {
+        bool has_timer = connection.settings.ShipSettings[self->ship].SoccerBallThrowTimer > 0;
+
+        if (has_timer && carry_timer < 0) {
+          float speed = connection.settings.ShipSettings[self->ship].SoccerBallSpeed / 10.0f / 16.0f;
+          Vector2f position = GetBallPosition(player_manager, *ball, microtick);
+          Vector2f heading = OrientationToHeading((u8)(self->orientation * 40.0f));
+          Vector2f velocity = self->velocity - Vector2f(heading) * speed;
+
+          u32 timestamp = GetCurrentTick() + connection.time_diff;
+
+          connection.SendBallFire((u8)ball->id, position, velocity, self->id, timestamp);
+          carry_id = kInvalidBallId;
+        }
+      }
+    }
+
     // Check for nearby player touches if the ball isn't currently phased
-    if (TICK_DIFF(tick, ball->last_touch_timestamp) >= pass_delay) {
+    if (ball->timestamp != 0 && TICK_DIFF(tick, ball->last_touch_timestamp) >= pass_delay) {
       Vector2f position(ball->x / 16000.0f, ball->y / 16000.0f);
 
       float closest_distance = FLT_MAX;
@@ -121,6 +174,8 @@ void Soccer::Update(float dt) {
         if (player->enter_delay > 0.0f) continue;
         if (!player_manager.IsSynchronized(*player)) continue;
         if (player->id == ball->carrier_id && (ball->vel_x != 0 || ball->vel_y != 0)) continue;
+        if (player->attach_parent != kInvalidPlayerId) continue;
+        if (IsCarryingBall() && player->id == player_manager.player_id) continue;
 
         float pickup_radius = connection.settings.ShipSettings[player->ship].SoccerBallProximity / 16.0f;
         float dist_sq = position.DistanceSq(player->position);
@@ -150,11 +205,57 @@ void Soccer::Update(float dt) {
   }
 }
 
+bool Soccer::FireBall(BallFireMethod method) {
+  if (!IsCarryingBall()) return false;
+
+  assert(carry_id < NULLSPACE_ARRAY_SIZE(balls));
+
+  if (method == BallFireMethod::Gun && connection.settings.AllowGuns) {
+    return false;
+  } else if (method == BallFireMethod::Bomb && connection.settings.AllowBombs) {
+    return false;
+  }
+
+  Player* self = player_manager.GetSelf();
+
+  if (!self) return false;
+
+  Powerball* ball = balls + carry_id;
+
+  float speed = connection.settings.ShipSettings[self->ship].SoccerBallSpeed / 10.0f / 16.0f;
+  Vector2f position = GetBallPosition(player_manager, *ball, GetMicrosecondTick());
+  Vector2f heading = OrientationToHeading((u8)(self->orientation * 40.0f));
+  Vector2f velocity = self->velocity + Vector2f(heading) * speed;
+
+  u32 timestamp = GetCurrentTick() + connection.time_diff;
+
+  connection.SendBallFire((u8)carry_id, self->position, velocity, self->id, timestamp);
+  carry_id = kInvalidBallId;
+
+  player_manager.ship_controller->AddBombDelay(50);
+  player_manager.ship_controller->AddBulletDelay(50);
+
+  return true;
+}
+
 void Soccer::Simulate(Powerball& ball, bool drop_trail) {
   if (ball.friction <= 0) return;
 
   SimulateAxis(ball, connection.map, &ball.x, &ball.vel_x);
   SimulateAxis(ball, connection.map, &ball.y, &ball.vel_y);
+
+  if (!ball.in_goal && ball.carrier_id == player_manager.player_id) {
+    TileId tile_id = connection.map.GetTileId(ball.x / 16000, ball.y / 16000);
+
+    if (tile_id == kGoalTileId) {
+      Vector2f position(ball.x / 16000.0f, ball.y / 16000.0f);
+
+      if (!IsTeamGoal(position)) {
+        connection.SendBallGoal((u8)ball.id, GetCurrentTick() + connection.time_diff);
+        ball.in_goal = true;
+      }
+    }
+  }
 
   // Drop trail if the ball is moving
   if (drop_trail && (ball.vel_x != 0 || ball.vel_y != 0)) {
@@ -217,6 +318,7 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
   Powerball* ball = balls + ball_id;
 
   ball->id = ball_id;
+  ball->in_goal = false;
 
   if (TICK_GT(timestamp, ball->timestamp)) {
     ball->x = x * 1000;
@@ -226,6 +328,10 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
     ball->vel_x = velocity_x;
     ball->vel_y = velocity_y;
     ball->frequency = 0xFFFF;
+
+    if (ball_id == carry_id) {
+      carry_id = kInvalidBallId;
+    }
 
     u32 current_timestamp = GetCurrentTick() + connection.time_diff;
     s32 sim_ticks = TICK_DIFF(current_timestamp, timestamp);
@@ -253,6 +359,7 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
       Player* carrier = player_manager.GetPlayerById(owner_id);
 
       if (carrier) {
+        carrier->ball_carrier = false;
         ball->frequency = carrier->frequency;
 
         ship = carrier->ship;
@@ -287,10 +394,28 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
     ball->timestamp = timestamp;
   } else if (timestamp == 0) {
     // Ball is carried if the timestamp is zero.
+    u16 previous_timestamp = ball->timestamp;
+
     ball->timestamp = 0;
+
     ball->carrier_id = owner_id;
     ball->vel_x = ball->vel_y = 0;
     ball->last_micro_tick = GetMicrosecondTick();
+
+    Player* carrier = player_manager.GetPlayerById(owner_id);
+
+    if (previous_timestamp != ball->timestamp && carrier && carrier->ship != 8) {
+      carrier->ball_carrier = true;
+
+      if (carrier->id == player_manager.player_id) {
+        ShipSettings& ship_settings = connection.settings.ShipSettings[carrier->ship];
+
+        this->carry_timer = ship_settings.SoccerBallThrowTimer / 100.0f;
+        this->carry_id = ball->id;
+
+        player_manager.ship_controller->AddBombDelay(ship_settings.BombFireDelay);
+      }
+    }
   }
 }
 

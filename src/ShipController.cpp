@@ -10,6 +10,7 @@
 #include "Radar.h"
 #include "Random.h"
 #include "Settings.h"
+#include "Soccer.h"
 #include "WeaponManager.h"
 #include "net/Connection.h"
 #include "net/PacketDispatcher.h"
@@ -375,6 +376,14 @@ inline void SetNextTick(u32* target, u32 next_tick) {
   }
 }
 
+void ShipController::AddBombDelay(u32 tick_amount) {
+  SetNextTick(&ship.next_bomb_tick, GetCurrentTick() + tick_amount);
+}
+
+void ShipController::AddBulletDelay(u32 tick_amount) {
+  SetNextTick(&ship.next_bullet_tick, GetCurrentTick() + tick_amount);
+}
+
 void ShipController::FireWeapons(Player& self, const InputState& input, float dt, bool afterburners) {
   Connection& connection = player_manager.connection;
   ShipSettings& ship_settings = connection.settings.ShipSettings[self.ship];
@@ -510,7 +519,9 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
   if (warp_input_cleared && warp_input && !portal_input) {
     warp_input_cleared = false;
 
-    if (!player_manager.IsAntiwarped(self, true)) {
+    bool fired_ball = player_manager.soccer->FireBall(BallFireMethod::Warp);
+
+    if (!fired_ball && !player_manager.IsAntiwarped(self, true)) {
       bool warped = false;
       Vector2f previous_pos = self.position;
 
@@ -562,65 +573,73 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
   if (input.IsDown(InputAction::Bullet) && TICK_GT(tick, ship.next_bullet_tick)) {
     if (ship.guns > 0 && can_fastshoot) {
-      self.weapon.level = ship.guns - 1;
+      if (!player_manager.soccer->FireBall(BallFireMethod::Gun)) {
+        self.weapon.level = ship.guns - 1;
 
-      if (self.flags > 0 && connection.settings.FlaggerGunUpgrade) {
-        self.weapon.level++;
-      }
+        if (connection.settings.FlaggerGunUpgrade) {
+          if (self.flags > 0 || (self.ball_carrier && connection.settings.UseFlagger)) {
+            self.weapon.level++;
+          }
+        }
 
-      if (ship.capability & ShipCapability_BouncingBullets) {
-        self.weapon.type = WeaponType::BouncingBullet;
-      } else {
-        self.weapon.type = WeaponType::Bullet;
-      }
+        if (ship.capability & ShipCapability_BouncingBullets) {
+          self.weapon.type = WeaponType::BouncingBullet;
+        } else {
+          self.weapon.type = WeaponType::Bullet;
+        }
 
-      self.weapon.alternate = ship.multifire && (ship.capability & ShipCapability_Multifire);
+        self.weapon.alternate = ship.multifire && (ship.capability & ShipCapability_Multifire);
 
-      u32 delay = 0;
-      if (self.weapon.alternate) {
-        delay = ship_settings.MultiFireDelay;
-        energy_cost = ship_settings.MultiFireEnergy * (self.weapon.level + 1);
-      } else {
-        delay = ship_settings.BulletFireDelay;
-        energy_cost = ship_settings.BulletFireEnergy * (self.weapon.level + 1);
-      }
+        u32 delay = 0;
+        if (self.weapon.alternate) {
+          delay = ship_settings.MultiFireDelay;
+          energy_cost = ship_settings.MultiFireEnergy * (self.weapon.level + 1);
+        } else {
+          delay = ship_settings.BulletFireDelay;
+          energy_cost = ship_settings.BulletFireEnergy * (self.weapon.level + 1);
+        }
 
-      used_weapon = energy_cost < self.energy;
+        used_weapon = energy_cost < self.energy;
 
-      if (used_weapon) {
-        SetNextTick(&ship.next_bullet_tick, tick + delay);
-        SetNextTick(&ship.next_bomb_tick, ship.next_bullet_tick);
+        if (used_weapon) {
+          SetNextTick(&ship.next_bullet_tick, tick + delay);
+          SetNextTick(&ship.next_bomb_tick, ship.next_bullet_tick);
+        }
       }
     }
   }
 
   if (input.IsDown(InputAction::Mine) && TICK_GT(tick, ship.next_bomb_tick)) {
     if (ship.bombs > 0) {
-      self.weapon.level = ship.bombs - 1;
-      self.weapon.type = (ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb;
-      self.weapon.alternate = 1;
+      if (!player_manager.soccer->FireBall(BallFireMethod::Bomb)) {
+        self.weapon.level = ship.bombs - 1;
+        self.weapon.type = (ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb;
+        self.weapon.alternate = 1;
 
-      if (self.flags > 0 && connection.settings.FlaggerBombUpgrade) {
-        self.weapon.level++;
-      }
+        if (connection.settings.FlaggerBombUpgrade) {
+          if (self.flags > 0 || (self.ball_carrier && connection.settings.UseFlagger)) {
+            self.weapon.level++;
+          }
+        }
 
-      if (ship.guns > 0) {
-        self.weapon.shrap = ship.shrapnel;
-        self.weapon.shraplevel = ship.guns - 1;
-        self.weapon.shrapbouncing = (ship.capability & ShipCapability_BouncingBullets) > 0;
-      }
+        if (ship.guns > 0) {
+          self.weapon.shrap = ship.shrapnel;
+          self.weapon.shraplevel = ship.guns - 1;
+          self.weapon.shrapbouncing = (ship.capability & ShipCapability_BouncingBullets) > 0;
+        }
 
-      energy_cost =
-          ship_settings.LandmineFireEnergy + ship_settings.LandmineFireEnergyUpgrade * (self.weapon.level + 1);
+        energy_cost =
+            ship_settings.LandmineFireEnergy + ship_settings.LandmineFireEnergyUpgrade * (self.weapon.level + 1);
 
-      used_weapon = energy_cost < self.energy;
+        used_weapon = energy_cost < self.energy;
 
-      if (used_weapon) {
-        SetNextTick(&ship.next_bomb_tick, tick + ship_settings.BombFireDelay);
+        if (used_weapon) {
+          SetNextTick(&ship.next_bomb_tick, tick + ship_settings.BombFireDelay);
 
-        if (!ship_settings.EmpBomb) {
-          SetNextTick(&ship.next_bullet_tick, ship.next_bomb_tick);
-          ship.next_repel_tick = tick + kRepelDelayTicks;
+          if (!ship_settings.EmpBomb) {
+            SetNextTick(&ship.next_bullet_tick, ship.next_bomb_tick);
+            ship.next_repel_tick = tick + kRepelDelayTicks;
+          }
         }
       }
     }
@@ -628,50 +647,54 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
   if (input.IsDown(InputAction::Bomb) && TICK_GT(tick, ship.next_bomb_tick)) {
     if (ship.bombs > 0 && can_fastshoot) {
-      self.weapon.level = ship.bombs - 1;
-      self.weapon.type = (ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb;
+      if (!player_manager.soccer->FireBall(BallFireMethod::Bomb)) {
+        self.weapon.level = ship.bombs - 1;
+        self.weapon.type = (ship.capability & ShipCapability_Proximity) ? WeaponType::ProximityBomb : WeaponType::Bomb;
 
-      if (self.flags > 0 && connection.settings.FlaggerBombUpgrade) {
-        self.weapon.level++;
-      }
-
-      if (ship.guns > 0) {
-        self.weapon.shrap = ship.shrapnel;
-        self.weapon.shraplevel = ship.guns - 1;
-        self.weapon.shrapbouncing = (ship.capability & ShipCapability_BouncingBullets) > 0;
-      }
-
-      energy_cost = ship_settings.BombFireEnergy + ship_settings.BombFireEnergyUpgrade * (self.weapon.level + 1);
-      used_weapon = energy_cost < self.energy;
-
-      // Disable prox bombs if they are fired near other players with BombSafety on
-      if (used_weapon && self.weapon.type == WeaponType::ProximityBomb && connection.settings.BombSafety) {
-        float prox = (float)(connection.settings.ProximityDistance + self.weapon.level);
-
-        for (size_t i = 0; i < player_manager.player_count; ++i) {
-          Player* player = player_manager.players + i;
-
-          if (player->ship == 8) continue;
-          if (player->frequency == self.frequency) continue;
-          if (player->enter_delay > 0) continue;
-          if (!player_manager.IsSynchronized(*player)) continue;
-
-          if (self.position.DistanceSq(player->position) <= prox * prox) {
-            used_weapon = false;
+        if (connection.settings.FlaggerBombUpgrade) {
+          if (self.flags > 0 || (self.ball_carrier && connection.settings.UseFlagger)) {
+            self.weapon.level++;
           }
         }
-      }
 
-      if (used_weapon) {
-        // Apply thrust here before the firing velocity is calculated since this affects it.
-        float thrust = ship_settings.BombThrust / 100.0f * 10.0f / 16.0f;
-        self.velocity -= OrientationToHeading((u8)(self.orientation * 40.0f)) * thrust;
+        if (ship.guns > 0) {
+          self.weapon.shrap = ship.shrapnel;
+          self.weapon.shraplevel = ship.guns - 1;
+          self.weapon.shrapbouncing = (ship.capability & ShipCapability_BouncingBullets) > 0;
+        }
 
-        SetNextTick(&ship.next_bomb_tick, tick + ship_settings.BombFireDelay);
+        energy_cost = ship_settings.BombFireEnergy + ship_settings.BombFireEnergyUpgrade * (self.weapon.level + 1);
+        used_weapon = energy_cost < self.energy;
 
-        if (!ship_settings.EmpBomb) {
-          SetNextTick(&ship.next_bullet_tick, ship.next_bomb_tick);
-          ship.next_repel_tick = tick + kRepelDelayTicks;
+        // Disable prox bombs if they are fired near other players with BombSafety on
+        if (used_weapon && self.weapon.type == WeaponType::ProximityBomb && connection.settings.BombSafety) {
+          float prox = (float)(connection.settings.ProximityDistance + self.weapon.level);
+
+          for (size_t i = 0; i < player_manager.player_count; ++i) {
+            Player* player = player_manager.players + i;
+
+            if (player->ship == 8) continue;
+            if (player->frequency == self.frequency) continue;
+            if (player->enter_delay > 0) continue;
+            if (!player_manager.IsSynchronized(*player)) continue;
+
+            if (self.position.DistanceSq(player->position) <= prox * prox) {
+              used_weapon = false;
+            }
+          }
+        }
+
+        if (used_weapon) {
+          // Apply thrust here before the firing velocity is calculated since this affects it.
+          float thrust = ship_settings.BombThrust / 100.0f * 10.0f / 16.0f;
+          self.velocity -= OrientationToHeading((u8)(self.orientation * 40.0f)) * thrust;
+
+          SetNextTick(&ship.next_bomb_tick, tick + ship_settings.BombFireDelay);
+
+          if (!ship_settings.EmpBomb) {
+            SetNextTick(&ship.next_bullet_tick, ship.next_bomb_tick);
+            ship.next_repel_tick = tick + kRepelDelayTicks;
+          }
         }
       }
     }

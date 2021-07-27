@@ -19,12 +19,21 @@ struct IndicatorRenderable {
   ColorType color;
 };
 
+enum {
+  RadarIndicatorFlag_SmallMap = (1 << 0),
+  RadarIndicatorFlag_FullMap = (1 << 1),
+
+  RadarIndicatorFlag_All = RadarIndicatorFlag_SmallMap | RadarIndicatorFlag_FullMap,
+};
+using RadarIndicatorFlags = u32;
+
 struct TemporaryRadarIndicator {
   IndicatorRenderable indicator;
   Vector2f world_position;
   u32 end_tick;
-  bool full_map_display;
+  RadarIndicatorFlags flags;
 };
+
 constexpr size_t kMaxTemporaryRadarIndicators = 256;
 
 struct Radar {
@@ -41,7 +50,7 @@ struct Radar {
   void RenderDecoy(Camera& ui_camera, SpriteRenderer& renderer, Player& self, Player& player, const Vector2f& position);
 
   void AddTemporaryIndicator(const Vector2f& world_position, u32 end_tick, const Vector2f& dimensions, ColorType color,
-                             bool full_map_display = false);
+                             RadarIndicatorFlags flags = RadarIndicatorFlag_SmallMap);
 
   bool InRadarView(const Vector2f& position);
 

@@ -38,7 +38,13 @@ struct Powerball {
 
   u32 last_touch_timestamp;
   s32 trail_delay;
+
+  bool in_goal;
 };
+
+constexpr u16 kInvalidBallId = 0xFFFF;
+
+enum class BallFireMethod { Gun, Bomb, Warp };
 
 struct Soccer {
   PlayerManager& player_manager;
@@ -46,21 +52,27 @@ struct Soccer {
 
   float anim_t = 0.0f;
   u32 last_pickup_request = 0;
+  float carry_timer = 0.0f;
+  u16 carry_id = kInvalidBallId;
 
   Powerball balls[8];
 
   Soccer(PlayerManager& player_manager);
 
   void Render(Camera& camera, SpriteRenderer& renderer);
+  void RenderIndicator(Powerball& ball, const Vector2f& position);
 
   void Update(float dt);
   void Simulate(Powerball& ball, bool drop_trail);
+  bool FireBall(BallFireMethod method);
 
   void Clear();
 
   void OnPowerballPosition(u8* pkt, size_t size);
 
   bool IsTeamGoal(const Vector2f& position);
+
+  inline bool IsCarryingBall() { return carry_id != kInvalidBallId; }
 };
 
 }  // namespace null

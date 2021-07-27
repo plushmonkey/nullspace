@@ -108,6 +108,8 @@ struct Player {
   float warp_anim_t;
   float explode_anim_t;
   float bombflash_anim_t;
+
+  bool ball_carrier;
 };
 
 }  // namespace null

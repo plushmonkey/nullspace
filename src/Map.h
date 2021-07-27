@@ -26,6 +26,7 @@ struct BrickManager;
 
 using TileId = u8;
 constexpr u32 kTileSafeId = 171;
+constexpr u32 kGoalTileId = 172;
 
 constexpr size_t kAnimatedTileCount = 7;
 

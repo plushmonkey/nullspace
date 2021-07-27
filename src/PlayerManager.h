@@ -18,6 +18,7 @@ struct PacketDispatcher;
 struct Radar;
 struct ShipController;
 struct SpectateView;
+struct Soccer;
 struct SoundSystem;
 struct SpriteRenderer;
 struct WeaponManager;
@@ -30,6 +31,7 @@ struct PlayerManager {
   ShipController* ship_controller = nullptr;
   ChatController* chat_controller = nullptr;
   NotificationSystem* notifications = nullptr;
+  Soccer* soccer = nullptr;
   SpectateView* specview = nullptr;
   BannerPool* banners = nullptr;
   Radar* radar = nullptr;
@@ -56,7 +58,7 @@ struct PlayerManager {
 
   inline void Initialize(WeaponManager* weapon_manager, ShipController* ship_controller,
                          ChatController* chat_controller, NotificationSystem* notifications, SpectateView* specview,
-                         BannerPool* banners, Radar* radar) {
+                         BannerPool* banners, Radar* radar, Soccer* soccer) {
     this->weapon_manager = weapon_manager;
     this->ship_controller = ship_controller;
     this->chat_controller = chat_controller;
@@ -64,6 +66,7 @@ struct PlayerManager {
     this->specview = specview;
     this->banners = banners;
     this->radar = radar;
+    this->soccer = soccer;
 
     warp_animation.sprite = &Graphics::anim_ship_warp;
     explode_animation.sprite = &Graphics::anim_ship_explode;

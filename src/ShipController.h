@@ -151,6 +151,9 @@ struct ShipController {
   void UpdateExhaust(Player& self, bool thrust_forward, bool thrust_backward, float dt);
 
   void FireWeapons(Player& self, const InputState& input, float dt, bool afterburners);
+  void AddBombDelay(u32 tick_amount);
+  void AddBulletDelay(u32 tick_amount);
+
   void HandleStatusEnergy(Player& self, u32 status, u32 cost, float dt);
 
   void Render(Camera& ui_camera, Camera& camera, SpriteRenderer& renderer);

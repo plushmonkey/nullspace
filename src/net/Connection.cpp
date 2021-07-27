@@ -829,6 +829,44 @@ void Connection::SendBallPickup(u8 ball_id, u32 timestamp) {
   packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
 }
 
+void Connection::SendBallFire(u8 ball_id, const Vector2f& position, const Vector2f& velocity, u16 pid, u32 timestamp) {
+#pragma pack(push, 1)
+  struct {
+    u8 type;
+    u8 ball_id;
+    u16 x;
+    u16 y;
+    u16 vel_x;
+    u16 vel_y;
+    u16 pid;
+    u32 timestamp;
+  } pkt;
+#pragma pack(pop)
+
+  pkt.type = 0x1F;
+  pkt.ball_id = ball_id;
+  pkt.x = (u16)(position.x * 16.0f);
+  pkt.y = (u16)(position.y * 16.0f);
+  pkt.vel_x = (u16)(velocity.x * 16.0f * 10.0f);
+  pkt.vel_y = (u16)(velocity.y * 16.0f * 10.0f);
+  pkt.pid = pid;
+  pkt.timestamp = timestamp;
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
+}
+
+void Connection::SendBallGoal(u8 ball_id, u32 timestamp) {
+#pragma pack(push, 1)
+  struct {
+    u8 type;
+    u8 ball_id;
+    u32 timestamp;
+  } pkt = {0x21, ball_id, timestamp};
+#pragma pack(pop)
+
+  packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
+}
+
 ConnectResult Connection::Connect(const char* ip, u16 port) {
   inet_pton(AF_INET, ip, &this->remote_addr.addr);
 

@@ -110,7 +110,9 @@ void Radar::Render(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer& ti
   for (size_t i = 0; i < temporary_indicator_count; ++i) {
     TemporaryRadarIndicator* temp_indicator = temporary_indicators + i;
 
-    RenderIndicator(ui_camera, renderer, temp_indicator->world_position, temp_indicator->indicator);
+    if (temp_indicator->flags & RadarIndicatorFlag_SmallMap) {
+      RenderIndicator(ui_camera, renderer, temp_indicator->world_position, temp_indicator->indicator);
+    }
   }
 
   Graphics::DrawBorder(renderer, ui_camera, ctx.radar_position + ctx.radar_dim * 0.5f, ctx.radar_dim * 0.5f);
@@ -169,14 +171,14 @@ void Radar::RenderPlayers(Camera& ui_camera, SpriteRenderer& renderer, Player& s
 }
 
 void Radar::AddTemporaryIndicator(const Vector2f& world_position, u32 end_tick, const Vector2f& dimensions,
-                                  ColorType color, bool full_map_display) {
+                                  ColorType color, RadarIndicatorFlags flags) {
   if (temporary_indicator_count < NULLSPACE_ARRAY_SIZE(temporary_indicators)) {
     TemporaryRadarIndicator* temp_indicator = temporary_indicators + temporary_indicator_count++;
     temp_indicator->indicator.dim = dimensions;
     temp_indicator->indicator.color = color;
     temp_indicator->world_position = world_position;
     temp_indicator->end_tick = end_tick;
-    temp_indicator->full_map_display = full_map_display;
+    temp_indicator->flags = flags;
   }
 }
 
@@ -194,7 +196,7 @@ IndicatorRenderable Radar::GetIndicator(Player& self, Player& player) {
       color = ColorType::RadarEnemyTarget;
     }
 
-    if (player.flags > 0 && player_manager.connection.settings.FlaggerOnRadar) {
+    if ((player.flags > 0 && player_manager.connection.settings.FlaggerOnRadar) || player.ball_carrier) {
       color = ColorType::RadarEnemyFlag;
     }
   }
@@ -204,7 +206,7 @@ IndicatorRenderable Radar::GetIndicator(Player& self, Player& player) {
   }
 
   renderable.color = color;
-  renderable.dim = player.flags > 0 ? Vector2f(3, 3) : Vector2f(2, 2);
+  renderable.dim = (player.flags > 0 || player.ball_carrier) ? Vector2f(3, 3) : Vector2f(2, 2);
 
   return renderable;
 }
@@ -265,7 +267,7 @@ void Radar::RenderFull(Camera& ui_camera, SpriteRenderer& renderer, TileRenderer
   for (size_t i = 0; i < temporary_indicator_count; ++i) {
     TemporaryRadarIndicator* temp_indicator = temporary_indicators + i;
 
-    if (temp_indicator->full_map_display) {
+    if (temp_indicator->flags & RadarIndicatorFlag_FullMap) {
       float u = temp_indicator->world_position.x / 1024.0f;
       float v = temp_indicator->world_position.y / 1024.0f;
 
