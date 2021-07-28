@@ -3,13 +3,12 @@ SubSpace client that I will probably never finish.
 
 ## Running
 The client is designed to be a drop-in replacement client for Continuum. Build the client and drop it into the Continuum folder.  
-Tested on modern Windows 10 and Linux setup, 12 year old Windows 10 laptop, and Android emulator.  
+Tested on modern Windows 10 and Linux setup, 12 year old Windows 10 laptop, and Android phone.  
 
 ### Video
-Example video showcasing the client in Hyperspace, MetalGear, and a local server with Trench Wars settings.  
-The actual client is much smoother than the video shows.  
+Example video showcasing the client in Hyperspace, Extreme Games, and a local server with Trench Wars settings.  
 
-[![Example video](https://i.imgur.com/dIGWkfP.png)](http://www.youtube.com/watch?v=VhohJr5V_tQ "Subspace Continuum - nullspace client")  
+[![Example video](https://i.imgur.com/tqERkM1.png)](https://www.youtube.com/watch?v=AOaTF5v-xW4 "Subspace Continuum - nullspace client 2")  
 
 ## Features
 - Windows, Linux, and Android (Android spectator client currently)
@@ -37,6 +36,7 @@ The actual client is much smoother than the video shows.
 - Notifications in center of screen
 - Sound effects
 - Flag pickup and flag turf claiming
+- Balls
 
 ## Security
 Solving the checksum and key expansion requests is done by using a private network service. There's no public server available yet.
