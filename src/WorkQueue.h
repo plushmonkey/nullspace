@@ -21,6 +21,7 @@ struct WorkDefinition {
 struct Work {
   WorkDefinition definition;
   void* user;
+  bool valid;
 
   Work* next;
 };

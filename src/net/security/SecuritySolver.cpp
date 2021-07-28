@@ -126,6 +126,8 @@ void ExpansionWorkRun(Work* work) {
     return;
   }
 
+  expansion_work->socket = socket;
+
   KeystreamRequestPacket request;
   request.type = RequestType::Keystream;
   request.key2 = expansion_work->expansion.key2;
@@ -167,6 +169,8 @@ void ChecksumWorkRun(Work* work) {
   if (socket == -1) {
     return;
   }
+
+  checksum_work->socket = socket;
 
   ChecksumRequestPacket request;
   request.type = RequestType::Checksum;
@@ -249,6 +253,19 @@ void SecuritySolver::FreeWork(SecurityNetworkWork* security_work) {
   std::lock_guard<std::mutex> guard(mutex);
 
   security_work->state = SecurityWorkState::Idle;
+}
+
+void SecuritySolver::ClearWork() {
+  std::lock_guard<std::mutex> guard(mutex);
+
+  for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(work); ++i) {
+    SecurityNetworkWork* security_work = work + i;
+
+    if (security_work->state != SecurityWorkState::Idle) {
+      closesocket(security_work->socket);
+      security_work->state = SecurityWorkState::Idle;
+    }
+  }
 }
 
 }  // namespace null

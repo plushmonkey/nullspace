@@ -20,6 +20,7 @@ void WorkQueue::Submit(WorkDefinition definition, void* user) {
     work->definition = definition;
     work->user = user;
     work->next = queue;
+    work->valid = true;
 
     queue = work;
     ++queue_size;
@@ -36,6 +37,7 @@ void WorkQueue::Clear() {
   while (work) {
     Work* current = work;
     work = work->next;
+    work->valid = false;
 
     current->next = free;
     free = current;
@@ -63,12 +65,16 @@ void Worker::Run() {
     }
 
     work->definition.run(work);
-    work->definition.complete(work);
+
+    if (work->valid) {
+      work->definition.complete(work);
+    }
 
     std::lock_guard<std::mutex> lock(queue.mutex);
 
     // Push work to free list
     work->next = queue.free;
+    work->valid = false;
     queue.free = work;
   }
 }

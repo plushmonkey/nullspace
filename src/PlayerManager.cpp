@@ -546,7 +546,7 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   player->attach_parent = buffer.ReadU16();
   player->flags = buffer.ReadU16();
   player->koth = buffer.ReadU8();
-  player->timestamp = GetCurrentTick();
+  player->timestamp = kInvalidSmallTick;
   player->warp_anim_t = Graphics::anim_ship_warp.duration;
   player->explode_anim_t = Graphics::anim_ship_explode.duration;
   player->bombflash_anim_t = Graphics::anim_bombflash.duration;
@@ -836,6 +836,29 @@ void PlayerManager::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
   }
 }
 
+s32 GetTimestampDiff(Connection& connection, u32 tagged_timestamp) {
+  s32 timestamp_diff = TICK_DIFF(connection.GetServerTick(), tagged_timestamp);
+
+  if (timestamp_diff < 0 || timestamp_diff > 4000) {
+    timestamp_diff = (connection.ping / 10) / 2;
+
+    if (timestamp_diff > 14) {
+      timestamp_diff = 15;
+    }
+  }
+
+  return timestamp_diff;
+}
+
+bool IsNewerPositionPacket(Player* player, u16 timestamp) {
+  if (!player) return false;
+
+  if (player->timestamp == kInvalidSmallTick) return true;
+  if (SMALL_TICK_GTE(timestamp, player->timestamp)) return true;
+
+  return abs(timestamp - player->timestamp) > 999;
+}
+
 void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
   NetworkBuffer buffer(pkt, size, size);
 
@@ -850,15 +873,15 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
   Player* player = GetPlayerById(pid);
 
   // Put packet timestamp into local time
-  u32 server_timestamp = ((GetCurrentTick() + connection.time_diff) & 0xFFFF0000) | timestamp;
+  u32 server_timestamp = (connection.GetServerTick() & 0x7FFF0000) | timestamp;
   u32 local_timestamp = server_timestamp - connection.time_diff;
 
   // Throw away bad timestamps so the player doesn't get desynchronized.
-  if (local_timestamp > GetCurrentTick() + 300) {
+  if (TICK_DIFF(local_timestamp, GetCurrentTick()) >= 300) {
     return;
   }
 
-  if (player && TICK_GT(local_timestamp, player->timestamp)) {
+  if (IsNewerPositionPacket(player, timestamp)) {
     player->orientation = direction / 40.0f;
     float vel_y = vel_y_s16 / 16.0f / 10.0f;
     float vel_x = (s16)buffer.ReadU16() / 16.0f / 10.0f;
@@ -874,10 +897,6 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
     if (player->togglables & Status_Flash) {
       player->warp_anim_t = 0.0f;
     }
-
-    Vector2f pkt_position(x / 16.0f, y / 16.0f);
-    player->timestamp = local_timestamp;
-    s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
 
     u16 weapon = buffer.ReadU16();
     memcpy(&player->weapon, &weapon, sizeof(weapon));
@@ -906,8 +925,12 @@ void PlayerManager::OnLargePositionPacket(u8* pkt, size_t size) {
       }
     }
 
+    s32 timestamp_diff = GetTimestampDiff(connection, server_timestamp);
+
+    player->timestamp = timestamp;
     player->ping += timestamp_diff;
 
+    Vector2f pkt_position(x / 16.0f, y / 16.0f);
     OnPositionPacket(*player, pkt_position, velocity, player->ping);
   }
 }
@@ -927,16 +950,16 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
   Player* player = GetPlayerById(pid);
 
   // Put packet timestamp into local time
-  u32 server_timestamp = ((GetCurrentTick() + connection.time_diff) & 0xFFFF0000) | timestamp;
+  u32 server_timestamp = (connection.GetServerTick() & 0x7FFF0000) | timestamp;
   u32 local_timestamp = server_timestamp - connection.time_diff;
 
   // Throw away bad timestamps so the player doesn't get desynchronized.
-  if (local_timestamp > GetCurrentTick() + 300) {
+  if (TICK_DIFF(local_timestamp, GetCurrentTick()) >= 300) {
     return;
   }
 
   // Only perform update if the packet is newer than the previous one.
-  if (player && TICK_GT(local_timestamp, player->timestamp)) {
+  if (IsNewerPositionPacket(player, timestamp)) {
     player->orientation = direction / 40.0f;
     player->ping = ping;
     player->bounty = bounty;
@@ -971,12 +994,12 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
       }
     }
 
-    Vector2f pkt_position(x / 16.0f, y / 16.0f);
-    player->timestamp = local_timestamp;
-    s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
+    s32 timestamp_diff = GetTimestampDiff(connection, server_timestamp);
 
+    player->timestamp = server_timestamp;
     player->ping += timestamp_diff;
 
+    Vector2f pkt_position(x / 16.0f, y / 16.0f);
     OnPositionPacket(*player, pkt_position, velocity, player->ping);
   }
 }
@@ -1024,10 +1047,10 @@ void PlayerManager::OnBatchedLargePositionPacket(u8* pkt, size_t size) {
     Player* player = GetPlayerById(player_id);
     u32 local_timestamp = server_timestamp - connection.time_diff;
 
-    if (player && !TICK_GT(player->timestamp, local_timestamp)) {
-      player->timestamp = local_timestamp;
+    if (player && (!SMALL_TICK_GT(player->timestamp, timestamp) || player->timestamp == kInvalidSmallTick)) {
+      player->timestamp = server_timestamp;
 
-      s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
+      s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), local_timestamp);
 
       player->orientation = direction / 40.0f;
 
@@ -1079,10 +1102,10 @@ void PlayerManager::OnBatchedSmallPositionPacket(u8* pkt, size_t size) {
     Player* player = GetPlayerById(player_id);
     u32 local_timestamp = server_timestamp - connection.time_diff;
 
-    if (player && !TICK_GT(player->timestamp, local_timestamp)) {
-      player->timestamp = local_timestamp;
+    if (player && (!SMALL_TICK_GT(player->timestamp, timestamp) || player->timestamp == kInvalidSmallTick)) {
+      player->timestamp = server_timestamp;
 
-      s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), player->timestamp);
+      s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), local_timestamp);
 
       player->orientation = direction / 40.0f;
 
@@ -1339,7 +1362,7 @@ void PlayerManager::DetachPlayer(Player& player) {
 
     player.attach_parent = kInvalidPlayerId;
     // Make player not synchronized so they don't appear until a position packet comes in.
-    player.timestamp = 0;
+    player.timestamp = kInvalidSmallTick;
   }
 }
 
@@ -1354,7 +1377,7 @@ void PlayerManager::DetachAllChildren(Player& player) {
     if (child && child->attach_parent == player.id) {
       child->attach_parent = kInvalidPlayerId;
       // Make player not synchronized so they don't appear until a position packet comes in.
-      child->timestamp = 0;
+      child->timestamp = kInvalidSmallTick;
 
       Player* self = GetSelf();
 

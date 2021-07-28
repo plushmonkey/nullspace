@@ -5,6 +5,7 @@
 
 #include "../ArenaSettings.h"
 #include "../Buffer.h"
+#include "../Clock.h"
 #include "../FileRequester.h"
 #include "../Map.h"
 #include "../Memory.h"
@@ -115,6 +116,8 @@ struct Connection {
 
   size_t Send(u8* data, size_t size);
   size_t Send(NetworkBuffer& buffer);
+
+  u32 GetServerTick() { return (GetCurrentTick() + time_diff) & 0x7FFFFFFF; }
 
   TickResult Tick();
 

@@ -10,8 +10,8 @@ namespace null {
 
 using PlayerId = u16;
 constexpr PlayerId kInvalidPlayerId = 0xFFFF;
-constexpr u32 kPlayerTimeout = 200;
-constexpr u32 kExtraDataTimeout = 300;
+constexpr s32 kPlayerTimeout = 200;
+constexpr s32 kExtraDataTimeout = 300;
 
 enum StatusFlag {
   Status_Stealth = (1 << 0),
@@ -100,8 +100,10 @@ struct Player {
   AttachInfo* children;
 
   u32 last_extra_timestamp;
-  u32 timestamp;
   u32 last_repel_timestamp;
+
+  // ppk timestamp exactly from packet
+  u16 timestamp;
 
   float enter_delay;
 

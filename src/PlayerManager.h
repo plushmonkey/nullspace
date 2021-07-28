@@ -5,6 +5,7 @@
 #include "Notification.h"
 #include "Player.h"
 #include "Types.h"
+#include "net/Connection.h"
 #include "render/Animation.h"
 #include "render/Graphics.h"
 
@@ -12,7 +13,6 @@ namespace null {
 
 struct Camera;
 struct ChatController;
-struct Connection;
 struct InputState;
 struct PacketDispatcher;
 struct Radar;
@@ -114,7 +114,8 @@ struct PlayerManager {
   bool IsAntiwarped(Player& self, bool notify);
 
   inline bool IsSynchronized(Player& player) {
-    return player.id == player_id || TICK_DIFF(GetCurrentTick(), player.timestamp) < kPlayerTimeout;
+    u16 tick = (GetCurrentTick() + connection.time_diff) & 0x7FFF;
+    return player.id == player_id || SMALL_TICK_DIFF(tick, player.timestamp) < kPlayerTimeout;
   }
 };
 

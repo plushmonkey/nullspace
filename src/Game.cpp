@@ -962,6 +962,7 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
 }
 
 void Game::Cleanup() {
+  connection.security_solver.ClearWork();
   brick_manager.Clear();
   work_queue.Clear();
   sound_system.Cleanup();

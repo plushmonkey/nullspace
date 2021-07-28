@@ -42,6 +42,7 @@ struct SecurityNetworkWork {
     } checksum;
   };
 
+  SocketType socket;
   SecurityCallback callback;
   SecurityRequestType type;
   SecurityWorkState state;
@@ -67,6 +68,8 @@ struct SecuritySolver {
 
   SecurityNetworkWork* AllocateWork();
   void FreeWork(SecurityNetworkWork* security_work);
+
+  void ClearWork();
 };
 
 }  // namespace null
