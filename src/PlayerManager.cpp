@@ -1095,6 +1095,12 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, c
                                      s32 sim_ticks) {
   Vector2f previous_pos = player.position;
 
+  // Ignore position packets for self if dead. This exists because Hyperspace transwarp seems to warp the player while
+  // dead but doesn't do it in Continuum.
+  if (player.id == player_id && player.enter_delay > 0.0f) {
+    return;
+  }
+
   // Hard set the new position so we can simulate from it to catch up to where the player would be now after ping ticks
   player.position = position;
   player.velocity = velocity;
