@@ -19,9 +19,7 @@ struct Weapon {
   Vector2f position;
   Vector2f velocity;
 
-  Vector2f last_event_position;
-  u64 last_event_time;
-
+  u64 last_microtick;
   u32 last_tick;
   u32 end_tick;
 
@@ -103,6 +101,8 @@ struct WeaponManager {
   }
 
   void Update(float dt);
+  void DropTrail(Weapon& weapon);
+
   void Render(Camera& camera, Camera& ui_camera, SpriteRenderer& renderer, float dt,
               const RadarVisibility& radar_visibility);
 
@@ -136,10 +136,10 @@ struct WeaponManager {
   WeaponSimulateResult GenerateWeapon(u16 player_id, WeaponData weapon_data, u32 local_timestamp, u32 pos_x, u32 pos_y,
                                       s32 vel_x, s32 vel_y, const Vector2f& heading, u32 link_id);
 
-  u64 GetTime();
-
   void GetMineCounts(Player& player, const Vector2f& check, size_t* player_count, size_t* team_count,
                      bool* has_check_mine);
+
+  Vector2f GetExtrapolatedPos(Weapon& weapon);
 };
 
 }  // namespace null

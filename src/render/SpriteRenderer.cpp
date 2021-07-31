@@ -171,8 +171,11 @@ SpriteRenderable* SpriteRenderer::LoadSheetFromMemory(const char* name, const u8
 
   SpriteRenderable* result = renderables + renderable_count;
 
-  for (int top = 0; top < height; top += (int)dimensions.y) {
-    for (int left = 0; left < width; left += (int)dimensions.x) {
+  int left_inc = (int)dimensions.x;
+  int top_inc = (int)dimensions.y;
+
+  for (int top = 0; top + top_inc <= height; top += top_inc) {
+    for (int left = 0; left + left_inc <= width; left += left_inc) {
       SpriteRenderable* renderable = renderables + renderable_count++;
       int bottom = top + (int)dimensions.y;
       int right = left + (int)dimensions.x;
