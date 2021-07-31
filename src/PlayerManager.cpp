@@ -996,7 +996,7 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
 
     s32 timestamp_diff = GetTimestampDiff(connection, server_timestamp);
 
-    player->timestamp = server_timestamp;
+    player->timestamp = timestamp;
     player->ping += timestamp_diff;
 
     Vector2f pkt_position(x / 16.0f, y / 16.0f);
@@ -1018,18 +1018,6 @@ void PlayerManager::OnBatchedLargePositionPacket(u8* pkt, size_t size) {
     u16 direction = (packed >> 10);
     u16 timestamp = (packed & 0x3FF);
 
-    s32 tick_diff = (server_tick & 0x3FF) - timestamp;
-    u32 server_timestamp = 0;
-
-    if (tick_diff < -300) {
-      server_timestamp = server_tick - (tick_diff + 0x400);
-    } else {
-      if (tick_diff < 0) {
-        tick_diff = 0;
-      }
-      server_timestamp = server_tick - tick_diff;
-    }
-
     u32 packed_pos = buffer.ReadU32();
     u32 x = packed_pos & 0x3FFF;
     u32 y = (packed_pos >> 0x0E) & 0x3FFF;
@@ -1044,14 +1032,22 @@ void PlayerManager::OnBatchedLargePositionPacket(u8* pkt, size_t size) {
     Vector2f velocity(vel_x / 16.0f / 10.0f, vel_y / 16.0f / 10.0f);
     Vector2f position(x / 16.0f, y / 16.0f);
 
-    Player* player = GetPlayerById(player_id);
+    // Put packet timestamp into local time
+    u32 server_timestamp = (connection.GetServerTick() & 0x7FFFFC00) | timestamp;
     u32 local_timestamp = server_timestamp - connection.time_diff;
+    timestamp = server_timestamp & 0xFFFF;
 
-    if (player && (!SMALL_TICK_GT(player->timestamp, timestamp) || player->timestamp == kInvalidSmallTick)) {
-      player->timestamp = server_timestamp;
+    // Throw away bad timestamps so the player doesn't get desynchronized.
+    if (TICK_DIFF(local_timestamp, GetCurrentTick()) >= 300) {
+      continue;
+    }
 
-      s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), local_timestamp);
+    Player* player = GetPlayerById(player_id);
 
+    if (player && IsNewerPositionPacket(player, timestamp)) {
+      s32 timestamp_diff = GetTimestampDiff(connection, server_timestamp);
+
+      player->timestamp = timestamp;
       player->orientation = direction / 40.0f;
 
       OnPositionPacket(*player, position, velocity, timestamp_diff);
@@ -1073,18 +1069,6 @@ void PlayerManager::OnBatchedSmallPositionPacket(u8* pkt, size_t size) {
     u16 direction = (packed >> 10);
     s16 timestamp = (packed & 0x3FF);
 
-    s32 tick_diff = (server_tick & 0x3FF) - timestamp;
-    u32 server_timestamp = 0;
-
-    if (tick_diff < -300) {
-      server_timestamp = server_tick - (tick_diff + 0x400);
-    } else {
-      if (tick_diff < 0) {
-        tick_diff = 0;
-      }
-      server_timestamp = server_tick - tick_diff;
-    }
-
     u32 packed_pos = buffer.ReadU32();
     u32 x = packed_pos & 0x3FFF;
     u32 y = (packed_pos >> 0x0E) & 0x3FFF;
@@ -1099,15 +1083,24 @@ void PlayerManager::OnBatchedSmallPositionPacket(u8* pkt, size_t size) {
     Vector2f velocity(vel_x / 16.0f / 10.0f, vel_y / 16.0f / 10.0f);
     Vector2f position(x / 16.0f, y / 16.0f);
 
-    Player* player = GetPlayerById(player_id);
+    // Put packet timestamp into local time
+    u32 server_timestamp = (connection.GetServerTick() & 0x7FFFFC00) | timestamp;
     u32 local_timestamp = server_timestamp - connection.time_diff;
+    timestamp = server_timestamp & 0xFFFF;
 
-    if (player && (!SMALL_TICK_GT(player->timestamp, timestamp) || player->timestamp == kInvalidSmallTick)) {
-      player->timestamp = server_timestamp;
+    // Throw away bad timestamps so the player doesn't get desynchronized.
+    if (TICK_DIFF(local_timestamp, GetCurrentTick()) >= 300) {
+      continue;
+    }
 
-      s32 timestamp_diff = TICK_DIFF(GetCurrentTick(), local_timestamp);
+    Player* player = GetPlayerById(player_id);
 
+    if (player && IsNewerPositionPacket(player, timestamp)) {
+      s32 timestamp_diff = GetTimestampDiff(connection, server_timestamp);
+
+      player->timestamp = timestamp;
       player->orientation = direction / 40.0f;
+
 
       OnPositionPacket(*player, position, velocity, timestamp_diff);
     }
@@ -1164,6 +1157,7 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, c
     if (player.togglables & Status_Flash && previous_pos != Vector2f(0, 0)) {
       Vector2f anim_pos = previous_pos - Graphics::anim_ship_warp.frames[0].dimensions * (0.5f / 16.0f);
       weapon_manager->animation.AddAnimation(Graphics::anim_ship_warp, anim_pos.PixelRounded());
+      player.togglables &= ~Status_Flash;
     }
   } else {
     player.lerp_time = new_lerp_time;
