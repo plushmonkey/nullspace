@@ -660,7 +660,7 @@ void PlayerManager::Spawn(bool reset) {
   u8 ship = self->ship;
   u32 spawn_count = 0;
 
-  for (size_t i = 1; i < NULLSPACE_ARRAY_SIZE(connection.settings.SpawnSettings); ++i) {
+  for (size_t i = 0; i < NULLSPACE_ARRAY_SIZE(connection.settings.SpawnSettings); ++i) {
     if (connection.settings.SpawnSettings[i].X != 0 || connection.settings.SpawnSettings[i].Y != 0 ||
         connection.settings.SpawnSettings[i].Radius != 0) {
       ++spawn_count;

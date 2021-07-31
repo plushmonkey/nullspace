@@ -120,6 +120,7 @@ struct WeaponManager {
  private:
   WeaponSimulateResult Simulate(Weapon& weapon);
   WeaponSimulateResult SimulateRepel(Weapon& weapon);
+  bool SimulateWormholeGravity(Weapon& weapon);
 
   bool SimulateAxis(Weapon& weapon, float dt, int axis);
   WeaponSimulateResult SimulatePosition(Weapon& weapon);

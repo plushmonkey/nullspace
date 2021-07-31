@@ -165,6 +165,43 @@ void WeaponManager::Update(float dt) {
   }
 }
 
+bool WeaponManager::SimulateWormholeGravity(Weapon& weapon) {
+  AnimatedTileSet& wormholes = connection.map.GetAnimatedTileSet(AnimatedTile::Wormhole);
+
+  Player* player = player_manager.GetPlayerById(weapon.player_id);
+  bool affected = false;
+
+  if (player) {
+    s16 gravity = connection.settings.ShipSettings[player->ship].Gravity;
+
+    for (size_t i = 0; i < wormholes.count; ++i) {
+      u16 p_x = (u16)weapon.position.x * 16;
+      u16 p_y = (u16)weapon.position.y * 16;
+      u16 wh_x = wormholes.tiles[i].x * 16;
+      u16 wh_y = wormholes.tiles[i].y * 16;
+
+      s16 dx = (p_x - wh_x);
+      s16 dy = (p_y - wh_y);
+
+      int dist_sq = (dx * dx) + (dy * dy) + 1;
+
+      if (dist_sq < abs(gravity) * 1000) {
+        int gravity_thrust = (gravity * 1000) / dist_sq;
+
+        Vector2f position((float)wormholes.tiles[i].x, (float)wormholes.tiles[i].y);
+        Vector2f direction = Normalize(position - weapon.position);
+
+        float per_second = (gravity_thrust * 10.0f / 16.0f);
+
+        weapon.velocity += direction * (per_second / 100.0f);
+        affected = true;
+      }
+    }
+  }
+
+  return affected;
+}
+
 WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
   WeaponType type = weapon.data.type;
 
@@ -174,9 +211,20 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
     return SimulateRepel(weapon);
   }
 
+  bool gravity_effect = false;
+
+  if (connection.settings.GravityBombs && (type == WeaponType::Bomb || type == WeaponType::ProximityBomb)) {
+    gravity_effect = SimulateWormholeGravity(weapon);
+  }
+
   Vector2f previous_position = weapon.position;
 
   WeaponSimulateResult position_result = SimulatePosition(weapon);
+
+  if (gravity_effect) {
+    weapon.last_event_position = weapon.position;
+    weapon.last_event_time = GetTime();
+  }
 
   if (position_result != WeaponSimulateResult::Continue) {
     return position_result;

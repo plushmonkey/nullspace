@@ -82,6 +82,41 @@ void ShipController::Update(const InputState& input, float dt) {
   constexpr float kShutdownRotation = 40.0f / 400.0f;
   bool engine_shutdown = TICK_GT(ship.shutdown_end_tick, tick);
 
+  u32 ship_speed = ship.speed;
+
+  if (self->ship != 8) {
+    AnimatedTileSet& wormholes = connection.map.GetAnimatedTileSet(AnimatedTile::Wormhole);
+
+    s16 gravity = connection.settings.ShipSettings[self->ship].Gravity;
+
+    for (size_t i = 0; i < wormholes.count; ++i) {
+      u16 p_x = (u16)self->position.x * 16;
+      u16 p_y = (u16)self->position.y * 16;
+      u16 wh_x = wormholes.tiles[i].x * 16;
+      u16 wh_y = wormholes.tiles[i].y * 16;
+
+      s16 dx = (p_x - wh_x);
+      s16 dy = (p_y - wh_y);
+
+      int dist_sq = (dx * dx) + (dy * dy) + 1;
+
+      if (dist_sq < abs(gravity) * 1000) {
+        int gravity_thrust = (gravity * 1000) / dist_sq;
+
+        Vector2f position((float)wormholes.tiles[i].x, (float)wormholes.tiles[i].y);
+        Vector2f direction = Normalize(position - self->position);
+
+        float per_second = (gravity_thrust * 10.0f / 16.0f);
+
+        self->velocity += direction * (per_second * dt);
+
+        if (abs(gravity_thrust) >= 1) {
+          ship_speed = (u32)connection.settings.ShipSettings[self->ship].GravityTopSpeed;
+        }
+      }
+    }
+  }
+
   if (self->attach_parent == kInvalidPlayerId) {
     u32 thrust = afterburners ? ship_settings.MaximumThrust : ship.thrust;
 
@@ -164,15 +199,15 @@ void ShipController::Update(const InputState& input, float dt) {
     speed = connection.settings.RocketSpeed;
   }
 
-  if (self->children) {
-    speed -= ship_settings.TurretSpeedPenalty;
-
-    if ((s32)speed < 0) {
-      speed = 0;
-    }
+  if (speed < ship_speed) {
+    speed = ship_speed;
   }
 
-  self->velocity.Truncate(speed / 10.0f / 16.0f);
+  if (self->children) {
+    speed -= ship_settings.TurretSpeedPenalty;
+  }
+
+  self->velocity.Truncate(abs((s32)speed / 10.0f / 16.0f));
 
   // Energy update order must be: afterburners, recharge, all of the status costs.
   // Continuum sits at full energy with afterburners enabled but lower cost than recharge.
