@@ -153,7 +153,7 @@ void WeaponManager::DropTrail(Weapon& weapon) {
     if (TICK_DIFF(weapon.last_tick, weapon.last_trail_tick) >= kBulletTrailInterval) {
       SpriteRenderable& frame = Graphics::anim_bullet_trails[weapon.data.level].frames[0];
       Vector2f offset = Vector2f(1 / 16.0f, 1 / 16.0f);
-      Vector2f position = (weapon.position - offset).PixelRounded();
+      Vector2f position = (weapon.position - weapon.velocity * (1.0f / 100.0f) - offset).PixelRounded();
 
       animation.AddAnimation(Graphics::anim_bullet_trails[weapon.data.level], position)->layer = Layer::AfterTiles;
       weapon.last_trail_tick = weapon.last_tick + kBulletTrailInterval;
@@ -163,7 +163,7 @@ void WeaponManager::DropTrail(Weapon& weapon) {
     if (TICK_DIFF(weapon.last_tick, weapon.last_trail_tick) >= kBombTrailInterval) {
       SpriteRenderable& frame = Graphics::anim_bomb_trails[weapon.data.level].frames[0];
       Vector2f offset = (frame.dimensions * (0.5f / 16.0f));
-      Vector2f position = (weapon.position - offset).PixelRounded();
+      Vector2f position = (weapon.position - weapon.velocity * (1.0f / 100.0f) - offset).PixelRounded();
 
       animation.AddAnimation(Graphics::anim_bomb_trails[weapon.data.level], position)->layer = Layer::AfterTiles;
       weapon.last_trail_tick += kBombTrailInterval;
@@ -213,19 +213,24 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
 
   if (weapon.last_tick++ >= weapon.end_tick) return WeaponSimulateResult::TimedOut;
 
-  weapon.last_microtick = GetMicrosecondTick();
-
   if (type == WeaponType::Repel) {
     return SimulateRepel(weapon);
   }
 
+  bool gravity_effect = false;
+
   if (connection.settings.GravityBombs && (type == WeaponType::Bomb || type == WeaponType::ProximityBomb)) {
-    SimulateWormholeGravity(weapon);
+    gravity_effect = SimulateWormholeGravity(weapon);
   }
 
   Vector2f previous_position = weapon.position;
 
   WeaponSimulateResult position_result = SimulatePosition(weapon);
+
+  if (gravity_effect) {
+    weapon.last_event_position = weapon.position;
+    weapon.last_event_time = GetMicrosecondTick();
+  }
 
   if (position_result != WeaponSimulateResult::Continue) {
     return position_result;
@@ -364,6 +369,8 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
       Vector2f direction = Normalize(other.position - weapon.position);
 
       other.velocity = direction * speed;
+      other.last_event_time = GetMicrosecondTick();
+      other.last_event_position = other.position;
 
       WeaponType type = other.data.type;
 
@@ -434,6 +441,9 @@ WeaponSimulateResult WeaponManager::SimulatePosition(Weapon& weapon) {
   bool y_collide = SimulateAxis(weapon, 1.0f / 100.0f, 1);
 
   if (x_collide || y_collide) {
+    weapon.last_event_time = GetMicrosecondTick();
+    weapon.last_event_position = weapon.position;
+
     if ((type == WeaponType::Bullet || type == WeaponType::BouncingBullet) && weapon.data.shrap > 0) {
       s32 remaining = weapon.end_tick - GetCurrentTick();
       s32 duration = connection.settings.BulletAliveTime - remaining;
@@ -554,6 +564,8 @@ void WeaponManager::CreateExplosion(Weapon& weapon) {
         shrap->position = weapon.position;
         shrap->last_tick = GetCurrentTick();
         shrap->end_tick = shrap->last_tick + connection.settings.BulletAliveTime;
+        shrap->last_event_position = shrap->position;
+        shrap->last_event_time = GetMicrosecondTick();
 
         if (connection.map.IsSolid((u16)shrap->position.x, (u16)shrap->position.y, shrap->frequency)) {
           --weapon_count;
@@ -677,16 +689,25 @@ void WeaponManager::Render(Camera& camera, Camera& ui_camera, SpriteRenderer& re
 
 Vector2f WeaponManager::GetExtrapolatedPos(Weapon& weapon) {
   u64 microtick = GetMicrosecondTick();
-  float elapsed_seconds = (microtick - weapon.last_microtick) / 1000000.0f;
+  float elapsed_seconds = (microtick - weapon.last_event_time) / 1000000.0f;
   Vector2f travel_ray = elapsed_seconds * weapon.velocity;
   Vector2f extrapolated_pos;
 
   if (weapon.data.type != WeaponType::Thor) {
     CastResult cast =
-        connection.map.Cast(weapon.position, Normalize(travel_ray), travel_ray.Length(), weapon.frequency);
+        connection.map.Cast(weapon.last_event_position, Normalize(travel_ray), travel_ray.Length(), weapon.frequency);
     extrapolated_pos = cast.position;
+
+    float desync_threshold = weapon.velocity.Length() * (4.0f / 100.0f);
+
+    // Resync render position when deviating too much from projected path
+    if (extrapolated_pos.DistanceSq(weapon.position) > desync_threshold * desync_threshold) {
+      extrapolated_pos = weapon.position;
+      weapon.last_event_position = weapon.position;
+      weapon.last_event_time = microtick;
+    }
   } else {
-    extrapolated_pos = weapon.position + travel_ray;
+    extrapolated_pos = weapon.last_event_position + travel_ray;
   }
 
   return extrapolated_pos;
@@ -941,7 +962,8 @@ WeaponSimulateResult WeaponManager::GenerateWeapon(u16 player_id, WeaponData wea
     }
   }
 
-  weapon->last_microtick = GetMicrosecondTick();
+  weapon->last_event_position = weapon->position;
+  weapon->last_event_time = GetMicrosecondTick();
 
   vel_x = (s32)(weapon->velocity.x * 16.0f * 10.0f);
   vel_y = (s32)(weapon->velocity.y * 16.0f * 10.0f);

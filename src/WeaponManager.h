@@ -19,7 +19,9 @@ struct Weapon {
   Vector2f position;
   Vector2f velocity;
 
-  u64 last_microtick;
+  Vector2f last_event_position;
+  u64 last_event_time;
+
   u32 last_tick;
   u32 end_tick;
 
