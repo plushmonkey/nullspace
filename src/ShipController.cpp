@@ -639,12 +639,16 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
         if (used_weapon) {
           SetNextTick(&ship.next_bullet_tick, tick + delay);
           SetNextTick(&ship.next_bomb_tick, ship.next_bullet_tick);
+        } else {
+          self.weapon = {};
         }
       }
     }
   }
 
-  if (input.IsDown(InputAction::Mine) && TICK_GT(tick, ship.next_bomb_tick)) {
+  bool mine_input = input.IsDown(InputAction::Mine);
+
+  if (mine_input && TICK_GT(tick, ship.next_bomb_tick)) {
     if (ship.bombs > 0) {
       if (!player_manager.soccer->FireBall(BallFireMethod::Bomb)) {
         self.weapon.level = ship.bombs - 1;
@@ -675,12 +679,14 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
             SetNextTick(&ship.next_bullet_tick, ship.next_bomb_tick);
             ship.next_repel_tick = tick + kRepelDelayTicks;
           }
+        } else {
+          self.weapon = {};
         }
       }
     }
   }
 
-  if (input.IsDown(InputAction::Bomb) && TICK_GT(tick, ship.next_bomb_tick)) {
+  if (!mine_input && input.IsDown(InputAction::Bomb) && TICK_GT(tick, ship.next_bomb_tick)) {
     if (ship.bombs > 0 && can_fastshoot) {
       if (!player_manager.soccer->FireBall(BallFireMethod::Bomb)) {
         self.weapon.level = ship.bombs - 1;
@@ -730,6 +736,8 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
             SetNextTick(&ship.next_bullet_tick, ship.next_bomb_tick);
             ship.next_repel_tick = tick + kRepelDelayTicks;
           }
+        } else {
+          self.weapon = {};
         }
       }
     }

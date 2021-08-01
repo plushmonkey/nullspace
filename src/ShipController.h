@@ -1,6 +1,7 @@
 #ifndef NULLSPACE_SHIPCONTROLLER_H_
 #define NULLSPACE_SHIPCONTROLLER_H_
 
+#include "Player.h"
 #include "Types.h"
 #include "render/Animation.h"
 

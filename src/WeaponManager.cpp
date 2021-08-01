@@ -745,8 +745,7 @@ void WeaponManager::OnWeaponPacket(u8* pkt, size_t size) {
 
   // Player sends out position packet with their timestamp, it takes ping ticks to reach server, server re-timestamps it
   // and sends it to us.
-  u32 server_tick = GetCurrentTick() + connection.time_diff;
-  u32 server_timestamp = ((server_tick & 0xFFFF0000) | timestamp);
+  u32 server_timestamp = ((connection.GetServerTick() & 0x7FFF0000) | timestamp);
   u32 local_timestamp = server_timestamp - connection.time_diff - ping;
 
   Player* player = player_manager.GetPlayerById(pid);
