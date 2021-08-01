@@ -1,8 +1,8 @@
 #include "Soccer.h"
 
+#include <float.h>
 #include <stdio.h>
 #include <string.h>
-#include <float.h>
 
 #include "Clock.h"
 #include "PlayerManager.h"
@@ -110,7 +110,7 @@ void Soccer::RenderIndicator(Powerball& ball, const Vector2f& position) {
         player_manager.radar->AddTemporaryIndicator(position, 0, Vector2f(3, 3), ColorType::RadarTeam, flags);
       } else {
         player_manager.radar->AddTemporaryIndicator(position, 0, Vector2f(3, 3), ColorType::RadarEnemyFlag,
-                                                    RadarIndicatorFlag_All);
+                                                    RadarIndicatorFlag_FullMap);
       }
 
       return;
