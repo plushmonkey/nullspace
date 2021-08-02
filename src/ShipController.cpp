@@ -529,12 +529,13 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
   bool portal_input = input.IsDown(InputAction::Portal);
 
-  if (portal_input_cleared && portal_input) {
+  if (portal_input) {
     float portal_time = connection.settings.WarpPointDelay / 100.0f;
 
+    bool was_cleared = portal_input_cleared;
     portal_input_cleared = false;
 
-    if (ship.portals > 0 && !player_manager.IsAntiwarped(self, true)) {
+    if (was_cleared && ship.portals > 0 && !player_manager.IsAntiwarped(self, true)) {
       --ship.portals;
 
       portal_animation.sprite = &Graphics::anim_portal;
@@ -545,64 +546,67 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
       player_manager.sound_system.Play(AudioType::Portal);
     }
-  } else if (!portal_input) {
+  } else {
     portal_input_cleared = true;
   }
 
   // Prevent warping on portal placement if they have overlapping keybinds.
   bool warp_input = input.IsDown(InputAction::Warp);
-  if (warp_input_cleared && warp_input && !portal_input) {
+  if (warp_input) {
+    bool was_cleared = warp_input_cleared;
     warp_input_cleared = false;
 
-    bool fired_ball = player_manager.soccer->FireBall(BallFireMethod::Warp);
+    if (was_cleared && !portal_input) {
+      bool fired_ball = player_manager.soccer->FireBall(BallFireMethod::Warp);
 
-    if (!fired_ball && !player_manager.IsAntiwarped(self, true)) {
-      bool warped = false;
-      Vector2f previous_pos = self.position;
+      if (!fired_ball && !player_manager.IsAntiwarped(self, true)) {
+        bool warped = false;
+        Vector2f previous_pos = self.position;
 
-      if (ship.portal_time > 0.0f) {
-        ship.portal_time = 0.0f;
+        if (ship.portal_time > 0.0f) {
+          ship.portal_time = 0.0f;
 
-        self.togglables |= Status_Flash;
-        self.warp_anim_t = 0.0f;
-        self.position = ship.portal_location;
+          self.togglables |= Status_Flash;
+          self.warp_anim_t = 0.0f;
+          self.position = ship.portal_location;
 
-        player_manager.SendPositionPacket();
-
-        ship.next_bomb_tick = tick + kRepelDelayTicks;
-        ship.fake_antiwarp_end_tick = tick + connection.settings.AntiwarpSettleDelay;
-
-        player_manager.sound_system.Play(AudioType::Warp);
-        warped = true;
-      } else {
-        if (TICK_GT(tick, ship.next_bomb_tick)) {
-          if (self.energy < ship.energy) {
-            notifications_.PushFormatted(TextColor::Yellow, "Not enough energy to warp.");
-          } else {
-            self.togglables |= Status_Flash;
-            self.warp_anim_t = 0.0f;
-            self.energy = 1.0f;
-            self.velocity = Vector2f(0, 0);
-
-            player_manager.Spawn(false);
-
-            ship.fake_antiwarp_end_tick = tick + connection.settings.AntiwarpSettleDelay;
-
-            player_manager.sound_system.Play(AudioType::Warp);
-            warped = true;
-          }
+          player_manager.SendPositionPacket();
 
           ship.next_bomb_tick = tick + kRepelDelayTicks;
+          ship.fake_antiwarp_end_tick = tick + connection.settings.AntiwarpSettleDelay;
+
+          player_manager.sound_system.Play(AudioType::Warp);
+          warped = true;
+        } else {
+          if (TICK_GT(tick, ship.next_bomb_tick)) {
+            if (self.energy < ship.energy) {
+              notifications_.PushFormatted(TextColor::Yellow, "Not enough energy to warp.");
+            } else {
+              self.togglables |= Status_Flash;
+              self.warp_anim_t = 0.0f;
+              self.energy = 1.0f;
+              self.velocity = Vector2f(0, 0);
+
+              player_manager.Spawn(false);
+
+              ship.fake_antiwarp_end_tick = tick + connection.settings.AntiwarpSettleDelay;
+
+              player_manager.sound_system.Play(AudioType::Warp);
+              warped = true;
+            }
+
+            ship.next_bomb_tick = tick + kRepelDelayTicks;
+          }
+        }
+
+        if (warped) {
+          Vector2f anim_pos = previous_pos - Graphics::anim_ship_warp.frames[0].dimensions * (0.5f / 16.0f);
+
+          this->weapon_manager.animation.AddAnimation(Graphics::anim_ship_warp, anim_pos.PixelRounded());
         }
       }
-
-      if (warped) {
-        Vector2f anim_pos = previous_pos - Graphics::anim_ship_warp.frames[0].dimensions * (0.5f / 16.0f);
-
-        this->weapon_manager.animation.AddAnimation(Graphics::anim_ship_warp, anim_pos.PixelRounded());
-      }
     }
-  } else if (!warp_input) {
+  } else {
     warp_input_cleared = true;
   }
 

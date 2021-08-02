@@ -99,7 +99,8 @@ static void OnAction(void* user, InputAction action) {
     } break;
   }
 
-  game->statbox.OnAction(action);
+  game->statbox.OnAction(action, game->menu_open);
+
   if (game->specview.OnAction(action)) {
     game->RecreateRadar();
   }
@@ -281,6 +282,8 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
 
   ship_controller.explosion_report.on_damage = OnBombDamageTaken;
   ship_controller.explosion_report.user = this;
+
+  statbox.sliding_view.max_size = (height * 3) / (4 * 12);
 }
 
 bool Game::Initialize(InputState& input) {

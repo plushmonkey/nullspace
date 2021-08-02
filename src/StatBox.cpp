@@ -40,8 +40,7 @@ static void OnPlayerFrequencyChangePkt(void* user, u8* pkt, size_t size) {
 static void OnPlayerBannerChangePkt(void* user, u8* pkt, size_t size) {
   StatBox* statbox = (StatBox*)user;
 
-  // TODO: This could be a flag to trigger on a frame so it doesn't happen a bunch of times on login
-  statbox->RecordView();
+  statbox->TriggerRebuild();
 }
 
 StatBox::StatBox(PlayerManager& player_manager, BannerPool& banners, PacketDispatcher& dispatcher)
@@ -51,44 +50,75 @@ StatBox::StatBox(PlayerManager& player_manager, BannerPool& banners, PacketDispa
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
   dispatcher.Register(ProtocolS2C::FrequencyChange, OnPlayerFrequencyChangePkt, this);
   dispatcher.Register(ProtocolS2C::PlayerBannerChange, OnPlayerBannerChangePkt, this);
+
+  sliding_view.top = 0;
+  sliding_view.size = 20;
 }
 
-void StatBox::OnAction(InputAction action) {
-  // TODO: Clipped view and page jumping
+void StatBox::TriggerRebuild() {
+  this->rebuild = true;
+}
 
+void StatBox::OnAction(InputAction action, bool menu) {
   switch (action) {
     case InputAction::StatBoxPrevious: {
-      if (view_type == StatViewType::None) {
-        view_type = StatViewType::Names;
-        UpdateView();
-      } else if (selected_index > 0) {
-        --selected_index;
-
-        RecordView();
+      if (menu) {
+        sliding_view.Decrement();
+      } else {
+        if (view_type == StatViewType::None) {
+          view_type = StatViewType::Names;
+        } else if (selected_index > 0) {
+          --selected_index;
+        }
       }
+
+      TriggerRebuild();
     } break;
     case InputAction::StatBoxNext: {
-      if (view_type == StatViewType::None) {
-        view_type = StatViewType::Names;
-        UpdateView();
-      } else if (selected_index < player_manager.player_count - 1) {
-        ++selected_index;
+      if (menu) {
+        sliding_view.Increment();
+      } else {
+        if (view_type == StatViewType::None) {
+          view_type = StatViewType::Names;
+        } else if (selected_index < player_manager.player_count - 1) {
+          ++selected_index;
+        }
       }
-      RecordView();
+      TriggerRebuild();
     } break;
     case InputAction::StatBoxPreviousPage: {
-      selected_index = 0;
-      RecordView();
+      if (sliding_view.top >= sliding_view.size) {
+        sliding_view.top -= sliding_view.size;
+        selected_index -= sliding_view.size;
+      } else {
+        sliding_view.top = 0;
+        selected_index = 0;
+      }
+
+      TriggerRebuild();
     } break;
     case InputAction::StatBoxNextPage: {
-      selected_index = player_manager.player_count - 1;
-      RecordView();
+      size_t max_count = player_manager.player_count;
+
+      selected_index += sliding_view.size;
+
+      if (selected_index >= max_count) {
+        selected_index = max_count - 1;
+      }
+
+      if (selected_index >= sliding_view.size) {
+        sliding_view.top = selected_index - sliding_view.size;
+      } else {
+        sliding_view.top = 0;
+      }
+
+      TriggerRebuild();
     } break;
     case InputAction::StatBoxCycle: {
       constexpr size_t kStatBoxViewCount = 7;
 
       view_type = (StatViewType)(((int)view_type + 1) % kStatBoxViewCount);
-      UpdateView();
+      TriggerRebuild();
     } break;
     default: {
     } break;
@@ -99,6 +129,11 @@ void StatBox::Render(Camera& camera, SpriteRenderer& renderer) {
   Player* me = player_manager.GetSelf();
 
   if (!me || view_type == StatViewType::None) return;
+
+  if (rebuild) {
+    rebuild = false;
+    UpdateView();
+  }
 
   // Render background
   SpriteRenderable background = Graphics::GetColor(ColorType::Background, view_dimensions);
@@ -122,6 +157,26 @@ void StatBox::Render(Camera& camera, SpriteRenderer& renderer) {
   Graphics::DrawBorder(renderer, camera, view_dimensions * 0.5f + Vector2f(kBorder, kBorder), view_dimensions * 0.5f);
 }
 
+void StatBox::UpdateSlidingView() {
+  if (sliding_view.size > sliding_view.max_size) {
+    sliding_view.size = sliding_view.max_size;
+  }
+
+  if (player_manager.player_count - sliding_view.top < sliding_view.size) {
+    if (player_manager.player_count >= sliding_view.size) {
+      sliding_view.top = player_manager.player_count - sliding_view.size;
+    } else {
+      sliding_view.top = 0;
+    }
+  }
+
+  if (selected_index >= sliding_view.top + sliding_view.size) {
+    ++sliding_view.top;
+  } else if (selected_index < sliding_view.top) {
+    --sliding_view.top;
+  }
+}
+
 void StatBox::RecordNamesView(const Player& me) {
   constexpr float kNamesWidth = 108.0f;
   float width = kNamesWidth;
@@ -132,14 +187,17 @@ void StatBox::RecordNamesView(const Player& me) {
   StatRenderableOutput* separator_outout =
       AddRenderableOutput(GetSeparatorRenderable(), Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
 
-  for (size_t i = 0; i < player_manager.player_count; ++i) {
-    Player* player = player_manager.GetPlayerById(player_view[i]);
+  size_t i = 0;
+  for (i = 0; i < sliding_view.count(); ++i) {
+    size_t index = sliding_view.begin() + i;
+    if (index >= player_manager.player_count) break;
+    Player* player = player_manager.GetPlayerById(player_view[index]);
 
     float y = kBorder + kHeaderHeight + 1.0f + i * 12.0f;
-    RecordName(player, y, selected_index == i, player->frequency == me.frequency);
+    RecordName(player, y, selected_index == index, player->frequency == me.frequency);
   }
 
-  view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + player_manager.player_count * 12.0f);
+  view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + i * 12.0f);
 }
 
 void StatBox::RecordPointsView(const Player& me) {
@@ -161,11 +219,14 @@ void StatBox::RecordPointsView(const Player& me) {
   StatRenderableOutput* separator_outout =
       AddRenderableOutput(GetSeparatorRenderable(), Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
 
-  for (size_t i = 0; i < player_manager.player_count; ++i) {
-    Player* player = player_manager.GetPlayerById(player_view[i]);
+  size_t i = 0;
+  for (i = 0; i < sliding_view.count(); ++i) {
+    size_t index = sliding_view.begin() + i;
+    if (index >= player_manager.player_count) break;
+    Player* player = player_manager.GetPlayerById(player_view[index]);
 
     float y = kBorder + kHeaderHeight + 1.0f + i * 12.0f;
-    RecordName(player, y, selected_index == i, player->frequency == me.frequency);
+    RecordName(player, y, selected_index == index, player->frequency == me.frequency);
 
     u16 player_index = player_manager.GetPlayerIndex(player->id);
 
@@ -183,7 +244,7 @@ void StatBox::RecordPointsView(const Player& me) {
     sprintf(points_output->text, "%d", player->flag_points + player->kill_points);
   }
 
-  view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + player_manager.player_count * 12.0f);
+  view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + i * 12.0f);
 }
 
 void StatBox::RecordTeamSortView(const Player& me) {
@@ -201,17 +262,32 @@ void StatBox::RecordTeamSortView(const Player& me) {
       AddRenderableOutput(GetSeparatorRenderable(), Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
 
   float y = kBorder + kHeaderHeight + 1.0f;
-  s32 previous_freq = player_manager.GetPlayerById(player_view[0])->frequency;
+  s32 previous_freq = player_manager.GetPlayerById(player_view[sliding_view.begin()])->frequency;
   float freq_output_y = y;
   int freq_count = 0;
 
   y += 12.0f;
 
-  for (size_t i = 0; i < player_manager.player_count; ++i) {
-    u16 player_id = player_view[i];
+  bool starting_freq_output = true;
+
+  // Frequency should only be output if the first player in the sliding window is on a new frequency
+  if (sliding_view.begin() > 0) {
+    size_t previous_index = sliding_view.begin() - 1;
+    u32 prev_freq = player_manager.GetPlayerById(player_view[previous_index])->frequency;
+    u32 current_freq = player_manager.GetPlayerById(player_view[sliding_view.begin()])->frequency;
+
+    starting_freq_output = prev_freq != current_freq;
+  }
+
+  for (size_t i = 0; i < sliding_view.count(); ++i) {
+    size_t index = sliding_view.begin() + i;
+
+    if (index >= player_manager.player_count) break;
+
+    u16 player_id = player_view[index];
     Player* player = player_manager.GetPlayerById(player_id);
 
-    if (player->frequency != previous_freq) {
+    if (player->frequency != previous_freq && (i > 0 || starting_freq_output)) {
       StatTextOutput* freq_output =
           AddTextOutput(Vector2f(kBorder + 1, freq_output_y), TextColor::DarkRed, TextAlignment::Left);
       sprintf(freq_output->text, "%.4d-------------", previous_freq);
@@ -228,7 +304,7 @@ void StatBox::RecordTeamSortView(const Player& me) {
 
     ++freq_count;
 
-    RecordName(player, y, selected_index == i, player->frequency == me.frequency);
+    RecordName(player, y, selected_index == index, player->frequency == me.frequency);
 
     u16 player_index = player_manager.GetPlayerIndex(player->id);
 
@@ -292,11 +368,16 @@ void StatBox::RecordFullView(const Player& me) {
   StatRenderableOutput* separator_outout =
       AddRenderableOutput(GetSeparatorRenderable(), Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
 
-  for (size_t i = 0; i < player_manager.player_count; ++i) {
-    Player* player = player_manager.GetPlayerById(player_view[i]);
+  size_t i = 0;
+  for (i = 0; i < sliding_view.count(); ++i) {
+    size_t index = sliding_view.begin() + i;
+
+    if (index >= player_manager.player_count) break;
+
+    Player* player = player_manager.GetPlayerById(player_view[index]);
 
     float y = kBorder + kHeaderHeight + 1.0f + i * 12.0f;
-    RecordName(player, y, selected_index == i, player->frequency == me.frequency);
+    RecordName(player, y, selected_index == index, player->frequency == me.frequency);
 
     u16 player_index = player_manager.GetPlayerIndex(player->id);
 
@@ -338,7 +419,7 @@ void StatBox::RecordFullView(const Player& me) {
     sprintf(ave_output->text, "%.1f", ave);
   }
 
-  view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + player_manager.player_count * 12.0f);
+  view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + i * 12.0f);
 }
 
 void StatBox::RecordFrequencyView(const Player& me) {
@@ -498,19 +579,19 @@ void StatBox::RecordName(Player* player, float y, bool selected, bool same_freq)
 }
 
 void StatBox::OnPlayerEnter(u8* pkt, size_t size) {
-  UpdateView();
+  TriggerRebuild();
 }
 
 void StatBox::OnPlayerLeave(u8* pkt, size_t size) {
-  UpdateView();
+  TriggerRebuild();
 }
 
 void StatBox::OnPlayerFreqAndShipChange(u8* pkt, size_t size) {
-  UpdateView();
+  TriggerRebuild();
 }
 
 void StatBox::OnPlayerFrequencyChange(u8* pkt, size_t size) {
-  UpdateView();
+  TriggerRebuild();
 }
 
 Player* StatBox::GetSelectedPlayer() {
@@ -623,6 +704,7 @@ void StatBox::UpdateView() {
     selected_index = player_manager.player_count - 1;
   }
 
+  UpdateSlidingView();
   RecordView();
 }
 

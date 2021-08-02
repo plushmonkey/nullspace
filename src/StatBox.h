@@ -28,13 +28,38 @@ struct StatRenderableOutput {
   Vector2f dimensions;
 };
 
+struct SlidingView {
+  size_t top;
+  size_t size;
+  size_t max_size;
+
+  inline size_t begin() { return top; }
+  inline size_t end() { return top + size; }
+  inline size_t count() { return end() - begin(); }
+
+  inline void Increment() {
+    if (++size > max_size) {
+      size = max_size;
+    }
+  }
+
+  inline void Decrement() {
+    if (size > 1) {
+      --size;
+    }
+  }
+};
+
 struct StatBox {
   PlayerManager& player_manager;
   BannerPool& banners;
 
   StatViewType view_type = StatViewType::Names;
+  bool rebuild = true;
 
   size_t selected_index = -1;
+
+  SlidingView sliding_view;
 
   SpriteRenderable separator_renderable;
 
@@ -59,9 +84,10 @@ struct StatBox {
   void RecordFullView(const Player& me);
   void RecordFrequencyView(const Player& me);
 
-  void OnAction(InputAction action);
+  void OnAction(InputAction action, bool menu);
   void RecordView();
   void UpdateView();
+  void TriggerRebuild();
 
   void SortView();
   void SortByName(const Player& self);
@@ -84,6 +110,8 @@ struct StatBox {
  private:
   void RecordName(Player* player, float y, bool selected, bool same_freq);
   SpriteRenderable* GetSeparatorRenderable();
+
+  void UpdateSlidingView();
 };
 
 }  // namespace null
