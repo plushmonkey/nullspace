@@ -570,7 +570,7 @@ void ChatController::OnCharacterPress(int codepoint, int mods) {
     return;
   } else if (codepoint == NULLSPACE_KEY_PASTE) {
     size_t size = strlen(input);
-    PasteClipboard(input + size, NULLSPACE_ARRAY_SIZE(input) - size);
+    platform.PasteClipboard(input + size, NULLSPACE_ARRAY_SIZE(input) - size);
     return;
   }
 

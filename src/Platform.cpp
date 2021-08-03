@@ -40,15 +40,11 @@ void StandardLog(const char* fmt, ...) {
   va_end(args);
 }
 
-ErrorLogger log_error = StandardLog;
-
 const char* StandardGetStoragePath(MemoryArena& temp_arena, const char* path) {
   return path;
 }
 
-StoragePathGetter GetStoragePath = StandardGetStoragePath;
-
-u8* StandardAssetLoader(const char* filename, size_t* size) {
+u8* StandardLoadAsset(const char* filename, size_t* size) {
   FILE* f = fopen(filename, "rb");
 
   if (!f) return nullptr;
@@ -65,9 +61,8 @@ u8* StandardAssetLoader(const char* filename, size_t* size) {
 
   return buffer;
 }
-AssetLoader asset_loader = StandardAssetLoader;
 
-u8* StandardAssetLoaderArena(MemoryArena& arena, const char* filename, size_t* size) {
+u8* StandardLoadAssetArena(MemoryArena& arena, const char* filename, size_t* size) {
   FILE* f = fopen(filename, "rb");
 
   if (!f) {
@@ -90,7 +85,6 @@ u8* StandardAssetLoaderArena(MemoryArena& arena, const char* filename, size_t* s
 
   return buffer;
 }
-AssetLoaderArena asset_loader_arena = StandardAssetLoaderArena;
 
 #ifdef _WIN32
 
@@ -186,10 +180,14 @@ void PasteClipboard(char* dest, size_t available_size) {
   }
 #endif
 }
+
 int null_stricmp(const char* s1, const char* s2) {
   return strcasecmp(s1, s2);
 }
 
 #endif
+
+Platform platform = {StandardLog,  StandardGetStoragePath, StandardLoadAsset, StandardLoadAssetArena,
+                     CreateFolder, PasteClipboard};
 
 }  // namespace null

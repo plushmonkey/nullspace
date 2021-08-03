@@ -18,7 +18,7 @@ static const char* zone_folder = "zones";
 static void GetFilePath(MemoryArena& temp_arena, char* buffer, const char* filename) {
   sprintf(buffer, "%s/%s/%s", zone_folder, kServerName, filename);
 
-  const char* result = GetStoragePath(temp_arena, buffer);
+  const char* result = platform.GetStoragePath(temp_arena, buffer);
 
   strcpy(buffer, result);
 }
@@ -26,10 +26,10 @@ static void GetFilePath(MemoryArena& temp_arena, char* buffer, const char* filen
 static void CreateZoneFolder(MemoryArena& temp_arena) {
   char path[260];
 
-  const char* zone_path = GetStoragePath(temp_arena, zone_folder);
-  CreateFolder(zone_path);
+  const char* zone_path = platform.GetStoragePath(temp_arena, zone_folder);
+  platform.CreateFolder(zone_path);
   sprintf(path, "%s/%s", zone_path, kServerName);
-  CreateFolder(path);
+  platform.CreateFolder(path);
 }
 
 inline bool FileExists(MemoryArena& temp_arena, const char* filename, u32 checksum) {

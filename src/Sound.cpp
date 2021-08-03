@@ -160,7 +160,7 @@ void SoundSystem::PlayClip(const AudioClip& clip, float volume) {
   ma_result result = ma_decoder_init_memory(clip.data, clip.size, &cfg_decoder, decoder);
 
   if (result != MA_SUCCESS) {
-    log_error("Failed to play audio clip.\n");
+    platform.LogError("Failed to play audio clip.\n");
     database.perm_arena.Revert(snapshot);
   } else {
     playing_clip->volume = volume;
@@ -240,13 +240,13 @@ AudioClip SoundDatabase::GetClip(AudioType type) {
 AudioClip SoundDatabase::LoadClip(const char* filename) {
   AudioClip result = {};
 
-  result.data = asset_loader_arena(perm_arena, filename, &result.size);
+  result.data = platform.LoadAssetArena(perm_arena, filename, &result.size);
 
   if (result.data) {
     result.flags |= AudioClipFlag_Loaded;
     printf("Loaded audio file %s\n", filename);
   } else {
-    log_error("Failed to read audio file %s\n", filename);
+    platform.LogError("Failed to read audio file %s\n", filename);
   }
 
   return result;

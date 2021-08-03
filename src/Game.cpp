@@ -288,23 +288,23 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
 
 bool Game::Initialize(InputState& input) {
   if (g_Settings.sound_enabled && !sound_system.Initialize()) {
-    log_error("Failed to initialize sound system.\n");
+    platform.LogError("Failed to initialize sound system.\n");
   }
 
   if (!sprite_renderer.Initialize(perm_arena)) {
-    log_error("Failed to initialize sprite renderer.\n");
+    platform.LogError("Failed to initialize sprite renderer.\n");
     return false;
   }
 
   if (!Graphics::Initialize(sprite_renderer)) {
-    log_error("Failed to initialize graphics.\n");
+    platform.LogError("Failed to initialize graphics.\n");
     return false;
   }
 
   chat.CreateCursor(sprite_renderer);
 
   if (g_Settings.render_stars && !background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
-    log_error("Failed to initialize background renderer.\n");
+    platform.LogError("Failed to initialize background renderer.\n");
     return false;
   }
 
@@ -352,14 +352,14 @@ bool Game::Update(const InputState& input, float dt) {
     }
 
     if (!tile_renderer.CreateMapBuffer(temp_arena, connection.map.filename, ui_camera.surface_dim)) {
-      log_error("Failed to create renderable map.\n");
+      platform.LogError("Failed to create renderable map.\n");
     }
 
     mapzoom = connection.settings.MapZoomFactor;
 
     if (!tile_renderer.CreateRadar(temp_arena, connection.map, ui_camera.surface_dim, connection.settings.MapZoomFactor,
                                    soccer)) {
-      log_error("Failed to create radar.\n");
+      platform.LogError("Failed to create radar.\n");
     }
 
     animated_tile_renderer.InitializeDoors(tile_renderer);
@@ -936,21 +936,21 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
   lvz.Reset();
 
   if (g_Settings.sound_enabled && !sound_system.Initialize()) {
-    log_error("Failed to initialize sound system.\n");
+    platform.LogError("Failed to initialize sound system.\n");
   }
 
   if (!sprite_renderer.Initialize(perm_arena)) {
-    fprintf(stderr, "Failed to initialize sprite renderer.\n");
+    platform.LogError("Failed to initialize sprite renderer.\n");
     exit(1);
   }
 
   if (!tile_renderer.Initialize()) {
-    fprintf(stderr, "Failed to initialize tile renderer.\n");
+    platform.LogError("Failed to initialize tile renderer.\n");
     exit(1);
   }
 
   if (!Graphics::Initialize(sprite_renderer)) {
-    fprintf(stderr, "Failed to initialize graphics.\n");
+    platform.LogError("Failed to initialize graphics.\n");
     exit(1);
   }
 
@@ -959,7 +959,7 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
   animated_tile_renderer.Initialize();
 
   if (!background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
-    fprintf(stderr, "Failed to initialize background renderer.\n");
+    platform.LogError("Failed to initialize background renderer.\n");
     exit(1);
   }
 }

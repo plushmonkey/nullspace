@@ -21,6 +21,8 @@
 #define closesocket close
 #endif
 
+#include "../../Platform.h"
+
 namespace null {
 
 #pragma pack(push, 1)
@@ -53,6 +55,20 @@ struct ChecksumResponsePacket {
 SecurityNetworkService::SecurityNetworkService(const char* service_ip, u16 service_port) {
   strcpy(this->ip, service_ip);
   this->port = service_port;
+}
+
+void SetBlocking(SocketType fd, bool blocking) {
+  unsigned long mode = blocking ? 0 : 1;
+
+#ifdef _WIN32
+  ioctlsocket(fd, FIONBIO, &mode);
+#else
+  int flags = fcntl(fd, F_GETFL, 0);
+
+  flags = blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+
+  fcntl(fd, F_SETFL, flags);
+#endif
 }
 
 SocketType SecurityNetworkService::Connect() {
@@ -91,6 +107,8 @@ SocketType SecurityNetworkService::Connect() {
     closesocket(socket);
     return -1;
   }
+
+  SetBlocking(socket, true);
 
   return socket;
 }

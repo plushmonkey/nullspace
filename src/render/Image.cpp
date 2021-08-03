@@ -142,7 +142,7 @@ unsigned char* ImageLoad(const char* filename, int* width, int* height, bool ass
   u8* data = nullptr;
 
   if (asset) {
-    data = asset_loader(filename, &size);
+    data = platform.LoadAsset(filename, &size);
   } else {
     FILE* f = fopen(filename, "rb");
 
