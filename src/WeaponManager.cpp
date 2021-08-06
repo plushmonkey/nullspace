@@ -146,7 +146,7 @@ void WeaponManager::Update(float dt) {
 }
 
 void WeaponManager::DropTrail(Weapon& weapon) {
-  constexpr s32 kBulletTrailInterval = 2;
+  constexpr s32 kBulletTrailInterval = 1;
   constexpr s32 kBombTrailInterval = 5;
 
   if (weapon.data.type == WeaponType::Bullet || weapon.data.type == WeaponType::BouncingBullet) {
