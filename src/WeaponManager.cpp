@@ -152,7 +152,7 @@ void WeaponManager::DropTrail(Weapon& weapon) {
   if (weapon.data.type == WeaponType::Bullet || weapon.data.type == WeaponType::BouncingBullet) {
     if (TICK_DIFF(weapon.last_tick, weapon.last_trail_tick) >= kBulletTrailInterval) {
       SpriteRenderable& frame = Graphics::anim_bullet_trails[weapon.data.level].frames[0];
-      Vector2f offset = Vector2f(1 / 16.0f, 1 / 16.0f);
+      Vector2f offset = Vector2f(0.5f / 16.0f, 0.5f / 16.0f);
       Vector2f position = (weapon.position - weapon.velocity * (1.0f / 100.0f) - offset).PixelRounded();
 
       animation.AddAnimation(Graphics::anim_bullet_trails[weapon.data.level], position)->layer = Layer::AfterTiles;
@@ -636,7 +636,7 @@ void WeaponManager::Render(Camera& camera, Camera& ui_camera, SpriteRenderer& re
       SpriteRenderable& frame = weapon->animation.GetFrame();
       Vector2f position = extrapolated_pos - frame.dimensions * (0.5f / 16.0f);
 
-      renderer.Draw(camera, frame, position, Layer::Weapons);
+      renderer.Draw(camera, frame, position.PixelRounded(), Layer::Weapons);
     } else if (weapon->data.type == WeaponType::Decoy) {
       Player* player = player_manager.GetPlayerById(weapon->player_id);
 

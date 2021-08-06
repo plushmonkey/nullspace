@@ -470,7 +470,21 @@ bool Game::Update(const InputState& input, float dt) {
     last_tick = GetCurrentTick();
   }
 
-  return !menu_quit;
+  u32 half_energy = ship_controller.ship.energy / 2;
+
+  if (menu_quit && (!self || self->ship == 8 || self->energy >= half_energy)) {
+    connection.SendDisconnect();
+    connection.Disconnect();
+    return false;
+  } else if (menu_quit) {
+    GameNotification* notify = notifications.notifications;
+
+    sprintf(notify->message, "Exiting game...");
+    notify->end_tick = GetCurrentTick() + 10000;
+    notify->color = TextColor::Yellow;
+  }
+
+  return true;
 }
 
 void Game::UpdateGreens(float dt) {
@@ -747,8 +761,6 @@ bool Game::HandleMenuKey(int codepoint, int mods) {
   switch (codepoint) {
     case 'q':
     case 'Q': {
-      connection.SendDisconnect();
-      connection.Disconnect();
       menu_quit = true;
       handled = true;
     } break;
@@ -764,8 +776,12 @@ bool Game::HandleMenuKey(int codepoint, int mods) {
       Player* self = player_manager.GetSelf();
 
       if (self && self->ship != ship) {
-        printf("Sending ship request for %d\n", ship + 1);
-        connection.SendShipRequest((u8)ship);
+        if (self->ship != 8 && self->energy < ship_controller.ship.energy) {
+          notifications.PushFormatted(TextColor::Yellow, "Must have full energy to change ship types.");
+        } else {
+          printf("Sending ship request for %d\n", ship + 1);
+          connection.SendShipRequest((u8)ship);
+        }
       }
       handled = true;
     } break;
@@ -774,9 +790,13 @@ bool Game::HandleMenuKey(int codepoint, int mods) {
       Player* self = player_manager.GetSelf();
 
       if (self && self->ship != 8) {
-        printf("Sending spectate request.\n");
+        if (self->energy < ship_controller.ship.energy) {
+          notifications.PushFormatted(TextColor::Yellow, "Must have full energy to change to spectator mode.");
+        } else {
+          printf("Sending spectate request.\n");
 
-        connection.SendShipRequest(8);
+          connection.SendShipRequest(8);
+        }
       }
       handled = true;
     } break;
