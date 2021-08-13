@@ -33,9 +33,7 @@ struct BannerRegistration {
 
   u16 player_id;
 
-  size_t GetGlobalIndex(BannerTextureSheet* sheets) {
-    return ((sheet - sheets) / sizeof(BannerTextureSheet)) * kBannersPerSheet + index;
-  }
+  inline size_t GetGlobalIndex(BannerTextureSheet* sheets) { return (sheet - sheets) * kBannersPerSheet + index; }
 };
 
 struct BannerPool {
