@@ -1123,14 +1123,6 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, c
   // Clear lerp time so it doesn't affect real simulation.
   player.lerp_time = 0.0f;
 
-  float new_lerp_time = 200.0f / 1000.0f;
-
-  // Lerp very fast since repel will cause large velocity changes
-  constexpr u32 kRecentRepelTicks = 100;
-  if (TICK_DIFF(GetCurrentTick(), player.last_repel_timestamp) < kRecentRepelTicks) {
-    new_lerp_time = 50.0f / 1000.0f;
-  }
-
   // Client sends ppk to server with server timestamp, server calculates the tick difference on arrival and sets that to
   // ping. The player should be simulated however many ticks it took to reach server plus the tick difference between
   // this client and the server.
@@ -1159,7 +1151,7 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, c
       player.togglables &= ~Status_Flash;
     }
   } else {
-    player.lerp_time = new_lerp_time;
+    player.lerp_time = 200.0f / 1000.0f;
     player.lerp_velocity = (projected_pos - player.position) * (1.0f / player.lerp_time);
   }
 }

@@ -247,28 +247,44 @@ void StatBox::RecordPointsView(const Player& me) {
   view_dimensions = Vector2f(width, kHeaderHeight + 1.0f + i * 12.0f);
 }
 
+inline int GetFrequencyCount(PlayerManager& player_manager, int frequency) {
+  int count = 0;
+
+  for (size_t i = 0; i < player_manager.player_count; ++i) {
+    Player* player = player_manager.players + i;
+
+    if (player->frequency == frequency) {
+      ++count;
+    }
+  }
+
+  return count;
+}
+
 void StatBox::RecordTeamSortView(const Player& me) {
   constexpr float kBaseWidth = 124;
   float width = kBaseWidth + GetPointsWidth();
 
-  StatTextOutput* count_output = AddTextOutput(Vector2f(49, kBorder + 1), TextColor::Green, TextAlignment::Center);
-  sprintf(count_output->text, "%zd", player_manager.player_count);
+  // Output header and separator
+  {
+    StatTextOutput* count_output = AddTextOutput(Vector2f(49, kBorder + 1), TextColor::Green, TextAlignment::Center);
+    sprintf(count_output->text, "%zd", player_manager.player_count);
 
-  StatTextOutput* header_sort_output =
-      AddTextOutput(Vector2f(width, kBorder + 1), TextColor::Green, TextAlignment::Right);
-  sprintf(header_sort_output->text, "Team Sort");
+    StatTextOutput* header_sort_output =
+        AddTextOutput(Vector2f(width, kBorder + 1), TextColor::Green, TextAlignment::Right);
+    sprintf(header_sort_output->text, "Team Sort");
 
-  StatRenderableOutput* separator_outout =
-      AddRenderableOutput(GetSeparatorRenderable(), Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+    StatRenderableOutput* separator_outout =
+        AddRenderableOutput(GetSeparatorRenderable(), Vector2f(kBorder, kBorder + 13), Vector2f(width, 1));
+  }
 
+  // Start right after the header
   float y = kBorder + kHeaderHeight + 1.0f;
-  s32 previous_freq = player_manager.GetPlayerById(player_view[sliding_view.begin()])->frequency;
-  float freq_output_y = y;
-  int freq_count = 0;
-
-  y += 12.0f;
 
   bool starting_freq_output = true;
+
+  // Set the starting frequency as the first player's frequency being output
+  s32 previous_freq = player_manager.GetPlayerById(player_view[sliding_view.begin()])->frequency;
 
   // Frequency should only be output if the first player in the sliding window is on a new frequency
   if (sliding_view.begin() > 0) {
@@ -279,7 +295,9 @@ void StatBox::RecordTeamSortView(const Player& me) {
     starting_freq_output = prev_freq != current_freq;
   }
 
-  for (size_t i = 0; i < sliding_view.count(); ++i) {
+  size_t lines = 0;
+
+  for (size_t i = 0; i < sliding_view.count() && lines < sliding_view.count(); ++i) {
     size_t index = sliding_view.begin() + i;
 
     if (index >= player_manager.player_count) break;
@@ -287,22 +305,23 @@ void StatBox::RecordTeamSortView(const Player& me) {
     u16 player_id = player_view[index];
     Player* player = player_manager.GetPlayerById(player_id);
 
-    if (player->frequency != previous_freq && (i > 0 || starting_freq_output)) {
-      StatTextOutput* freq_output =
-          AddTextOutput(Vector2f(kBorder + 1, freq_output_y), TextColor::DarkRed, TextAlignment::Left);
-      sprintf(freq_output->text, "%.4d-------------", previous_freq);
+    if (player->frequency != previous_freq || (i == 0 && starting_freq_output)) {
+      int freq_count = GetFrequencyCount(player_manager, player->frequency);
+
+      StatTextOutput* freq_output = AddTextOutput(Vector2f(kBorder + 1, y), TextColor::DarkRed, TextAlignment::Left);
+      sprintf(freq_output->text, "%.4d-------------", player->frequency);
 
       StatTextOutput* freqcount_output =
-          AddTextOutput(Vector2f(kBorder + 1 + 18 * 8, freq_output_y), TextColor::DarkRed, TextAlignment::Left);
+          AddTextOutput(Vector2f(kBorder + 1 + 18 * 8, y), TextColor::DarkRed, TextAlignment::Left);
       sprintf(freqcount_output->text, "%d", freq_count);
 
-      freq_count = 0;
       previous_freq = player->frequency;
-      freq_output_y = y;
       y += 12.0f;
-    }
 
-    ++freq_count;
+      if (++lines >= sliding_view.count() && i != 0 && index != selected_index) {
+        break;
+      }
+    }
 
     RecordName(player, y, selected_index == index, player->frequency == me.frequency);
 
@@ -323,14 +342,6 @@ void StatBox::RecordTeamSortView(const Player& me) {
 
     y += 12.0f;
   }
-
-  StatTextOutput* freq_output =
-      AddTextOutput(Vector2f(kBorder + 1, freq_output_y), TextColor::DarkRed, TextAlignment::Left);
-  sprintf(freq_output->text, "%.4d-------------", previous_freq);
-
-  StatTextOutput* freqcount_output =
-      AddTextOutput(Vector2f(kBorder + 1 + 18 * 8, freq_output_y), TextColor::DarkRed, TextAlignment::Left);
-  sprintf(freqcount_output->text, "%d", freq_count);
 
   view_dimensions = Vector2f(width, y - 3.0f);
 }
