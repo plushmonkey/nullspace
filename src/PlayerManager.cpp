@@ -186,7 +186,7 @@ void PlayerManager::Update(float dt) {
   }
 
   s32 server_timestamp = current_tick + connection.time_diff;
-  if (connection.login_state == Connection::LoginState::Complete &&
+  if (connection.login_state == Connection::LoginState::Complete && connection.joined_arena &&
       TICK_DIFF(server_timestamp, last_position_tick) >= position_delay) {
     SendPositionPacket();
   }
@@ -1100,7 +1100,6 @@ void PlayerManager::OnBatchedSmallPositionPacket(u8* pkt, size_t size) {
 
       player->timestamp = timestamp;
       player->orientation = direction / 40.0f;
-
 
       OnPositionPacket(*player, position, velocity, timestamp_diff);
     }

@@ -161,6 +161,47 @@ void PasteClipboard(char* dest, size_t available_size) {
   }
 }
 
+unsigned int GetMachineId() {
+  char file_system_name[64];
+  DWORD file_system_flags;
+  DWORD max_component_size;
+  DWORD volume_serial_number;
+  char volume_name[256];
+  char windows_directory[256];
+
+  BOOL result = GetVolumeInformationA("c:\\", volume_name, 256, &volume_serial_number, &max_component_size,
+                                      &file_system_flags, file_system_name, 64);
+
+  if (result) {
+    return volume_serial_number;
+  }
+
+  GetWindowsDirectoryA(windows_directory, 256);
+
+  result = GetVolumeInformationA(windows_directory, volume_name, 256, &volume_serial_number, &max_component_size,
+                                 &file_system_flags, file_system_name, 64);
+
+  if (result) {
+    return volume_serial_number;
+  }
+
+  return rand();
+}
+
+int GetTimeZoneBias() {
+  TIME_ZONE_INFORMATION tzi;
+
+  DWORD result = GetTimeZoneInformation(&tzi);
+
+  if (result == 0) {
+    return 0;
+  } else if (result == 2) {
+    return tzi.DaylightBias + tzi.Bias;
+  }
+
+  return tzi.Bias;
+}
+
 int null_stricmp(const char* s1, const char* s2) {
   return _stricmp(s1, s2);
 }
@@ -185,9 +226,17 @@ int null_stricmp(const char* s1, const char* s2) {
   return strcasecmp(s1, s2);
 }
 
+unsigned int GetMachineId() {
+  return rand();
+}
+
+int GetTimeZoneBias() {
+  return 240;
+}
+
 #endif
 
 Platform platform = {StandardLog,  StandardGetStoragePath, StandardLoadAsset, StandardLoadAssetArena,
-                     CreateFolder, PasteClipboard};
+                     CreateFolder, PasteClipboard,         GetMachineId,      GetTimeZoneBias};
 
 }  // namespace null

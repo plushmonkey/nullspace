@@ -29,6 +29,7 @@
 #include "security/Checksum.h"
 
 //#define PACKET_SHEDDING 20
+#define PACKET_TYPE_OUTPUT 0
 
 namespace null {
 
@@ -202,6 +203,9 @@ void Connection::SendPassword(bool registration) {
     packet_type = 0x09;
   }
 
+  u32 machine_id = platform.GetMachineId();
+  u16 timezone = (u16)platform.GetTimeZoneBias();
+
   strcpy(name, kPlayerName);
   strcpy(password, kPlayerPassword);
 
@@ -209,22 +213,33 @@ void Connection::SendPassword(bool registration) {
   buffer.WriteU8(registration ? 0x01 : 0x00);  // New user
   buffer.WriteString(name, 32);
   buffer.WriteString(password, 32);
-  buffer.WriteU32(1178436307);  // Machine ID
-  buffer.WriteU8(0x00);         // connect type
-  buffer.WriteU16(240);         // Time zone bias
-  buffer.WriteU16(0);           // Unknown
+  buffer.WriteU32(machine_id);  // Machine ID
+  buffer.WriteU8(0x04);         // connect type
+  buffer.WriteU16(timezone);    // Time zone bias
+  buffer.WriteU16(0);           // Always zero
   buffer.WriteU16(version);     // Version
-  buffer.WriteU32(0xA5);
-  buffer.WriteU32(0x00);
-  buffer.WriteU32(0);  // permission id
 
-  buffer.WriteU32(0);
-  buffer.WriteU32(0);
-  buffer.WriteU32(0);
+  buffer.WriteU32(444);
+
+  buffer.WriteU32(0x00);
+  buffer.WriteU32(0x00);
+
+  buffer.WriteU32(0x7F000001);
+
+  struct sockaddr_in addr;
+  int addr_size = sizeof(addr);
+  getsockname(fd, (sockaddr*)&addr, &addr_size);
+  u16 port = htons(addr.sin_port);
+  buffer.WriteU32(port);
+  buffer.WriteU32(0x00);
 
   if (encrypt_method == EncryptMethod::Continuum) {
+    // TODO: Look up how these are generated
+    u32 values[] = {0x5a5642a8, 0x714ca252, 0x4730da93, 0x8b2ba1b9, 0x7e9ef009, 0x5507282d, 0xbcc18114, 0x40508748,
+                    0x8827df38, 0x462233e9, 0x1f53998c, 0xad3483a6, 0xb7e72494, 0xfacf2267, 0x1fe80deb, 0x63d11557};
+
     for (int i = 0; i < 16; ++i) {
-      buffer.WriteU32(0);
+      buffer.WriteU32(values[i]);
     }
   }
 
@@ -238,6 +253,12 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
   if (type_byte == 0x00) {  // Core packet
     type_byte = buffer.ReadU8();
+
+#if PACKET_TYPE_OUTPUT
+    if (type_byte != 0x03) {
+      printf("Got core packet: 0x%02X\n", type_byte);
+    }
+#endif
 
     assert(type_byte < (u8)ProtocolCore::Count);
 
@@ -255,7 +276,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
         login_state = LoginState::Authentication;
 
-        SendSyncTimeRequestPacket(true);
+        SendSyncTimeRequestPacket(false);
       } break;
       case ProtocolCore::ReliableMessage: {
         packet_sequencer.OnReliableMessage(*this, pkt, size);
@@ -406,6 +427,10 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
     assert(type_byte < (u8)ProtocolS2C::Count);
     ProtocolS2C type = (ProtocolS2C)type_byte;
 
+#if PACKET_TYPE_OUTPUT
+    printf("Got non-core packet: 0x%02X\n", type_byte);
+#endif
+
     switch (type) {
       case ProtocolS2C::PlayerId: {
         this->login_state = LoginState::ArenaLogin;
@@ -414,6 +439,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         printf("Successfully joined game.\n");
         weapons_received = 0;
         sync_index = 0;
+        joined_arena = true;
       } break;
       case ProtocolS2C::PlayerEntering: {
         // Skip the entire packet so the next one can be read if it exists
@@ -603,6 +629,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 void Connection::SendArenaLogin(u8 ship, u16 audio, u16 xres, u16 yres, u16 arena_number, const char* arena_name) {
   u8 data[kMaxPacketSize];
   NetworkBuffer write(data, kMaxPacketSize);
+
+  joined_arena = false;
 
   // Join arena request
   write.WriteU8(0x01);           // type
@@ -894,6 +922,14 @@ size_t Connection::Send(NetworkBuffer& buffer) {
 size_t Connection::Send(u8* data, size_t size) {
 #ifdef PACKET_SHEDDING
   if (rand() % 100 < PACKET_SHEDDING) return size;
+#endif
+
+#if PACKET_TYPE_OUTPUT
+  if (data[0] == 0 && size > 1) {
+    printf("Sending core type: 0x%02X\n", data[1]);
+  } else {
+    printf("Sending non-core type: 0x%02X\n", data[0]);
+  }
 #endif
 
   // TODO: This should be a proper system, but right now it just needs to handle registration form

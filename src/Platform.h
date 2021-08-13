@@ -14,6 +14,9 @@ typedef unsigned char* (*AssetLoaderArena)(MemoryArena& arena, const char* filen
 typedef bool (*FolderCreate)(const char* path);
 typedef void (*ClipboardPaste)(char* dest, size_t available_size);
 
+typedef unsigned int (*MachineIdGet)();
+typedef int (*TimeZoneBiasGet)();
+
 struct Platform {
   ErrorLogger LogError;
   StoragePathGetter GetStoragePath;
@@ -22,6 +25,8 @@ struct Platform {
 
   FolderCreate CreateFolder;
   ClipboardPaste PasteClipboard;
+  MachineIdGet GetMachineId;
+  TimeZoneBiasGet GetTimeZoneBias;
 };
 extern Platform platform;
 

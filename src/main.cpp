@@ -81,6 +81,7 @@ ServerInfo kServers[] = {
     {"SSCJ Devastation", "69.164.220.203", 7022},
     {"SSCJ MetalGear CTF", "69.164.220.203", 14000},
     {"SSCU Extreme Games", "208.118.63.35", 7900},
+    {"SSCU Trench Wars", "207.148.16.165", 5400},
 };
 
 constexpr size_t kServerIndex = 0;

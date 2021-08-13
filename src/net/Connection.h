@@ -81,6 +81,7 @@ struct Connection {
   PacketSequencer packet_sequencer;
   NetworkBuffer buffer;
   std::mutex send_mutex;
+  bool joined_arena = false;
 
   Vector2f view_dim;
 
