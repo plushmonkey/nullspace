@@ -4,10 +4,13 @@
 #include <cstdio>
 
 #include "Buffer.h"
+#include "Clock.h"
 #include "FileRequester.h"
 #include "Inflate.h"
 #include "Memory.h"
 #include "Platform.h"
+#include "Player.h"
+#include "SpectateView.h"
 #include "net/PacketDispatcher.h"
 #include "render/Camera.h"
 #include "render/Graphics.h"
@@ -73,6 +76,7 @@ enum class ReferencePoint {
   BottomRight,
   StatBoxBottomRight,
   SpecialTopRight,
+  SpecialBottomRight,
   EnergyBelow,
   ChatTopLeft,
   RadarTopLeft,
@@ -141,7 +145,7 @@ inline Layer GetLayer(u8 layer_num) {
   return layers[layer_num];
 }
 
-Vector2f GetScreenReferencePoint(Camera& ui_camera, ReferencePoint point) {
+Vector2f GetScreenReferencePoint(Player& self, SpectateView& specview, Camera& ui_camera, ReferencePoint point) {
   switch (point) {
     case ReferencePoint::Normal: {
       return Vector2f(0, 0);
@@ -151,6 +155,18 @@ Vector2f GetScreenReferencePoint(Camera& ui_camera, ReferencePoint point) {
     } break;
     case ReferencePoint::BottomRight: {
       return ui_camera.surface_dim;
+    } break;
+    case ReferencePoint::EnergyBelow: {
+      float x = ui_camera.surface_dim.x * 0.5f;
+      float y = 0.0f;
+
+      if (self.ship == 8) {
+        y = specview.render_extra_lines * 12.0f;
+      } else {
+        y = Graphics::healthbar_sprites[0].dimensions.y;
+      }
+
+      return Vector2f(x, y);
     } break;
     // TODO: Implement the rest
     default: {
@@ -172,6 +188,12 @@ static void OnLvzTogglePkt(void* user, u8* pkt, size_t size) {
   controller->OnLvzToggle(pkt, size);
 }
 
+static void OnLvzModifyPkt(void* user, u8* pkt, size_t size) {
+  LvzController* controller = (LvzController*)user;
+
+  controller->OnLvzModify(pkt, size);
+}
+
 static void OnDownload(void* user, FileRequest* request, u8* data) {
   LvzController* controller = (LvzController*)user;
 
@@ -183,6 +205,7 @@ LvzController::LvzController(MemoryArena& perm_arena, MemoryArena& temp_arena, F
     : perm_arena(perm_arena), temp_arena(temp_arena), requester(requester), renderer(renderer) {
   dispatcher.Register(ProtocolS2C::MapInformation, OnMapInformationPkt, this);
   dispatcher.Register(ProtocolS2C::ToggleLVZ, OnLvzTogglePkt, this);
+  dispatcher.Register(ProtocolS2C::ModifyLVZ, OnLvzModifyPkt, this);
 }
 
 void LvzController::Update(float dt) {
@@ -191,17 +214,39 @@ void LvzController::Update(float dt) {
 
     anim->t += dt;
   }
+
+  u32 tick = GetCurrentTick();
+
+  // Disable any timed out screen objects
+  for (size_t i = 0; i < active_screen_object_count; ++i) {
+    LvzObject* object = active_screen_objects[i];
+
+    if (object->display_time > 0 && TICK_DIFF(tick, object->enabled_tick) >= object->display_time * 10) {
+      DisableObject(object->object_id);
+    }
+  }
+
+  // Disable any timed out map objects
+  for (size_t i = 0; i < active_map_object_count; ++i) {
+    LvzObject* object = active_map_objects[i];
+
+    if (object->display_time > 0 && TICK_DIFF(tick, object->enabled_tick) >= object->display_time * 10) {
+      DisableObject(object->object_id);
+    }
+  }
 }
 
-void LvzController::Render(Camera& ui_camera, Camera& game_camera) {
+void LvzController::Render(Camera& ui_camera, Camera& game_camera, Player* self, SpectateView& specview) {
+  if (!self) return;
+
   for (size_t i = 0; i < active_screen_object_count; ++i) {
     LvzObject* obj = active_screen_objects[i];
 
     ReferencePoint reference_x = (ReferencePoint)obj->x_type;
     ReferencePoint reference_y = (ReferencePoint)obj->y_type;
 
-    Vector2f base_x = GetScreenReferencePoint(ui_camera, reference_x);
-    Vector2f base_y = GetScreenReferencePoint(ui_camera, reference_y);
+    Vector2f base_x = GetScreenReferencePoint(*self, specview, ui_camera, reference_x);
+    Vector2f base_y = GetScreenReferencePoint(*self, specview, ui_camera, reference_y);
 
     Vector2f position(base_x.x + (float)obj->x_screen, base_y.y + (float)obj->y_screen);
     Animation* anim = animations + obj->animation_index;
@@ -237,33 +282,60 @@ void LvzController::OnLvzToggle(u8* pkt, size_t size) {
     ObjToggle* toggle = (ObjToggle*)(pkt + 1 + i * sizeof(u16));
 
     if (toggle->off) {
-      for (size_t j = 0; j < active_map_object_count; ++j) {
-        if (active_map_objects[j]->object_id == toggle->id) {
-          active_map_objects[j--] = active_map_objects[--active_map_object_count];
-        }
-      }
-
-      for (size_t j = 0; j < active_screen_object_count; ++j) {
-        if (active_screen_objects[j]->object_id == toggle->id) {
-          active_screen_objects[j--] = active_screen_objects[--active_screen_object_count];
-        }
-      }
+      DisableObject(toggle->id);
     } else {
-      for (size_t i = 0; i < object_count; ++i) {
-        LvzObject* obj = objects + i;
+      for (size_t j = 0; j < object_count; ++j) {
+        LvzObject* obj = objects + j;
 
         if (obj->object_id == toggle->id) {
           animations[obj->animation_index].t = 0.0f;
+          obj->enabled_tick = GetCurrentTick();
+
           if (obj->map_object) {
             active_map_objects[active_map_object_count++] = obj;
           } else {
             active_screen_objects[active_screen_object_count++] = obj;
           }
+
           break;
         }
       }
     }
   }
+}
+
+void LvzController::DisableObject(u16 id) {
+  for (size_t j = 0; j < active_map_object_count; ++j) {
+    if (active_map_objects[j]->object_id == id) {
+      active_map_objects[j--] = active_map_objects[--active_map_object_count];
+    }
+  }
+
+  for (size_t j = 0; j < active_screen_object_count; ++j) {
+    if (active_screen_objects[j]->object_id == id) {
+      active_screen_objects[j--] = active_screen_objects[--active_screen_object_count];
+    }
+  }
+}
+
+void LvzController::OnLvzModify(u8* pkt, size_t size) {
+#pragma pack(push, 1)
+  struct ModifyBitfield {
+    u8 xy : 1;
+    u8 image : 1;
+    u8 layer : 1;
+    u8 time : 1;
+    u8 mode : 1;
+    u8 reserved : 3;
+  };
+#pragma pack(pop)
+
+  ModifyBitfield* mod = (ModifyBitfield*)(pkt + 1);
+
+#if 0
+  printf("Lvz modify (%zd): %d %d %d %d %d %d\n", size, mod->xy, mod->image, mod->layer, mod->time, mod->mode,
+         mod->reserved);
+#endif
 }
 
 void LvzController::OnMapInformation(u8* pkt, size_t size) {
@@ -509,6 +581,7 @@ void LvzController::ProcessObjects(struct ObjectImageList* object_images, u8* da
     obj->layer = GetLayer(def->layer);
     obj->display_time = def->display_time;
     obj->display_mode = def->display_mode;
+    obj->enabled_tick = GetCurrentTick();
 
     DisplayMode display = (DisplayMode)obj->display_mode;
     if (display == DisplayMode::ShowAlways) {

@@ -629,7 +629,9 @@ void Game::Render(float dt) {
 }
 
 void Game::RenderGame(float dt) {
-  lvz.Render(ui_camera, camera);
+  Player* self = player_manager.GetSelf();
+
+  lvz.Render(ui_camera, camera, self, specview);
 
   if (g_Settings.render_stars) {
     background_renderer.Render(camera, sprite_renderer, ui_camera.surface_dim);
@@ -637,7 +639,6 @@ void Game::RenderGame(float dt) {
 
   tile_renderer.Render(camera);
 
-  Player* self = player_manager.GetSelf();
   u32 self_freq = specview.GetFrequency();
 
   size_t viewable_flag_count = flag_count;

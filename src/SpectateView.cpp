@@ -119,6 +119,8 @@ bool SpectateView::Update(const InputState& input, float dt) {
 void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
   Player* self = statbox.player_manager.GetSelf();
 
+  render_extra_lines = 0;
+
   if (!self) return;
   if (self->ship != 8) return;
 
@@ -136,6 +138,8 @@ void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
   if (follow_player && TICK_DIFF(GetCurrentTick(), follow_player->last_extra_timestamp) < kExtraDataTimeout) {
     char rows[6][64];
 
+    render_extra_lines = 4;
+
     sprintf(rows[0], "Engy:%-5d S2CLatency:%dms", (u32)follow_player->energy, follow_player->s2c_latency * 10);
     sprintf(rows[1], "Brst:%-2d Repl:%-2d Prtl:%-2d", follow_player->bursts, follow_player->repels,
             follow_player->portals);
@@ -145,6 +149,11 @@ void SpectateView::Render(Camera& ui_camera, SpriteRenderer& renderer) {
     rows[5][0] = 0;
     if (follow_player->flag_timer > 0) {
       sprintf(rows[5], "Timer:%d", follow_player->flag_timer);
+      ++render_extra_lines;
+    }
+
+    if (follow_player->super || follow_player->shields) {
+      ++render_extra_lines;
     }
 
     float x = ui_camera.surface_dim.x / 2.0f;

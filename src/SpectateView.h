@@ -21,6 +21,7 @@ struct SpectateView {
   u16 spectate_id = kInvalidSpectateId;
   u32 spectate_frequency = 0;
   u32 last_spectate_packet = 0;
+  u32 render_extra_lines = 0;
 
   SpectateView(Connection& connection, StatBox& statbox);
 

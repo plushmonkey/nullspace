@@ -10,6 +10,8 @@ struct Camera;
 struct FileRequester;
 struct MemoryArena;
 struct PacketDispatcher;
+struct Player;
+struct SpectateView;
 struct SpriteRenderer;
 
 struct LvzObject {
@@ -37,6 +39,8 @@ struct LvzObject {
 
   u16 display_time : 12;
   u16 display_mode : 4;
+
+  u32 enabled_tick;
 };
 
 // Animation that was referenced as an lvz image but wasn't found yet.
@@ -80,12 +84,15 @@ struct LvzController {
 
   void OnMapInformation(u8* pkt, size_t size);
   void OnLvzToggle(u8* pkt, size_t size);
+  void OnLvzModify(u8* pkt, size_t size);
   void OnFileDownload(struct FileRequest* request, u8* data);
 
   void Update(float dt);
-  void Render(Camera& ui_camera, Camera& game_camera);
+  void Render(Camera& ui_camera, Camera& game_camera, Player* self, SpectateView& specview);
 
   void Reset();
+
+  void DisableObject(u16 id);
 
  private:
   void ProcessGraphicFile(const char* filename, u8* data, size_t size);
