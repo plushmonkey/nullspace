@@ -13,6 +13,9 @@ struct AnimatedSprite {
   float duration;
 };
 
+// Z offset that would put the renderable at the top of the layer without touching the next one.
+constexpr float kAnimationLayerTop = 0.999999f;
+
 struct Animation {
   AnimatedSprite* sprite = nullptr;
   Vector2f position = Vector2f(0, 0);

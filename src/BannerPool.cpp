@@ -61,10 +61,7 @@ void BannerPool::OnBanner(u8* pkt, size_t size) {
   u16 pid = *(u16*)(pkt + 1);
   u8* banner_data = pkt + 3;
 
-  u16 player_index = player_manager.GetPlayerIndex(pid);
-  if (player_index == kInvalidPlayerId) return;
-
-  BannerRegistration* registration = GetRegistration(pid, player_index);
+  BannerRegistration* registration = AllocateRegistration(pid);
 
   if (!registration) return;
 
@@ -73,23 +70,18 @@ void BannerPool::OnBanner(u8* pkt, size_t size) {
   BannerTextureSheet* sheet = registration->sheet;
   size_t registration_index = registration->GetGlobalIndex(this->sheets);
 
-  player_banners[player_index] = registration_index;
+  player_banners[pid] = registration_index;
 }
 
 void BannerPool::FreeBanner(u16 pid) {
-  u16 player_index = player_manager.GetPlayerIndex(pid);
-
-  assert(player_index < NULLSPACE_ARRAY_SIZE(player_banners));
-  if (player_index >= NULLSPACE_ARRAY_SIZE(player_banners)) return;
-
-  size_t registration_index = player_banners[player_index];
+  size_t registration_index = player_banners[pid];
   if (registration_index == -1) return;
 
-  player_banners[player_index] = -1;
+  player_banners[pid] = -1;
 
   BannerRegistration* reg = registrations + registration_index;
 
-  free_indexes[free_count++] = (u16)reg->GetGlobalIndex(this->sheets);
+  free_indexes[free_count++] = (u16)registration_index;
 }
 
 void BannerPool::WriteBanner(BannerRegistration* registration, u8* banner_data) {
@@ -134,10 +126,10 @@ void BannerPool::WriteBanner(BannerRegistration* registration, u8* banner_data) 
   temp_arena.Revert(snapshot);
 }
 
-BannerRegistration* BannerPool::GetRegistration(u16 pid, size_t player_index) {
+BannerRegistration* BannerPool::AllocateRegistration(u16 pid) {
   BannerRegistration* registration = nullptr;
 
-  size_t registration_index = player_banners[player_index];
+  size_t registration_index = player_banners[pid];
 
   if (registration_index != -1) {
     registration = registrations + registration_index;

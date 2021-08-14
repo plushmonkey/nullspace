@@ -228,14 +228,12 @@ void StatBox::RecordPointsView(const Player& me) {
     float y = kBorder + kHeaderHeight + 1.0f + i * 12.0f;
     RecordName(player, y, selected_index == index, player->frequency == me.frequency);
 
-    u16 player_index = player_manager.GetPlayerIndex(player->id);
+    BannerRegistration* banner = banners.GetRegistration(player->id);
 
-    if (banners.player_banners[player_index] != -1) {
-      BannerRegistration* reg = banners.registrations + banners.player_banners[player_index];
-
+    if (banner) {
       float x = kBorder + kSpectateWidth + 3.0f + 12 * 8;
 
-      AddRenderableOutput(&reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
+      AddRenderableOutput(&banner->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
     }
 
     TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;
@@ -325,14 +323,12 @@ void StatBox::RecordTeamSortView(const Player& me) {
 
     RecordName(player, y, selected_index == index, player->frequency == me.frequency);
 
-    u16 player_index = player_manager.GetPlayerIndex(player->id);
+    BannerRegistration* banner = banners.GetRegistration(player->id);
 
-    if (banners.player_banners[player_index] != -1) {
-      BannerRegistration* reg = banners.registrations + banners.player_banners[player_index];
-
+    if (banner) {
       float x = kBorder + kSpectateWidth + 3.0f + 12 * 8;
 
-      AddRenderableOutput(&reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
+      AddRenderableOutput(&banner->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
     }
 
     TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;
@@ -390,14 +386,12 @@ void StatBox::RecordFullView(const Player& me) {
     float y = kBorder + kHeaderHeight + 1.0f + i * 12.0f;
     RecordName(player, y, selected_index == index, player->frequency == me.frequency);
 
-    u16 player_index = player_manager.GetPlayerIndex(player->id);
+    BannerRegistration* banner = banners.GetRegistration(player->id);
 
-    if (banners.player_banners[player_index] != -1) {
-      BannerRegistration* reg = banners.registrations + banners.player_banners[player_index];
-
+    if (banner) {
       float x = kBorder + kSpectateWidth + 3.0f + 12 * 8;
 
-      AddRenderableOutput(&reg->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
+      AddRenderableOutput(&banner->renderable, Vector2f(x, y + 1.0f), Vector2f(12, 8));
     }
 
     TextColor color = player->frequency == me.frequency ? TextColor::Yellow : TextColor::White;

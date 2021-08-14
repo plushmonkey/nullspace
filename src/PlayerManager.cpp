@@ -385,12 +385,10 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
       }
     }
 
-    u16 player_index = player_lookup[player.id];
+    BannerRegistration* banner = banners->GetRegistration(player.id);
 
-    if (banners->player_banners[player_index] != -1) {
-      BannerRegistration* reg = banners->registrations + banners->player_banners[player_index];
-
-      renderer.Draw(camera, reg->renderable, current_position + Vector2f(0, 2.0f / 16.0f), Layer::Ships);
+    if (banner) {
+      renderer.Draw(camera, banner->renderable, current_position + Vector2f(0, 2.0f / 16.0f), Layer::Ships);
       current_position += Vector2f(1.0f, 0);
     }
 

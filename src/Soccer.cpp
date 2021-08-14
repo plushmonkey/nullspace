@@ -90,7 +90,7 @@ void Soccer::Render(Camera& camera, SpriteRenderer& renderer) {
       Vector2f position = GetBallPosition(player_manager, *ball, microtick);
       Vector2f render_position = position - renderable.dimensions * (0.5f / 16.0f);
 
-      renderer.Draw(camera, renderable, Vector3f(render_position, (float)Layer::AfterWeapons + 0.9f));
+      renderer.Draw(camera, renderable, Vector3f(render_position, (float)Layer::AfterWeapons + kAnimationLayerTop));
       RenderIndicator(*ball, position);
     }
   }

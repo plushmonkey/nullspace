@@ -45,8 +45,8 @@ struct BannerPool {
   size_t registration_count = 0;
   BannerRegistration registrations[1024];
 
-  // Index into banner registrations for player index
-  size_t player_banners[1024];
+  // Index into banner registrations for player id
+  size_t player_banners[65535];
 
   size_t free_count = 0;
   u16 free_indexes[1024];
@@ -58,9 +58,15 @@ struct BannerPool {
 
   void FreeBanner(u16 pid);
 
+  inline BannerRegistration* GetRegistration(u16 pid) {
+    size_t registration_index = player_banners[pid];
+
+    return registration_index == -1 ? nullptr : registrations + registration_index;
+  }
+
  private:
   void CreateTexture(u32* texture_index);
-  BannerRegistration* GetRegistration(u16 pid, size_t player_index);
+  BannerRegistration* AllocateRegistration(u16 pid);
   void WriteBanner(BannerRegistration* registration, u8* banner_data);
 };
 

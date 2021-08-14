@@ -42,6 +42,12 @@ Animation* AnimationSystem::AddAnimation(AnimatedSprite& sprite, const Vector2f&
   animation->position = position;
   animation->id = next_id++;
 
+  // Manually roll around so 65535 is never used.
+  // If 65535 could be used then the z calculation would be 1.0f causing it to render one layer too high.
+  if (next_id == 65535) {
+    next_id = 0;
+  }
+
   return animation;
 }
 
