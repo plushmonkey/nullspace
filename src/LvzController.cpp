@@ -288,13 +288,18 @@ void LvzController::OnLvzToggle(u8* pkt, size_t size) {
         LvzObject* obj = objects + j;
 
         if (obj->object_id == toggle->id) {
+          // Disable any previous ones with this id before adding it in again
+          DisableObject(toggle->id);
+
           animations[obj->animation_index].t = 0.0f;
           obj->enabled_tick = GetCurrentTick();
 
           if (obj->map_object) {
             active_map_objects[active_map_object_count++] = obj;
+            assert(active_map_object_count < NULLSPACE_ARRAY_SIZE(active_map_objects));
           } else {
             active_screen_objects[active_screen_object_count++] = obj;
+            assert(active_screen_object_count < NULLSPACE_ARRAY_SIZE(active_screen_objects));
           }
 
           break;

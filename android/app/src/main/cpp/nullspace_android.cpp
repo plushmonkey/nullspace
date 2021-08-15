@@ -732,7 +732,7 @@ static unsigned char* AndroidLoadAssetArena(null::MemoryArena& arena, const char
   return data;
 }
 
-static void AndroidErrorLogger(const char* fmt, ...) {
+static void AndroidLogger(const char* fmt, ...) {
   va_list args;
 
   va_start(args, fmt);
@@ -740,10 +740,24 @@ static void AndroidErrorLogger(const char* fmt, ...) {
   va_end(args);
 }
 
+static unsigned int AndroidGetMachineId() {
+  return rand();
+}
+
+static int AndroidGetTimeZoneBias() {
+  return 240;
+}
+
 static void SetPlatform() {
-  static const null::Platform kAndroidPlatform = {
-      AndroidErrorLogger,    AndroidGetStoragePath,       AndroidLoadAsset,
-      AndroidLoadAssetArena, null::platform.CreateFolder, null::platform.PasteClipboard};
+  static const null::Platform kAndroidPlatform = {AndroidLogger,
+                                                  AndroidLogger,
+                                                  AndroidGetStoragePath,
+                                                  AndroidLoadAsset,
+                                                  AndroidLoadAssetArena,
+                                                  null::platform.CreateFolder,
+                                                  null::platform.PasteClipboard,
+                                                  AndroidGetMachineId,
+                                                  AndroidGetTimeZoneBias};
 
   null::platform = kAndroidPlatform;
 }

@@ -227,7 +227,7 @@ void Connection::SendPassword(bool registration) {
   buffer.WriteU32(0x7F000001);
 
   struct sockaddr_in addr;
-  int addr_size = sizeof(addr);
+  socklen_t addr_size = sizeof(addr);
   getsockname(fd, (sockaddr*)&addr, &addr_size);
   u16 port = htons(addr.sin_port);
   buffer.WriteU32(port);
@@ -256,7 +256,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
 #if PACKET_TYPE_OUTPUT
     if (type_byte != 0x03) {
-      printf("Got core packet: 0x%02X\n", type_byte);
+      platform.Log("Got core packet: 0x%02X\n", type_byte);
     }
 #endif
 
@@ -428,7 +428,7 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
     ProtocolS2C type = (ProtocolS2C)type_byte;
 
 #if PACKET_TYPE_OUTPUT
-    printf("Got non-core packet: 0x%02X\n", type_byte);
+    platform.Log("Got non-core packet: 0x%02X\n", type_byte);
 #endif
 
     switch (type) {
@@ -926,9 +926,9 @@ size_t Connection::Send(u8* data, size_t size) {
 
 #if PACKET_TYPE_OUTPUT
   if (data[0] == 0 && size > 1) {
-    printf("Sending core type: 0x%02X\n", data[1]);
+    platform.Log("Sending core type: 0x%02X\n", data[1]);
   } else {
-    printf("Sending non-core type: 0x%02X\n", data[0]);
+    platform.Log("Sending non-core type: 0x%02X\n", data[0]);
   }
 #endif
 

@@ -7,7 +7,7 @@ namespace null {
 
 struct MemoryArena;
 
-typedef void (*ErrorLogger)(const char* fmt, ...);
+typedef void (*LogFunction)(const char* fmt, ...);
 typedef const char* (*StoragePathGetter)(MemoryArena& temp_arena, const char* path);
 typedef unsigned char* (*AssetLoader)(const char* filename, size_t* size);
 typedef unsigned char* (*AssetLoaderArena)(MemoryArena& arena, const char* filename, size_t* size);
@@ -18,7 +18,8 @@ typedef unsigned int (*MachineIdGet)();
 typedef int (*TimeZoneBiasGet)();
 
 struct Platform {
-  ErrorLogger LogError;
+  LogFunction Log;
+  LogFunction LogError;
   StoragePathGetter GetStoragePath;
   AssetLoader LoadAsset;
   AssetLoaderArena LoadAssetArena;

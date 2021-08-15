@@ -40,6 +40,17 @@ void StandardLog(const char* fmt, ...) {
   va_end(args);
 }
 
+void ErrorLog(const char* fmt, ...) {
+  va_list args;
+
+  va_start(args, fmt);
+
+  fprintf(stderr, "Error: ");
+  vfprintf(stderr, fmt, args);
+
+  va_end(args);
+}
+
 const char* StandardGetStoragePath(MemoryArena& temp_arena, const char* path) {
   return path;
 }
@@ -236,7 +247,7 @@ int GetTimeZoneBias() {
 
 #endif
 
-Platform platform = {StandardLog,  StandardGetStoragePath, StandardLoadAsset, StandardLoadAssetArena,
-                     CreateFolder, PasteClipboard,         GetMachineId,      GetTimeZoneBias};
+Platform platform = {StandardLog,  ErrorLog,       StandardGetStoragePath, StandardLoadAsset, StandardLoadAssetArena,
+                     CreateFolder, PasteClipboard, GetMachineId,           GetTimeZoneBias};
 
 }  // namespace null
