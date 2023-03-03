@@ -185,9 +185,9 @@ void PlayerManager::Update(float dt) {
     }
   }
 
-  s32 server_timestamp = current_tick + connection.time_diff;
+  s32 server_timestamp = MAKE_TICK(current_tick + connection.time_diff);
   if (connection.login_state == Connection::LoginState::Complete && connection.joined_arena &&
-      TICK_DIFF(server_timestamp, last_position_tick) >= position_delay) {
+      abs(server_timestamp - last_position_tick) >= position_delay) {
     SendPositionPacket();
   }
 }

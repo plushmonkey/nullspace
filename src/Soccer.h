@@ -15,6 +15,12 @@ struct SpectateView;
 struct SpriteRenderer;
 struct Vector2f;
 
+enum class BallState {
+  World,
+  Carried,
+  Goal
+};
+
 struct Powerball {
   u16 id;
   u16 carrier_id;
@@ -39,7 +45,7 @@ struct Powerball {
   u32 last_touch_timestamp;
   s32 trail_delay;
 
-  bool in_goal;
+  BallState state;
 };
 
 constexpr u16 kInvalidBallId = 0xFFFF;

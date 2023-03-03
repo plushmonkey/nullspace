@@ -36,8 +36,7 @@ inline void SimulateAxis(Powerball& ball, Map& map, u32* pos, s16* vel) {
 }
 
 inline Vector2f GetBallPosition(PlayerManager& player_manager, Powerball& ball, u64 microtick) {
-  // Ball is carried if timestamp is zero
-  if (ball.timestamp == 0) {
+  if (ball.state == BallState::Carried) {
     Player* carrier = player_manager.GetPlayerById(ball.carrier_id);
 
     if (carrier && carrier->ship != 8) {
@@ -81,7 +80,7 @@ void Soccer::Render(Camera& camera, SpriteRenderer& renderer) {
     if (ball->id != kInvalidBallId) {
       animation.sprite = &Graphics::anim_powerball;
 
-      if (ball->timestamp != 0 && TICK_DIFF(tick, ball->last_touch_timestamp) < connection.settings.PassDelay) {
+      if (ball->state == BallState::World && TICK_DIFF(tick, ball->last_touch_timestamp) < connection.settings.PassDelay) {
         animation.sprite = &Graphics::anim_powerball_phased;
       }
 
@@ -97,7 +96,7 @@ void Soccer::Render(Camera& camera, SpriteRenderer& renderer) {
 }
 
 void Soccer::RenderIndicator(Powerball& ball, const Vector2f& position) {
-  if (ball.timestamp == 0) {
+  if (ball.state == BallState::Carried) {
     Player* carrier = player_manager.GetPlayerById(ball.carrier_id);
 
     if (carrier) {
@@ -138,7 +137,7 @@ void Soccer::Update(float dt) {
     }
 
     // Update timer if the carrier is this player
-    if (ball->timestamp == 0 && ball->carrier_id == player_manager.player_id) {
+    if (ball->state == BallState::Carried && ball->carrier_id == player_manager.player_id) {
       carry_id = ball->id;
       carry_timer -= dt;
 
@@ -161,7 +160,7 @@ void Soccer::Update(float dt) {
     }
 
     // Check for nearby player touches if the ball isn't currently phased
-    if (ball->timestamp != 0 && TICK_DIFF(tick, ball->last_touch_timestamp) >= pass_delay) {
+    if (ball->state == BallState::World && TICK_DIFF(tick, ball->last_touch_timestamp) >= pass_delay) {
       Vector2f position(ball->x / 16000.0f, ball->y / 16000.0f);
 
       float closest_distance = FLT_MAX;
@@ -228,7 +227,7 @@ bool Soccer::FireBall(BallFireMethod method) {
   Vector2f heading = OrientationToHeading((u8)(self->orientation * 40.0f));
   Vector2f velocity = self->velocity + Vector2f(heading) * speed;
 
-  u32 timestamp = GetCurrentTick() + connection.time_diff;
+  u32 timestamp = MAKE_TICK(GetCurrentTick() + connection.time_diff);
 
   connection.SendBallFire((u8)carry_id, self->position, velocity, self->id, timestamp);
   carry_id = kInvalidBallId;
@@ -245,7 +244,7 @@ void Soccer::Simulate(Powerball& ball, bool drop_trail) {
   SimulateAxis(ball, connection.map, &ball.x, &ball.vel_x);
   SimulateAxis(ball, connection.map, &ball.y, &ball.vel_y);
 
-  if (!ball.in_goal && ball.carrier_id == player_manager.player_id) {
+  if (ball.state != BallState::Goal && ball.carrier_id == player_manager.player_id) {
     TileId tile_id = connection.map.GetTileId(ball.x / 16000, ball.y / 16000);
 
     if (tile_id == kGoalTileId) {
@@ -253,7 +252,7 @@ void Soccer::Simulate(Powerball& ball, bool drop_trail) {
 
       if (!IsTeamGoal(position)) {
         connection.SendBallGoal((u8)ball.id, GetCurrentTick() + connection.time_diff);
-        ball.in_goal = true;
+        ball.state = BallState::Goal;
       }
     }
   }
@@ -296,9 +295,12 @@ void Soccer::Clear() {
 
     ball->id = kInvalidBallId;
     ball->carrier_id = kInvalidPlayerId;
+    ball->timestamp = 0;
+    ball->last_touch_timestamp = GetCurrentTick();
   }
 
   anim_t = 0.0f;
+  last_pickup_request = GetCurrentTick();
 }
 
 void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
@@ -312,16 +314,18 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
   s16 velocity_x = buffer.ReadU16();
   s16 velocity_y = buffer.ReadU16();
   u16 owner_id = buffer.ReadU16();
-  u32 timestamp = buffer.ReadU32();
+  u32 timestamp = buffer.ReadU32() & 0x7FFFFFFF;
 
   if (ball_id >= NULLSPACE_ARRAY_SIZE(balls)) return;
 
   Powerball* ball = balls + ball_id;
 
+  bool new_ball_pos_pkt = ball->id == kInvalidBallId || TICK_GT(timestamp, ball->timestamp) ||
+                          ball->state == BallState::Goal ||
+                          (ball->state == BallState::Carried && timestamp != 0);
   ball->id = ball_id;
-  ball->in_goal = false;
 
-  if (TICK_GT(timestamp, ball->timestamp)) {
+  if (new_ball_pos_pkt) {
     ball->x = x * 1000;
     ball->y = y * 1000;
     ball->next_x = ball->x;
@@ -329,15 +333,16 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
     ball->vel_x = velocity_x;
     ball->vel_y = velocity_y;
     ball->frequency = 0xFFFF;
+    ball->state = BallState::World;
 
     if (ball_id == carry_id) {
       carry_id = kInvalidBallId;
     }
 
-    u32 current_timestamp = GetCurrentTick() + connection.time_diff;
+    u32 current_timestamp = MAKE_TICK(GetCurrentTick() + connection.time_diff);
     s32 sim_ticks = TICK_DIFF(current_timestamp, timestamp);
 
-    if (sim_ticks > 6000) {
+    if (sim_ticks > 6000 || sim_ticks < 0) {
       sim_ticks = 6000;
     }
 
@@ -395,17 +400,15 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
     ball->timestamp = timestamp;
   } else if (timestamp == 0) {
     // Ball is carried if the timestamp is zero.
-    u16 previous_timestamp = ball->timestamp;
-
-    ball->timestamp = 0;
-
+    ball->timestamp = timestamp;
     ball->carrier_id = owner_id;
     ball->vel_x = ball->vel_y = 0;
     ball->last_micro_tick = GetMicrosecondTick();
 
     Player* carrier = player_manager.GetPlayerById(owner_id);
 
-    if (previous_timestamp != ball->timestamp && carrier && carrier->ship != 8) {
+    if (ball->state != BallState::Carried && carrier && carrier->ship != 8) {
+      ball->state = BallState::Carried;
       carrier->ball_carrier = true;
 
       if (carrier->id == player_manager.player_id) {
