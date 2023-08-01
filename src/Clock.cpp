@@ -10,7 +10,9 @@
 
 namespace null {
 
-Tick GetCurrentTick() {
+static Tick startup_tick;
+
+Tick GetCurrentTickOs() {
 #ifdef _WIN32
   return (GetTickCount() / 10) & 0x7fffffff;
 #else
@@ -23,6 +25,14 @@ Tick GetCurrentTick() {
 
   return ticks & 0x7fffffff;
 #endif
+}
+
+Tick GetCurrentTick() {
+  if (startup_tick == 0) {
+    startup_tick = GetCurrentTickOs();
+  }
+
+  return (GetCurrentTickOs() - startup_tick) & 0x7fffffff;
 }
 
 u64 GetMicrosecondTick() {

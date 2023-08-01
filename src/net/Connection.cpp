@@ -300,13 +300,13 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
       case ProtocolCore::SyncTimeResponse: {
         // The timestamp that was sent in the sync request
-        u32 sent_timestamp = buffer.ReadU32();
+        s32 sent_timestamp = buffer.ReadU32();
         // The server timestamp at the time of request
-        u32 server_timestamp = buffer.ReadU32();
-        u32 current_tick = GetCurrentTick();
-        u32 rtt = current_tick - sent_timestamp;
+        s32 server_timestamp = buffer.ReadU32();
+        s32 current_tick = GetCurrentTick();
+        s32 rtt = current_tick - sent_timestamp;
 
-        u32 current_ping = (u32)((rtt / 2.0f) * 10.0f);
+        s32 current_ping = (u32)((rtt / 2.0f) * 10.0f);
         s32 current_time_diff = ((rtt * 3) / 5) + server_timestamp - current_tick;
 
         if (current_time_diff >= -10 && current_time_diff <= 10) {
@@ -325,14 +325,15 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
         }
 
         s64 time_acc = 0;
-        u64 ping_acc = 0;
+        s64 ping_acc = 0;
 
         for (size_t i = 0; i < history_count; ++i) {
           time_acc += sync_history[i].time_diff;
           ping_acc += sync_history[i].ping;
         }
 
-        time_diff = (s32)(time_acc / history_count);
+        s64 td = time_acc / (s64)history_count;
+        time_diff = (s32)td;
         ping = current_ping;
       } break;
       case ProtocolCore::Disconnect: {

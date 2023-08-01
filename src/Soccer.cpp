@@ -418,6 +418,7 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
         this->carry_id = ball->id;
 
         player_manager.ship_controller->AddBombDelay(ship_settings.BombFireDelay);
+        player_manager.ship_controller->AddBulletDelay(ship_settings.BombFireDelay);
       }
     }
   }

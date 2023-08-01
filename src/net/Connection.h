@@ -37,15 +37,15 @@ struct Security {
 };
 
 struct TimeSyncResult {
-  u32 ping;
+  s32 ping;
   s32 time_diff;
 };
 
 struct PingStatistics {
-  u32 ping_low;
-  u32 ping_high;
-  u32 ping_avg;
-  u32 ping_current;
+  s32 ping_low;
+  s32 ping_high;
+  s32 ping_avg;
+  s32 ping_current;
 };
 
 struct Connection {

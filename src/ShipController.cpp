@@ -1665,6 +1665,8 @@ void ShipController::ResetShip() {
 
   if (!self) return;
 
+  s32 last_tick = MAKE_TICK(GetCurrentTick() - 1);
+
   ship.shrapnel = 0;
   ship.capability = 0;
   ship.emped_time = 0.0f;
@@ -1675,7 +1677,8 @@ void ShipController::ResetShip() {
   ship.super_time = 0.0f;
   ship.shield_time = 0.0f;
   ship.portal_time = 0.0f;
-  ship.next_bomb_tick = ship.next_bullet_tick = ship.next_repel_tick = 0;
+  ship.next_bomb_tick = ship.next_bullet_tick = ship.next_repel_tick = last_tick;
+  ship.rocket_end_tick = ship.shutdown_end_tick = ship.fake_antiwarp_end_tick = last_tick;
 
   self->flag_timer = 0;
   self->togglables = 0;

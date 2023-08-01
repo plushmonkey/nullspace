@@ -354,8 +354,10 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
 
 WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
   float effect_radius = connection.settings.RepelDistance / 16.0f;
-  float effect_radius_sq = effect_radius * effect_radius;
   float speed = connection.settings.RepelSpeed / 16.0f / 10.0f;
+
+  Vector2f rect_min = weapon.position - Vector2f(effect_radius, effect_radius);
+  Vector2f rect_max = weapon.position + Vector2f(effect_radius, effect_radius);
 
   for (size_t i = 0; i < weapon_count; ++i) {
     Weapon& other = weapons[i];
@@ -365,7 +367,7 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
 
     float dist_sq = other.position.DistanceSq(weapon.position);
 
-    if (dist_sq <= effect_radius_sq) {
+    if (PointInsideBox(rect_min, rect_max, other.position)) {
       Vector2f direction = Normalize(other.position - weapon.position);
 
       other.velocity = direction * speed;
@@ -397,9 +399,7 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
     if (player.enter_delay > 0.0f) continue;
     if (!player_manager.IsSynchronized(player)) continue;
 
-    float dist_sq = player.position.DistanceSq(weapon.position);
-
-    if (dist_sq <= effect_radius_sq) {
+    if (PointInsideBox(rect_min, rect_max, player.position)) {
       if (connection.map.GetTileId(player.position) != kTileSafeId) {
         player.last_repel_timestamp = GetCurrentTick();
 

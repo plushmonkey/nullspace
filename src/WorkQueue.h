@@ -28,7 +28,7 @@ struct Work {
 
 struct WorkQueue {
   MemoryArena& arena;
-  size_t queue_size;
+  volatile size_t queue_size;
   Work* queue;
 
   Work* free;

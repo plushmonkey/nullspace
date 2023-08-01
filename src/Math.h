@@ -182,6 +182,10 @@ inline Vector2f Rotate(const Vector2f& vec, float rads) {
   return Vector2f(cosA * vec.x - sinA * vec.y, sinA * vec.x + cosA * vec.y);
 }
 
+inline bool PointInsideBox(const Vector2f& min, const Vector2f& max, const Vector2f& point) {
+  return (point.x > min.x && point.x < max.x) && (point.y > min.y && point.y < max.y);
+}
+
 inline bool BoxContainsPoint(const Vector2f& min, const Vector2f& max, const Vector2f& point) {
   return (point.x >= min.x && point.x <= max.x) && (point.y >= min.y && point.y <= max.y);
 }

@@ -428,12 +428,12 @@ void PlayerManager::SendPositionPacket() {
 
   u32 local_timestamp = GetCurrentTick();
 
-  s32 server_timestamp = local_timestamp + time_diff;
+  s32 server_timestamp = MAKE_TICK(local_timestamp + time_diff);
 
   // Override the timestamp if the time_diff changes or it's being sent on the same tick as last packet.
   // This is necessary because packets will be thrown away server side if the timestamp isn't newer.
   if (server_timestamp <= last_position_tick) {
-    server_timestamp = last_position_tick + 1;
+    server_timestamp = MAKE_TICK(last_position_tick + 1);
   }
 
   buffer.WriteU8(0x03);                // Type
