@@ -7,6 +7,7 @@
 #include "Clock.h"
 #include "FileRequester.h"
 #include "Inflate.h"
+#include "Logger.h"
 #include "Memory.h"
 #include "Platform.h"
 #include "Player.h"
@@ -374,7 +375,7 @@ void LvzController::OnFileDownload(struct FileRequest* request, u8* data) {
   LvzHeader* lvz_header = (LvzHeader*)data;
 
   if (lvz_header->magic != kMagicValue) {
-    fprintf(stderr, "Received lvz file %s that didn't contain lvz format.\n", request->filename);
+    Log(LogLevel::Warning, "Received lvz file %s that didn't contain lvz format.", request->filename);
     return;
   }
 
@@ -402,7 +403,7 @@ void LvzController::OnFileDownload(struct FileRequest* request, u8* data) {
       int status = mz_uncompress(section_data, &decompressed_size, ptr, section_header->compressed_size);
 
       if (status != MZ_OK) {
-        fprintf(stderr, "Failed to uncompress lvz data.\n");
+        Log(LogLevel::Warning, "Failed to uncompress lvz data.");
         ptr += section_header->compressed_size;
         continue;
       }
@@ -449,7 +450,7 @@ void LvzController::OnFileDownload(struct FileRequest* request, u8* data) {
       int status = mz_uncompress(section_data, &decompressed_size, ptr, section_header->compressed_size);
 
       if (status != MZ_OK) {
-        fprintf(stderr, "Failed to uncompress lvz data.\n");
+        Log(LogLevel::Warning, "Failed to uncompress lvz data.");
         ptr += section_header->compressed_size;
         continue;
       }

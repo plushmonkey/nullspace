@@ -4,6 +4,8 @@
 
 #include <cstdio>
 
+#include "Logger.h"
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -26,7 +28,7 @@ u8* MemoryArena::Allocate(size_t size, size_t alignment) {
   if (this == perm_global) {
     size_t allocated = (size_t)(this->current - this->base);
 
-    printf("Allocating %zd with align %zd in perm arena. (allocated: %zd)\n", size, alignment, allocated);
+    Log(LogLevel::Debug, "Allocating %zd with align %zd in perm arena. (allocated: %zd)", size, alignment, allocated);
   }
 #endif
 
@@ -54,7 +56,7 @@ u8* AllocateMirroredBuffer(size_t size) {
   size_t granularity = sys_info.dwAllocationGranularity;
 
   if (((size / granularity) * granularity) != size) {
-    fprintf(stderr, "Incorrect size. Must be multiple of %zd\n", granularity);
+    Log(LogLevel::Error, "Incorrect size. Must be multiple of %zd", granularity);
     return 0;
   }
 

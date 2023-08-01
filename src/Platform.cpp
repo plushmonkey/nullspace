@@ -2,6 +2,7 @@
 
 #include <stdarg.h>
 
+#include "Logger.h"
 #include "Memory.h"
 #include "render/Graphics.h"
 
@@ -35,7 +36,7 @@ void StandardLog(const char* fmt, ...) {
 
   va_start(args, fmt);
 
-  vfprintf(stderr, fmt, args);
+  LogArgs(LogLevel::Info, fmt, args);
 
   va_end(args);
 }
@@ -45,8 +46,7 @@ void ErrorLog(const char* fmt, ...) {
 
   va_start(args, fmt);
 
-  fprintf(stderr, "Error: ");
-  vfprintf(stderr, fmt, args);
+  LogArgs(LogLevel::Error, fmt, args);
 
   va_end(args);
 }

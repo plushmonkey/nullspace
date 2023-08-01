@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "Logger.h"
 #include "Platform.h"
 #include "Settings.h"
 
@@ -160,7 +161,7 @@ void SoundSystem::PlayClip(const AudioClip& clip, float volume) {
   ma_result result = ma_decoder_init_memory(clip.data, clip.size, &cfg_decoder, decoder);
 
   if (result != MA_SUCCESS) {
-    platform.LogError("Failed to play audio clip.\n");
+    platform.LogError("Failed to play audio clip.");
     database.perm_arena.Revert(snapshot);
   } else {
     playing_clip->volume = volume;
@@ -244,9 +245,9 @@ AudioClip SoundDatabase::LoadClip(const char* filename) {
 
   if (result.data) {
     result.flags |= AudioClipFlag_Loaded;
-    printf("Loaded audio file %s\n", filename);
+    Log(LogLevel::Info, "Loaded audio file %s", filename);
   } else {
-    platform.LogError("Failed to read audio file %s\n", filename);
+    platform.LogError("Failed to read audio file %s", filename);
   }
 
   return result;

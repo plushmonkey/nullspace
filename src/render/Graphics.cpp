@@ -2,6 +2,7 @@
 
 #include <cstdio>
 
+#include "../Logger.h"
 #include "Colors.h"
 #include "SpriteRenderer.h"
 
@@ -142,7 +143,7 @@ SpriteRenderable* LoadTileSheet(SpriteRenderer& renderer, const char* sheetname,
   }
 
   if (renderables == nullptr) {
-    fprintf(stderr, "Failed to load %s graphic.\n", sheetname);
+    Log(LogLevel::Error, "Failed to load %s graphic.", sheetname);
   }
 
   return renderables;

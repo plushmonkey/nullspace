@@ -180,6 +180,7 @@
     <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\ChatController.cpp" />
     <ClCompile Include="src\FileRequester.cpp" />
+    <ClCompile Include="src\Logger.cpp" />
     <ClCompile Include="src\LvzController.cpp" />
     <ClCompile Include="src\net\security\SecuritySolver.cpp" />
     <ClCompile Include="src\Notification.cpp" />
@@ -231,6 +232,7 @@
     <ClInclude Include="src\ChatController.h" />
     <ClInclude Include="src\FileRequester.h" />
     <ClInclude Include="src\HashMap.h" />
+    <ClInclude Include="src\Logger.h" />
     <ClInclude Include="src\LvzController.h" />
     <ClInclude Include="src\net\security\SecuritySolver.h" />
     <ClInclude Include="src\net\Socket.h" />

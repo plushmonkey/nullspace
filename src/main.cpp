@@ -5,6 +5,7 @@
 
 #include "Buffer.h"
 #include "Clock.h"
+#include "Logger.h"
 #include "Memory.h"
 #include "Settings.h"
 #include "WorkQueue.h"
@@ -51,7 +52,7 @@ namespace null {
 GameSettings g_Settings;
 
 void InitializeSettings() {
-  g_Settings.vsync = true;
+  g_Settings.vsync = false;
   g_Settings.window_type = WindowType::Windowed;
   g_Settings.render_stars = true;
 
@@ -189,7 +190,7 @@ struct nullspace {
 #endif
 
     if (!perm_memory || !trans_memory || !work_memory) {
-      fprintf(stderr, "Failed to allocate memory.\n");
+      Log(LogLevel::Error, "Failed to allocate memory.");
       return false;
     }
 
@@ -206,7 +207,7 @@ struct nullspace {
     window = CreateGameWindow(surface_width, surface_height);
 
     if (!window) {
-      fprintf(stderr, "Failed to create window.\n");
+      Log(LogLevel::Error, "Failed to create window.");
       return false;
     }
 
@@ -231,7 +232,7 @@ struct nullspace {
 
     if (!game->Initialize(window_state.input)) {
       // TODO: Error pop up
-      fprintf(stderr, "Failed to create game\n");
+      Log(LogLevel::Error, "Failed to create game");
       return false;
     }
 
@@ -239,7 +240,7 @@ struct nullspace {
 
     if (result != null::ConnectResult::Success) {
       // TODO: Error pop up
-      fprintf(stderr, "Failed to connect. Error: %d\n", (int)result);
+      Log(LogLevel::Error, "Failed to connect. Error: %d", (int)result);
       return false;
     }
 
@@ -416,7 +417,7 @@ struct nullspace {
 
     if (game && game->connection.connected) {
       game->connection.SendDisconnect();
-      printf("Disconnected from server.\n");
+      Log(LogLevel::Info, "Disconnected from server.");
     }
   }
 
@@ -424,7 +425,7 @@ struct nullspace {
     GLFWwindow* window = nullptr;
 
     if (!glfwInit()) {
-      fprintf(stderr, "Failed to initialize window system.\n");
+      Log(LogLevel::Error, "Failed to initialize window system.");
       return nullptr;
     }
 
@@ -468,7 +469,7 @@ struct nullspace {
     glfwMakeContextCurrent(window);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-      fprintf(stderr, "Failed to initialize opengl context");
+      Log(LogLevel::Error, "Failed to initialize opengl context");
       return nullptr;
     }
 
@@ -603,8 +604,8 @@ void OnCharacter(GLFWwindow* window, unsigned int codepoint) {
 void GLAPIENTRY OnOpenGLError(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
                               const GLchar* message, const void* userParam) {
   if (type == GL_DEBUG_TYPE_ERROR) {
-    fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
-            (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type, severity, message);
+    Log(LogLevel::Error, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s",
+        (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type, severity, message);
   }
 }
 #endif

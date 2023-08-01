@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdio>
 
+#include "../Logger.h"
 #include "../Map.h"
 #include "../Math.h"
 #include "../Memory.h"
@@ -145,12 +146,12 @@ void main() {
 
 bool TileRenderer::Initialize() {
   if (!shader.Initialize(kGridVertexShaderCode, kGridFragmentShaderCode)) {
-    fprintf(stderr, "Failed to load tile shader.\n");
+    Log(LogLevel::Error, "Failed to load tile shader.");
     return false;
   }
 
   if (!fly_under_shader.Initialize(kFlyUnderVertexShaderCode, kFlyUnderFragmentShaderCode)) {
-    fprintf(stderr, "Failed to load fly under shader.\n");
+    Log(LogLevel::Error, "Failed to load fly under shader.");
     return false;
   }
 
@@ -248,7 +249,7 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
   }
 
   if (!tilemap) {
-    fprintf(stderr, "Failed to load tilemap.\n");
+    Log(LogLevel::Error, "Failed to load tilemap.");
     return false;
   }
 
@@ -315,7 +316,7 @@ bool TileRenderer::CreateMapBuffer(MemoryArena& temp_arena, const char* filename
 
   // Load the map so the tile id data can be sent to gpu
   if (!map.Load(temp_arena, filename)) {
-    fprintf(stderr, "Could not load map for rendering.\n");
+    Log(LogLevel::Error, "Could not load map for rendering.");
     return false;
   }
 
@@ -339,7 +340,7 @@ bool TileRenderer::CreateRadar(MemoryArena& temp_arena, Map& map, const Vector2f
   u32 surface_height = (u32)surface_dim.y;
 
   if (surface_width <= 64 * 2) {
-    fprintf(stderr, "Surface width too small to generate radar.\n");
+    Log(LogLevel::Error, "Surface width too small to generate radar.");
     return false;
   }
 

@@ -8,6 +8,7 @@
 #include "ChatController.h"
 #include "Clock.h"
 #include "InputState.h"
+#include "Logger.h"
 #include "Radar.h"
 #include "ShipController.h"
 #include "Soccer.h"
@@ -506,7 +507,7 @@ Player* PlayerManager::GetPlayerById(u16 id, size_t* index) {
 
 void PlayerManager::OnPlayerIdChange(u8* pkt, size_t size) {
   player_id = *(u16*)(pkt + 1);
-  printf("Player id: %d\n", player_id);
+  Log(LogLevel::Info, "Player id: %d", player_id);
 
   this->player_count = 0;
   this->received_initial_list = false;
@@ -553,7 +554,7 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
 
   banners->FreeBanner(player->id);
 
-  printf("%s [%d] entered arena\n", name, player->id);
+  Log(LogLevel::Info, "%s [%d] entered arena", name, player->id);
 
   if (player->attach_parent != kInvalidPlayerId) {
     Player* destination = GetPlayerById(player->attach_parent);
@@ -581,7 +582,7 @@ void PlayerManager::OnPlayerLeave(u8* pkt, size_t size) {
   if (player) {
     weapon_manager->ClearWeapons(*player);
 
-    printf("%s left arena\n", player->name);
+    Log(LogLevel::Info, "%s left arena", player->name);
 
     DetachPlayer(*player);
     DetachAllChildren(*player);

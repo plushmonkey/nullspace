@@ -4,6 +4,7 @@
 #include <cstdio>
 
 #include "Clock.h"
+#include "Logger.h"
 #include "Memory.h"
 #include "Platform.h"
 #include "Random.h"
@@ -288,23 +289,23 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
 
 bool Game::Initialize(InputState& input) {
   if (g_Settings.sound_enabled && !sound_system.Initialize()) {
-    platform.LogError("Failed to initialize sound system.\n");
+    platform.LogError("Failed to initialize sound system.");
   }
 
   if (!sprite_renderer.Initialize(perm_arena)) {
-    platform.LogError("Failed to initialize sprite renderer.\n");
+    platform.LogError("Failed to initialize sprite renderer.");
     return false;
   }
 
   if (!Graphics::Initialize(sprite_renderer)) {
-    platform.LogError("Failed to initialize graphics.\n");
+    platform.LogError("Failed to initialize graphics.");
     return false;
   }
 
   chat.CreateCursor(sprite_renderer);
 
   if (g_Settings.render_stars && !background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
-    platform.LogError("Failed to initialize background renderer.\n");
+    platform.LogError("Failed to initialize background renderer.");
     return false;
   }
 
@@ -352,14 +353,14 @@ bool Game::Update(const InputState& input, float dt) {
     }
 
     if (!tile_renderer.CreateMapBuffer(temp_arena, connection.map.filename, ui_camera.surface_dim)) {
-      platform.LogError("Failed to create renderable map.\n");
+      platform.LogError("Failed to create renderable map.");
     }
 
     mapzoom = connection.settings.MapZoomFactor;
 
     if (!tile_renderer.CreateRadar(temp_arena, connection.map, ui_camera.surface_dim, connection.settings.MapZoomFactor,
                                    soccer)) {
-      platform.LogError("Failed to create radar.\n");
+      platform.LogError("Failed to create radar.");
     }
 
     animated_tile_renderer.InitializeDoors(tile_renderer);
@@ -780,7 +781,7 @@ bool Game::HandleMenuKey(int codepoint, int mods) {
         if (self->ship != 8 && self->energy < ship_controller.ship.energy) {
           notifications.PushFormatted(TextColor::Yellow, "Must have full energy to change ship types.");
         } else {
-          printf("Sending ship request for %d\n", ship + 1);
+          Log(LogLevel::Info, "Sending ship request for %d", ship + 1);
           connection.SendShipRequest((u8)ship);
         }
       }
@@ -794,7 +795,7 @@ bool Game::HandleMenuKey(int codepoint, int mods) {
         if (self->energy < ship_controller.ship.energy) {
           notifications.PushFormatted(TextColor::Yellow, "Must have full energy to change to spectator mode.");
         } else {
-          printf("Sending spectate request.\n");
+          Log(LogLevel::Info, "Sending spectate request.");
 
           connection.SendShipRequest(8);
         }
@@ -864,7 +865,7 @@ void Game::RecreateRadar() {
   mapzoom = connection.settings.MapZoomFactor;
 
   if (!tile_renderer.CreateRadar(temp_arena, connection.map, ui_camera.surface_dim, mapzoom, soccer)) {
-    fprintf(stderr, "Failed to create radar.\n");
+    Log(LogLevel::Error, "Failed to create radar.");
   }
 }
 
@@ -957,21 +958,21 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
   lvz.Reset();
 
   if (g_Settings.sound_enabled && !sound_system.Initialize()) {
-    platform.LogError("Failed to initialize sound system.\n");
+    platform.LogError("Failed to initialize sound system.");
   }
 
   if (!sprite_renderer.Initialize(perm_arena)) {
-    platform.LogError("Failed to initialize sprite renderer.\n");
+    platform.LogError("Failed to initialize sprite renderer.");
     exit(1);
   }
 
   if (!tile_renderer.Initialize()) {
-    platform.LogError("Failed to initialize tile renderer.\n");
+    platform.LogError("Failed to initialize tile renderer.");
     exit(1);
   }
 
   if (!Graphics::Initialize(sprite_renderer)) {
-    platform.LogError("Failed to initialize graphics.\n");
+    platform.LogError("Failed to initialize graphics.");
     exit(1);
   }
 
@@ -980,7 +981,7 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
   animated_tile_renderer.Initialize();
 
   if (!background_renderer.Initialize(perm_arena, temp_arena, ui_camera.surface_dim)) {
-    platform.LogError("Failed to initialize background renderer.\n");
+    platform.LogError("Failed to initialize background renderer.");
     exit(1);
   }
 }

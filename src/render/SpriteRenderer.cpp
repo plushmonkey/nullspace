@@ -67,7 +67,7 @@ bool SpriteRenderer::Initialize(MemoryArena& perm_arena) {
   }
 
   if (!shader.Initialize(kSpriteVertexShaderCode, kSpriteFragmentShaderCode)) {
-    platform.LogError("Failed to create sprite shader.\n");
+    platform.LogError("Failed to create sprite shader.");
     return false;
   }
 
