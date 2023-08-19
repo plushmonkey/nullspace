@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "Clock.h"
+#include "Logger.h"
 #include "PlayerManager.h"
 #include "Radar.h"
 #include "ShipController.h"
@@ -80,7 +81,8 @@ void Soccer::Render(Camera& camera, SpriteRenderer& renderer) {
     if (ball->id != kInvalidBallId) {
       animation.sprite = &Graphics::anim_powerball;
 
-      if (ball->state == BallState::World && TICK_DIFF(tick, ball->last_touch_timestamp) < connection.settings.PassDelay) {
+      if (ball->state == BallState::World &&
+          TICK_DIFF(tick, ball->last_touch_timestamp) < connection.settings.PassDelay) {
         animation.sprite = &Graphics::anim_powerball_phased;
       }
 
@@ -321,8 +323,7 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
   Powerball* ball = balls + ball_id;
 
   bool new_ball_pos_pkt = ball->id == kInvalidBallId || TICK_GT(timestamp, ball->timestamp) ||
-                          ball->state == BallState::Goal ||
-                          (ball->state == BallState::Carried && timestamp != 0);
+                          ball->state == BallState::Goal || (ball->state == BallState::Carried && timestamp != 0);
   ball->id = ball_id;
 
   if (new_ball_pos_pkt) {
@@ -337,6 +338,13 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
 
     if (ball_id == carry_id) {
       carry_id = kInvalidBallId;
+      carry_timer = 0.0f;
+
+      auto self = player_manager.GetSelf();
+
+      if (self) {
+        self->ball_carrier = false;
+      }
     }
 
     u32 current_timestamp = MAKE_TICK(GetCurrentTick() + connection.time_diff);
