@@ -33,7 +33,7 @@ struct Security {
   u32 prize_seed = 0;
   u32 door_seed = 0;
   u32 timestamp = 0;
-  u32 checksum_key = 0;
+  volatile u32 checksum_key = 0;
 };
 
 struct TimeSyncResult {

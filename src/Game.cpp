@@ -954,6 +954,11 @@ void Game::OnPlayerId(u8* pkt, size_t size) {
 
   // TODO: Handle and display errors
 
+  flag_count = 0;
+  green_count = 0;
+
+  memset(flags, 0, sizeof(flags));
+
   soccer.Clear();
   lvz.Reset();
 
