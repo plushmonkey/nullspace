@@ -609,6 +609,10 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       } break;
       case ProtocolS2C::SetCoordinates: {
       } break;
+      case ProtocolS2C::LoginFailure: {
+        char* reason = (char*)buffer.data + 1;
+        Log(LogLevel::Warning, "%s", reason);
+      } break;
       case ProtocolS2C::ToggleLVZ: {
       } break;
       case ProtocolS2C::ModifyLVZ: {

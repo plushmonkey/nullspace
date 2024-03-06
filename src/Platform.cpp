@@ -172,31 +172,52 @@ void PasteClipboard(char* dest, size_t available_size) {
   }
 }
 
-unsigned int GetMachineId() {
+u32 GetDriveSerial(const char* root) {
   char file_system_name[64];
   DWORD file_system_flags;
   DWORD max_component_size;
-  DWORD volume_serial_number;
+  DWORD volume_serial_number = 0;
   char volume_name[256];
-  char windows_directory[256];
 
-  BOOL result = GetVolumeInformationA("c:\\", volume_name, 256, &volume_serial_number, &max_component_size,
+  BOOL result = GetVolumeInformationA(root, volume_name, 256, &volume_serial_number, &max_component_size,
                                       &file_system_flags, file_system_name, 64);
 
-  if (result) {
+  if (result && volume_serial_number > 0 && volume_serial_number != 0xFFFFFFFF) {
     return volume_serial_number;
   }
 
-  GetWindowsDirectoryA(windows_directory, 256);
+  return 0;
+}
 
-  result = GetVolumeInformationA(windows_directory, volume_name, 256, &volume_serial_number, &max_component_size,
-                                 &file_system_flags, file_system_name, 64);
+unsigned int GetMachineId() {
+  HW_PROFILE_INFO profile_info = {};
 
-  if (result) {
-    return volume_serial_number;
+  if (GetCurrentHwProfileA(&profile_info)) {
+    auto guid = profile_info.szHwProfileGuid;
+
+    // Grab the last 8 digits of the guid
+    u32 machine_id = strtol(guid + HW_PROFILE_GUIDLEN - 10, nullptr, 16);
+
+    if (machine_id != 0 && machine_id != 0xFFFFFFFF) {
+      return machine_id;
+    }
   }
 
-  return rand();
+  // Fallback to trying to get the volume serial from the C drive, Windows directory drive, or cwd drive.
+  u32 machine_id = GetDriveSerial("C:\\");
+  if (machine_id != 0) return machine_id;
+
+  char windows_directory[256];
+  if (GetWindowsDirectoryA(windows_directory, 256)) {
+    machine_id = GetDriveSerial(windows_directory);
+    if (machine_id != 0) return machine_id;
+  }
+
+  machine_id = GetDriveSerial(NULL);
+  if (machine_id != 0) return machine_id;
+
+  // Fallback to a random number that might be within acceptable range.
+  return (rand() % 0x6FFF0000) + 0xFFFF;
 }
 
 int GetTimeZoneBias() {
