@@ -1028,7 +1028,7 @@ void Connection::SendDisconnect() {
 void Connection::SendEncryptionRequest(EncryptMethod method) {
   this->encrypt_method = method;
 
-  u32 key = 0;
+  u32 key = 0x1;
   u16 version = 0x11;
 
   if (method == EncryptMethod::Subspace) {

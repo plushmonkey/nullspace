@@ -38,7 +38,7 @@ struct DIBHeader {
 
 inline u32 GetColor(u32* color_table, u32 index) {
   if (color_table == nullptr) {
-    return index;
+    return kDefaultColorTable[index];
   }
 
   return color_table[index];
@@ -55,6 +55,7 @@ unsigned char* LoadBitmap(const u8* data, size_t file_size, int* width, int* hei
   }
 
   assert(dib_header->bpp == 8);
+  if (dib_header->bpp != 8) return nullptr;
 
   *width = abs(dib_header->width);
   *height = abs(dib_header->height);
@@ -79,7 +80,9 @@ unsigned char* LoadBitmap(const u8* data, size_t file_size, int* width, int* hei
 
     // Expand out the data to rgba
     result = (u32*)malloc(image_size * sizeof(u32));
+    if (!result) return nullptr;
 
+    memset(result, 0, image_size * sizeof(u32));
     size_t i = 0;
     int x = 0;
     int y = dib_header->height - 1;
@@ -101,12 +104,11 @@ unsigned char* LoadBitmap(const u8* data, size_t file_size, int* width, int* hei
           int next_x = image_data[i++];
           int next_y = image_data[i++];
 
-          color_index = image_data[i++];
+          x += next_x;
+          y -= next_y;
 
-          u32 color = GetColor(color_table, color_index) | 0xFF000000;
-          color = ((color & 0xFF) << 16) | ((color & 0x00FF0000) >> 16) | (color & 0xFF000000) | (color & 0x0000FF00);
-
-          result[next_y * dib_header->width + next_x] = color;
+          assert(x >= 0 && x < dib_header->width);
+          assert(y >= 0 && y < dib_header->height);
         } else {
           // Run of absolute values
           for (int j = 0; j < color_index; ++j) {
@@ -127,7 +129,8 @@ unsigned char* LoadBitmap(const u8* data, size_t file_size, int* width, int* hei
         color = ((color & 0xFF) << 16) | ((color & 0x00FF0000) >> 16) | (color & 0xFF000000) | (color & 0x0000FF00);
 
         for (int j = 0; j < count; ++j) {
-          result[y * dib_header->width + x] = color;
+          size_t index = (size_t)y * (size_t)dib_header->width + (size_t)x;
+          result[index] = color;
           ++x;
         }
       }
