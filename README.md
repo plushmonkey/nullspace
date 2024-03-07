@@ -42,9 +42,13 @@ Example video showcasing the client in Hyperspace, Extreme Games, and a local se
 Solving the checksum and key expansion requests is done by using a private network service. There's no public server available yet.
 
 ## Building
+### Getting source
+1. `git clone https://github.com/plushmonkey/nullspace`
+2. `cd nullspace`
+3. `git submodule init && git submodule update`
 
 ### Windows
-Use the existing Visual Studio solution or install cmake.
+Use the existing Visual Studio solution or install cmake. Choose Release x64 build.
 
 ### Linux
 1. Install GLFW3 development libraries (`sudo apt-get install libglfw3-dev` on Ubuntu)
