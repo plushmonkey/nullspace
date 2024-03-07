@@ -14,7 +14,7 @@ set(IMGUI_SOURCES
   lib/imgui/backends/imgui_impl_opengl3.cpp)
   
 if(WIN32)
-add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_GLFW_WIN32 -D_MBCS -DNDEBUG)
+add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_GLFW_WIN32 -D_MBCS -DNDEBUG -DNOMINMAX -DWIN32_LEAN_AND_MEAN)
 set(GLFW_SOURCES
   lib/glfw/src/context.cpp
   lib/glfw/src/egl_context.cpp
@@ -45,6 +45,7 @@ list(APPEND SOURCES ${IMGUI_SOURCES})
 add_executable(nullspace ${SOURCES})
 
 target_include_directories(nullspace PRIVATE
+                           src
                            lib
                            lib/imgui
                            lib/glad/include

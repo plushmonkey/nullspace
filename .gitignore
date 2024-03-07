@@ -1,6 +1,7 @@
 Debug
 Release
 build
+clang
 bin
 *.opensdf
 *.sdf

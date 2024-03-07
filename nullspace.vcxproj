@@ -70,16 +70,16 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>lib\imgui;lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>src;lib\imgui;lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>lib\imgui;lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>src;lib\imgui;lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>lib\imgui;lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>src;lib\imgui;lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>lib\imgui;lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>src;lib\imgui;lib\;lib\glad\include;lib\glfw\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -87,7 +87,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <PreprocessorDefinitions>_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -101,7 +101,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <PreprocessorDefinitions>_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
@@ -118,7 +118,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <PreprocessorDefinitions>NDEBUG;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;NDEBUG;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -136,7 +136,7 @@
       <SDLCheck>false</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <PreprocessorDefinitions>NDEBUG;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;NDEBUG;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
@@ -176,46 +176,46 @@
     <ClCompile Include="lib\imgui\imgui_draw.cpp" />
     <ClCompile Include="lib\imgui\imgui_tables.cpp" />
     <ClCompile Include="lib\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="src\BannerPool.cpp" />
-    <ClCompile Include="src\BrickManager.cpp" />
-    <ClCompile Include="src\Buffer.cpp" />
-    <ClCompile Include="src\ChatController.cpp" />
-    <ClCompile Include="src\FileRequester.cpp" />
-    <ClCompile Include="src\Logger.cpp" />
-    <ClCompile Include="src\LvzController.cpp" />
-    <ClCompile Include="src\net\security\SecuritySolver.cpp" />
-    <ClCompile Include="src\Notification.cpp" />
-    <ClCompile Include="src\Radar.cpp" />
-    <ClCompile Include="src\render\AnimatedTileRenderer.cpp" />
-    <ClCompile Include="src\render\BackgroundRenderer.cpp" />
-    <ClCompile Include="src\render\Colors.cpp" />
-    <ClCompile Include="src\render\Graphics.cpp" />
-    <ClCompile Include="src\render\Image.cpp" />
-    <ClCompile Include="src\net\security\Checksum.cpp" />
-    <ClCompile Include="src\Game.cpp" />
-    <ClCompile Include="src\Inflate.cpp" />
-    <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\Map.cpp" />
-    <ClCompile Include="src\net\security\MD5.cpp" />
-    <ClCompile Include="src\Memory.cpp" />
-    <ClCompile Include="src\net\Connection.cpp" />
-    <ClCompile Include="src\net\security\Crypt.cpp" />
-    <ClCompile Include="src\net\PacketDispatcher.cpp" />
-    <ClCompile Include="src\net\PacketSequencer.cpp" />
-    <ClCompile Include="src\Platform.cpp" />
-    <ClCompile Include="src\PlayerManager.cpp" />
-    <ClCompile Include="src\render\Animation.cpp" />
-    <ClCompile Include="src\render\Shader.cpp" />
-    <ClCompile Include="src\render\SpriteRenderer.cpp" />
-    <ClCompile Include="src\render\TileRenderer.cpp" />
-    <ClCompile Include="src\ShipController.cpp" />
-    <ClCompile Include="src\Soccer.cpp" />
-    <ClCompile Include="src\Sound.cpp" />
-    <ClCompile Include="src\SpectateView.cpp" />
-    <ClCompile Include="src\StatBox.cpp" />
-    <ClCompile Include="src\Clock.cpp" />
-    <ClCompile Include="src\WeaponManager.cpp" />
-    <ClCompile Include="src\WorkQueue.cpp" />
+    <ClCompile Include="src\null\BannerPool.cpp" />
+    <ClCompile Include="src\null\BrickManager.cpp" />
+    <ClCompile Include="src\null\Buffer.cpp" />
+    <ClCompile Include="src\null\ChatController.cpp" />
+    <ClCompile Include="src\null\FileRequester.cpp" />
+    <ClCompile Include="src\null\Logger.cpp" />
+    <ClCompile Include="src\null\LvzController.cpp" />
+    <ClCompile Include="src\null\net\security\SecuritySolver.cpp" />
+    <ClCompile Include="src\null\Notification.cpp" />
+    <ClCompile Include="src\null\Radar.cpp" />
+    <ClCompile Include="src\null\render\AnimatedTileRenderer.cpp" />
+    <ClCompile Include="src\null\render\BackgroundRenderer.cpp" />
+    <ClCompile Include="src\null\render\Colors.cpp" />
+    <ClCompile Include="src\null\render\Graphics.cpp" />
+    <ClCompile Include="src\null\render\Image.cpp" />
+    <ClCompile Include="src\null\net\security\Checksum.cpp" />
+    <ClCompile Include="src\null\Game.cpp" />
+    <ClCompile Include="src\null\Inflate.cpp" />
+    <ClCompile Include="src\null\main.cpp" />
+    <ClCompile Include="src\null\Map.cpp" />
+    <ClCompile Include="src\null\net\security\MD5.cpp" />
+    <ClCompile Include="src\null\Memory.cpp" />
+    <ClCompile Include="src\null\net\Connection.cpp" />
+    <ClCompile Include="src\null\net\security\Crypt.cpp" />
+    <ClCompile Include="src\null\net\PacketDispatcher.cpp" />
+    <ClCompile Include="src\null\net\PacketSequencer.cpp" />
+    <ClCompile Include="src\null\Platform.cpp" />
+    <ClCompile Include="src\null\PlayerManager.cpp" />
+    <ClCompile Include="src\null\render\Animation.cpp" />
+    <ClCompile Include="src\null\render\Shader.cpp" />
+    <ClCompile Include="src\null\render\SpriteRenderer.cpp" />
+    <ClCompile Include="src\null\render\TileRenderer.cpp" />
+    <ClCompile Include="src\null\ShipController.cpp" />
+    <ClCompile Include="src\null\Soccer.cpp" />
+    <ClCompile Include="src\null\Sound.cpp" />
+    <ClCompile Include="src\null\SpectateView.cpp" />
+    <ClCompile Include="src\null\StatBox.cpp" />
+    <ClCompile Include="src\null\Clock.cpp" />
+    <ClCompile Include="src\null\WeaponManager.cpp" />
+    <ClCompile Include="src\null\WorkQueue.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lib\imgui\backends\imgui_impl_glfw.h" />
@@ -226,60 +226,60 @@
     <ClInclude Include="lib\imgui\imstb_rectpack.h" />
     <ClInclude Include="lib\imgui\imstb_textedit.h" />
     <ClInclude Include="lib\imgui\imstb_truetype.h" />
-    <ClInclude Include="src\ArenaSettings.h" />
-    <ClInclude Include="src\BannerPool.h" />
-    <ClInclude Include="src\BrickManager.h" />
-    <ClInclude Include="src\Buffer.h" />
-    <ClInclude Include="src\ChatController.h" />
-    <ClInclude Include="src\FileRequester.h" />
-    <ClInclude Include="src\HashMap.h" />
-    <ClInclude Include="src\Logger.h" />
-    <ClInclude Include="src\LvzController.h" />
-    <ClInclude Include="src\net\security\SecuritySolver.h" />
-    <ClInclude Include="src\net\Socket.h" />
-    <ClInclude Include="src\Notification.h" />
-    <ClInclude Include="src\Radar.h" />
-    <ClInclude Include="src\Random.h" />
-    <ClInclude Include="src\render\AnimatedTileRenderer.h" />
-    <ClInclude Include="src\render\BackgroundRenderer.h" />
-    <ClInclude Include="src\render\Colors.h" />
-    <ClInclude Include="src\render\Graphics.h" />
-    <ClInclude Include="src\render\Image.h" />
-    <ClInclude Include="src\InputState.h" />
-    <ClInclude Include="src\net\security\Checksum.h" />
-    <ClInclude Include="src\Game.h" />
-    <ClInclude Include="src\Inflate.h" />
-    <ClInclude Include="src\Map.h" />
-    <ClInclude Include="src\net\security\MD5.h" />
-    <ClInclude Include="src\net\security\Crypt.h" />
-    <ClInclude Include="src\Memory.h" />
-    <ClInclude Include="src\net\Connection.h" />
-    <ClInclude Include="src\net\PacketDispatcher.h" />
-    <ClInclude Include="src\net\PacketSequencer.h" />
-    <ClInclude Include="src\net\Protocol.h" />
-    <ClInclude Include="src\Platform.h" />
-    <ClInclude Include="src\Player.h" />
+    <ClInclude Include="src\null\ArenaSettings.h" />
+    <ClInclude Include="src\null\BannerPool.h" />
+    <ClInclude Include="src\null\BrickManager.h" />
+    <ClInclude Include="src\null\Buffer.h" />
+    <ClInclude Include="src\null\ChatController.h" />
+    <ClInclude Include="src\null\FileRequester.h" />
+    <ClInclude Include="src\null\HashMap.h" />
+    <ClInclude Include="src\null\Logger.h" />
+    <ClInclude Include="src\null\LvzController.h" />
+    <ClInclude Include="src\null\net\security\SecuritySolver.h" />
+    <ClInclude Include="src\null\net\Socket.h" />
+    <ClInclude Include="src\null\Notification.h" />
+    <ClInclude Include="src\null\Radar.h" />
+    <ClInclude Include="src\null\Random.h" />
+    <ClInclude Include="src\null\render\AnimatedTileRenderer.h" />
+    <ClInclude Include="src\null\render\BackgroundRenderer.h" />
+    <ClInclude Include="src\null\render\Colors.h" />
+    <ClInclude Include="src\null\render\Graphics.h" />
+    <ClInclude Include="src\null\render\Image.h" />
+    <ClInclude Include="src\null\InputState.h" />
+    <ClInclude Include="src\null\net\security\Checksum.h" />
+    <ClInclude Include="src\null\Game.h" />
+    <ClInclude Include="src\null\Inflate.h" />
+    <ClInclude Include="src\null\Map.h" />
+    <ClInclude Include="src\null\net\security\MD5.h" />
+    <ClInclude Include="src\null\net\security\Crypt.h" />
+    <ClInclude Include="src\null\Memory.h" />
+    <ClInclude Include="src\null\net\Connection.h" />
+    <ClInclude Include="src\null\net\PacketDispatcher.h" />
+    <ClInclude Include="src\null\net\PacketSequencer.h" />
+    <ClInclude Include="src\null\net\Protocol.h" />
+    <ClInclude Include="src\null\Platform.h" />
+    <ClInclude Include="src\null\Player.h" />
     <ClInclude Include="lib\stb_image.h" />
-    <ClInclude Include="src\PlayerManager.h" />
-    <ClInclude Include="src\render\Animation.h" />
-    <ClInclude Include="src\render\Camera.h" />
-    <ClInclude Include="src\render\Layer.h" />
-    <ClInclude Include="src\render\Shader.h" />
-    <ClInclude Include="src\render\Sprite.h" />
-    <ClInclude Include="src\render\SpriteRenderer.h" />
-    <ClInclude Include="src\render\TextureMap.h" />
-    <ClInclude Include="src\render\TileRenderer.h" />
-    <ClInclude Include="src\Settings.h" />
-    <ClInclude Include="src\ShipController.h" />
-    <ClInclude Include="src\Soccer.h" />
-    <ClInclude Include="src\Sound.h" />
-    <ClInclude Include="src\SpectateView.h" />
-    <ClInclude Include="src\StatBox.h" />
-    <ClInclude Include="src\Clock.h" />
-    <ClInclude Include="src\Types.h" />
-    <ClInclude Include="src\Math.h" />
-    <ClInclude Include="src\WeaponManager.h" />
-    <ClInclude Include="src\WorkQueue.h" />
+    <ClInclude Include="src\null\PlayerManager.h" />
+    <ClInclude Include="src\null\render\Animation.h" />
+    <ClInclude Include="src\null\render\Camera.h" />
+    <ClInclude Include="src\null\render\Layer.h" />
+    <ClInclude Include="src\null\render\Shader.h" />
+    <ClInclude Include="src\null\render\Sprite.h" />
+    <ClInclude Include="src\null\render\SpriteRenderer.h" />
+    <ClInclude Include="src\null\render\TextureMap.h" />
+    <ClInclude Include="src\null\render\TileRenderer.h" />
+    <ClInclude Include="src\null\Settings.h" />
+    <ClInclude Include="src\null\ShipController.h" />
+    <ClInclude Include="src\null\Soccer.h" />
+    <ClInclude Include="src\null\Sound.h" />
+    <ClInclude Include="src\null\SpectateView.h" />
+    <ClInclude Include="src\null\StatBox.h" />
+    <ClInclude Include="src\null\Clock.h" />
+    <ClInclude Include="src\null\Types.h" />
+    <ClInclude Include="src\null\Math.h" />
+    <ClInclude Include="src\null\WeaponManager.h" />
+    <ClInclude Include="src\null\WorkQueue.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
