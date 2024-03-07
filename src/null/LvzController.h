@@ -34,7 +34,10 @@ struct LvzObject {
     };
   };
 
-  size_t animation_index;
+  size_t animation_base;
+  // This index is the index of the image stored in the lvz file.
+  // You can get the animation index of it from animation_base + image_index.
+  u8 image_index;
   Layer layer;
 
   u16 display_time : 12;
@@ -93,6 +96,8 @@ struct LvzController {
   void Reset();
 
   void DisableObject(u16 id);
+
+  LvzObject* FindObjectById(u16 id);
 
  private:
   void ProcessGraphicFile(const char* filename, u8* data, size_t size);

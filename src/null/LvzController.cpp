@@ -18,8 +18,6 @@
 #include <assert.h>
 #include <stdio.h>
 
-// TODO: register for lvz packets and update objects
-
 namespace null {
 
 #define MAKE_MAGIC(c1, c2, c3, c4) (c1 | c2 << 8 | c3 << 16 | c4 << 24)
@@ -209,11 +207,24 @@ LvzController::LvzController(MemoryArena& perm_arena, MemoryArena& temp_arena, F
   dispatcher.Register(ProtocolS2C::ModifyLVZ, OnLvzModifyPkt, this);
 }
 
+LvzObject* LvzController::FindObjectById(u16 id) {
+  for (size_t i = 0; i < object_count; ++i) {
+    LvzObject* check = objects + i;
+    if (check->object_id == id) {
+      return check;
+    }
+  }
+  return nullptr;
+}
+
 void LvzController::Update(float dt) {
   for (size_t i = 0; i < animation_count; ++i) {
     Animation* anim = animations + i;
 
     anim->t += dt;
+    if (anim->t >= anim->GetDuration()) {
+      anim->t -= anim->GetDuration();
+    }
   }
 
   u32 tick = GetCurrentTick();
@@ -250,7 +261,7 @@ void LvzController::Render(Camera& ui_camera, Camera& game_camera, Player* self,
     Vector2f base_y = GetScreenReferencePoint(*self, specview, ui_camera, reference_y);
 
     Vector2f position(base_x.x + (float)obj->x_screen, base_y.y + (float)obj->y_screen);
-    Animation* anim = animations + obj->animation_index;
+    Animation* anim = animations + obj->animation_base + obj->image_index;
 
     if (anim->sprite->frames == nullptr) continue;
 
@@ -263,7 +274,7 @@ void LvzController::Render(Camera& ui_camera, Camera& game_camera, Player* self,
     LvzObject* obj = active_map_objects[i];
 
     Vector2f position(obj->x_map / 16.0f, obj->y_map / 16.0f);
-    Animation* anim = animations + obj->animation_index;
+    Animation* anim = animations + obj->animation_base + obj->image_index;
 
     if (anim->sprite->frames == nullptr) continue;
 
@@ -292,7 +303,7 @@ void LvzController::OnLvzToggle(u8* pkt, size_t size) {
           // Disable any previous ones with this id before adding it in again
           DisableObject(toggle->id);
 
-          animations[obj->animation_index].t = 0.0f;
+          animations[obj->animation_base + obj->image_index].t = 0.0f;
           obj->enabled_tick = GetCurrentTick();
 
           if (obj->map_object) {
@@ -334,14 +345,87 @@ void LvzController::OnLvzModify(u8* pkt, size_t size) {
     u8 mode : 1;
     u8 reserved : 3;
   };
+
+  struct ModifyData {
+    u16 map_object : 1;
+    u16 id : 15;
+
+    union {
+      struct {
+        s16 map_x;
+        s16 map_y;
+      };
+
+      struct {
+        u16 reference_point_x : 4; // ReferencePoint
+        s16 screen_x : 12;
+        u16 reference_point_y : 4; // ReferencePoint
+        s16 screen_y : 12;
+      };
+    };
+
+    u8 image_id;
+    u8 layer;
+    u16 time : 12;
+    u16 mode : 4;
+  };
 #pragma pack(pop)
 
-  ModifyBitfield* mod = (ModifyBitfield*)(pkt + 1);
+  ModifyBitfield* mod_changed = (ModifyBitfield*)(pkt + 1);
+  ModifyData* mod = (ModifyData*)(pkt + 2);
 
-#if 0
-  printf("Lvz modify (%zd): %d %d %d %d %d %d\n", size, mod->xy, mod->image, mod->layer, mod->time, mod->mode,
-         mod->reserved);
-#endif
+  LvzObject* obj = FindObjectById(mod->id);
+  if (!obj) {
+    Log(LogLevel::Warning, "Got lvz modify for object id %d, but wasn't found.", (s32)mod->id);
+    return;
+  }
+
+  // Check if this switched between screen/map.
+  // I don't know if this is even possible, but handle it anyway.
+  if (obj->map_object != mod->map_object) {
+    obj->map_object = mod->map_object;
+
+    // Remove it from both map and screen object lists, then add it back to the appropriate one.
+    DisableObject(obj->object_id);
+
+    if (obj->map_object) {
+      if (active_map_object_count < NULLSPACE_ARRAY_SIZE(active_map_objects)) {
+        active_map_objects[active_map_object_count++] = obj;
+      }
+    } else {
+      if (active_screen_object_count < NULLSPACE_ARRAY_SIZE(active_screen_objects)) {
+        active_screen_objects[active_screen_object_count++] = obj;
+      }
+    }
+  }
+
+  if (mod_changed->mode) {
+    obj->display_mode = mod->mode;
+  }
+
+  if (mod_changed->xy) {
+    if (obj->map_object) {
+      obj->x_map = mod->map_x;
+      obj->y_map = mod->map_y;
+    } else {
+      obj->x_screen = mod->screen_x;
+      obj->y_screen = mod->screen_y;
+      obj->x_type = mod->reference_point_x;
+      obj->y_type = mod->reference_point_y;
+    }
+  }
+
+  if (mod_changed->image) {
+    obj->image_index = mod->image_id;
+  }
+
+  if (mod_changed->layer) {
+    obj->layer = (Layer)mod->layer;
+  }
+
+  if (mod_changed->time) {
+    obj->display_time = mod->time;
+  }
 }
 
 void LvzController::OnMapInformation(u8* pkt, size_t size) {
@@ -507,7 +591,7 @@ void LvzController::ProcessObjects(struct ObjectImageList* object_images, u8* da
   // Skip over object definitions first to simplify image creation
   ptr += sizeof(ObjectDefinition) * header->object_count;
 
-  size_t animation_base = animation_count;
+  size_t animation_base = this->animation_count;
 
   for (u32 i = 0; i < header->image_count; ++i) {
     ImageDefinition* image = (ImageDefinition*)ptr;
@@ -583,7 +667,8 @@ void LvzController::ProcessObjects(struct ObjectImageList* object_images, u8* da
     obj->object_id = def->object_id;
     obj->x_map = def->x_map;
     obj->y_map = def->y_map;
-    obj->animation_index = animation_base + def->image_number;
+    obj->animation_base = animation_base;
+    obj->image_index = def->image_number;
     obj->layer = GetLayer(def->layer);
     obj->display_time = def->display_time;
     obj->display_mode = def->display_mode;
