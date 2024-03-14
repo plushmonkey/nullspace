@@ -288,12 +288,14 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       case ProtocolCore::SyncTimeRequest: {
         u32 timestamp = buffer.ReadU32();
 
+#pragma pack(push, 1)
         struct {
           u8 core;
           u8 type;
           u32 received_timestamp;
           u32 local_timestamp;
         } sync_response = {0x00, 0x06, timestamp, GetCurrentTick()};
+#pragma pack(pop)
 
         packet_sequencer.SendReliableMessage(*this, (u8*)&sync_response, sizeof(sync_response));
 
@@ -1021,10 +1023,12 @@ size_t Connection::Send(u8* data, size_t size) {
 }
 
 void Connection::SendDisconnect() {
+#pragma pack(push, 1)
   struct {
     u8 core;
     u8 type;
   } disconnect = {0x00, 0x07};
+#pragma pack(pop)
 
   Send((u8*)&disconnect, sizeof(u16));
 }
@@ -1065,10 +1069,12 @@ void Connection::SendSpectateRequest(u16 pid) {
 }
 
 void Connection::SendShipRequest(u8 ship) {
+#pragma pack(push, 1)
   struct {
     u8 type;
     u8 ship;
   } request = {0x18, ship};
+#pragma pack(pop)
 
   packet_sequencer.SendReliableMessage(*this, (u8*)&request, sizeof(request));
 }

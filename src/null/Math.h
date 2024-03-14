@@ -199,7 +199,7 @@ inline bool BoxBoxIntersect(const Vector2f& first_min, const Vector2f& first_max
 
 inline bool BoxBoxOverlap(const Vector2f& first_min, const Vector2f& first_max, const Vector2f& second_min,
                           const Vector2f& second_max) {
-  return (first_max.x > second_min.x && first_min.x < second_max.x && first_max.y > second_min.y &&
+  return (first_max.x >= second_min.x && first_min.x < second_max.x && first_max.y >= second_min.y &&
           first_min.y < second_max.y);
 }
 

@@ -287,7 +287,7 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
 
     float radius = connection.settings.ShipSettings[player->ship].GetRadius();
     Vector2f player_r(radius, radius);
-    Vector2f& pos = player->position;
+    Vector2f pos = player->position.PixelRounded();
 
     float weapon_radius = 18.0f;
 
@@ -303,8 +303,8 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
 
     weapon_radius = (weapon_radius - 14.0f) / 16.0f;
 
-    Vector2f min_w(weapon.position.x - weapon_radius, weapon.position.y - weapon_radius);
-    Vector2f max_w(weapon.position.x + weapon_radius, weapon.position.y + weapon_radius);
+    Vector2f min_w = weapon.position.PixelRounded() - Vector2f(weapon_radius, weapon_radius);
+    Vector2f max_w = weapon.position.PixelRounded() + Vector2f(weapon_radius, weapon_radius);
 
     if (BoxBoxOverlap(pos - player_r, pos + player_r, min_w, max_w)) {
       bool hit = true;
@@ -324,8 +324,8 @@ WeaponSimulateResult WeaponManager::Simulate(Weapon& weapon) {
 
         weapon_radius = 4.0f / 16.0f;
 
-        min_w = Vector2f(weapon.position.x - weapon_radius, weapon.position.y - weapon_radius);
-        max_w = Vector2f(weapon.position.x + weapon_radius, weapon.position.y + weapon_radius);
+        min_w = weapon.position.PixelRounded() - Vector2f(weapon_radius, weapon_radius);
+        max_w = weapon.position.PixelRounded() + Vector2f(weapon_radius, weapon_radius);
 
         // Fully trigger the bomb if it hits the player's normal radius check
         hit = BoxBoxOverlap(pos - player_r, pos + player_r, min_w, max_w);
