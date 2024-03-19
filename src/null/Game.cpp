@@ -228,7 +228,10 @@ static void OnPlayerPrizePkt(void* user, u8* pkt, size_t size) {
       u16 share_limit = game->connection.settings.ShipSettings[self->ship].PrizeShareLimit;
 
       if (self->bounty < share_limit) {
+        u32 pristine_seed = game->connection.security.prize_seed;
+
         game->ship_controller.ApplyPrize(self, prize_id, true);
+        game->connection.security.prize_seed = pristine_seed;
       }
     }
   }
@@ -731,10 +734,14 @@ void Game::RenderJoin(float dt) {
       }
     } break;
     case Connection::LoginState::MapDownload: {
-      int percent = (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map.compressed_size);
       char downloading[64];
 
-      sprintf(downloading, "Downloading level: %d%%", percent);
+      if (connection.map.compressed_size > 0) {
+        int percent = (int)(connection.packet_sequencer.huge_chunks.size * 100 / (float)connection.map.compressed_size);
+        sprintf(downloading, "Downloading level: %d%%", percent);
+      } else {
+        sprintf(downloading, "Downloading level: %d bytes", (int)(connection.packet_sequencer.huge_chunks.size));
+      }
 
       Vector2f download_pos(ui_camera.surface_dim.x * 0.5f, ui_camera.surface_dim.y * 0.8f);
 

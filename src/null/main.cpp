@@ -55,7 +55,7 @@ void InitializeSettings() {
   g_Settings.window_type = WindowType::Windowed;
   g_Settings.render_stars = true;
 
-  g_Settings.encrypt_method = EncryptMethod::Continuum;
+  g_Settings.encrypt_method = EncryptMethod::Subspace;
 
   g_Settings.sound_enabled = true;
   g_Settings.sound_volume = 0.15f;

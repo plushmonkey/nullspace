@@ -1074,9 +1074,13 @@ void ShipController::OnCollectedPrize(u8* pkt, size_t size) {
 
   player_manager.sound_system.Play(AudioType::Prize);
 
+  u32 pristine_seed = player_manager.connection.security.prize_seed;
+
   for (u16 i = 0; i < count; ++i) {
     ApplyPrize(self, prize_id, true);
   }
+
+  player_manager.connection.security.prize_seed = pristine_seed;
 }
 
 void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify, bool damage) {
@@ -1162,6 +1166,28 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify, bool da
   bool display_notification = false;
 
   switch (prize) {
+    case Prize::None: {
+      u32 pristine_seed = player_manager.connection.security.prize_seed;
+
+      for (u16 attempts = 0; attempts < 9999; ++attempts) {
+        s32 random_prize = GeneratePrize(false);
+
+        if (random_prize == 0 || random_prize == (s32)Prize::EngineShutdown || random_prize == (s32)Prize::Shields ||
+            random_prize == (s32)Prize::Super || random_prize == (s32)Prize::Multiprize ||
+            random_prize == (s32)Prize::Warp) {
+          continue;
+        }
+
+        u16 bounty = self->bounty;
+        ApplyPrize(self, random_prize, false, false);
+        self->bounty = bounty;
+        break;
+      }
+
+      player_manager.connection.security.prize_seed = pristine_seed;
+
+      display_notification = false;
+    } break;
     case Prize::Recharge: {
       display_notification = true;
 
@@ -1273,7 +1299,7 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify, bool da
     } break;
     case Prize::Warp: {
       display_notification = true;
-      player_manager.Spawn();
+      player_manager.Spawn(false);
       self->velocity = Vector2f(0, 0);
     } break;
     case Prize::Guns: {
@@ -1544,6 +1570,8 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify, bool da
       if (!negative) {
         u16 count = player_manager.connection.settings.MultiPrizeCount;
 
+        u32 pristine_seed = player_manager.connection.security.prize_seed;
+
         size_t attempts = 0;
         for (u16 i = 0; i < count && attempts < 9999; ++i, ++attempts) {
           s32 random_prize = GeneratePrize(false);
@@ -1559,6 +1587,8 @@ void ShipController::ApplyPrize(Player* self, s32 prize_id, bool notify, bool da
           ApplyPrize(self, random_prize, false, false);
           self->bounty = bounty;
         }
+
+        player_manager.connection.security.prize_seed = pristine_seed;
 
         display_notification = true;
       }

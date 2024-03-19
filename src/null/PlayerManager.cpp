@@ -638,7 +638,7 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
       killer->flag_timer = connection.settings.FlagDropDelay;
     }
 
-    if (killer->id == player_id) {
+    if (killer->id == player_id && killed && killed->bounty > 0) {
       killer->bounty += connection.settings.BountyIncreaseForKill;
     }
   }
