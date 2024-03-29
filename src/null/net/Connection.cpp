@@ -182,6 +182,11 @@ Connection::TickResult Connection::Tick() {
       if (1) {
 #endif
         ProcessPacket(pkt, size);
+        if (encrypt_method == EncryptMethod::Continuum && encrypt.expanding) {
+          // Early exit here in case buffer contains two packets.
+          // We want to full expand before we read the next one.
+          return TickResult::Success;
+        }
       }
     }
   }

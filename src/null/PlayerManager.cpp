@@ -95,6 +95,27 @@ static void OnDestroyTurretLinkPkt(void* user, u8* pkt, size_t size) {
   manager->OnDestroyTurretLink(pkt, size);
 }
 
+static void UnstuckSelf(PlayerManager& pm, Player& self) {
+  if (self.ship < 8) {
+    float radius = pm.connection.settings.ShipSettings[self.ship].GetRadius();
+
+    // Move us out of the wall if the new position is inside.
+    while (pm.connection.map.IsColliding(self.position, radius, self.frequency)) {
+      self.position = Vector2f(floorf(self.position.x - 1), floorf(self.position.y - 1));
+
+      if (self.position.x < 0) {
+        self.position.x = 0;
+        break;
+      }
+
+      if (self.position.y < 0) {
+        self.position.y = 0;
+        break;
+      }
+    }
+  }
+}
+
 static void OnSetCoordinatesPkt(void* user, u8* pkt, size_t size) {
   PlayerManager* manager = (PlayerManager*)user;
 
@@ -111,6 +132,8 @@ static void OnSetCoordinatesPkt(void* user, u8* pkt, size_t size) {
   self->velocity.y = 0.0f;
   self->togglables |= Status_Flash;
   self->warp_anim_t = 0.0f;
+
+  UnstuckSelf(*manager, *self);
 }
 
 inline bool IsPlayerVisible(Player& self, u32 self_freq, Player& player) {
@@ -1152,6 +1175,11 @@ void PlayerManager::OnPositionPacket(Player& player, const Vector2f& position, c
   } else {
     player.lerp_time = 200.0f / 1000.0f;
     player.lerp_velocity = (projected_pos - player.position) * (1.0f / player.lerp_time);
+  }
+
+  // We received a packet telling us where we are, so make sure it didn't put is in a wall. (Hyperspace)
+  if (player.id == player_id) {
+    UnstuckSelf(*this, player);
   }
 }
 

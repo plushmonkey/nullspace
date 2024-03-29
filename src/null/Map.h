@@ -56,6 +56,7 @@ struct Map {
   void SeedDoors(u32 seed);
 
   bool CanFit(const Vector2f& position, float radius, u32 frequency);
+  bool IsColliding(const Vector2f& position, float radius, u32 frequency) const;
 
   u32 GetChecksum(u32 key) const;
 

@@ -268,6 +268,35 @@ bool Map::CanFit(const Vector2f& position, float radius, u32 frequency) {
   return true;
 }
 
+bool Map::IsColliding(const Vector2f& position, float radius, u32 frequency) const {
+  s16 start_x = (s16)(position.x - radius - 1);
+  s16 start_y = (s16)(position.y - radius - 1);
+
+  s16 end_x = (s16)(position.x + radius + 1);
+  s16 end_y = (s16)(position.y + radius + 1);
+
+  if (start_x < 0) start_x = 0;
+  if (start_y < 0) start_y = 0;
+
+  if (end_x > 1023) end_x = 1023;
+  if (end_y > 1023) end_y = 1023;
+
+  for (s16 y = start_y; y <= end_y; ++y) {
+    for (s16 x = start_x; x <= end_x; ++x) {
+      if (!IsSolid(x, y, frequency)) continue;
+
+      Rectangle tile_collider(Vector2f((float)x, (float)y), Vector2f((float)x + 1, (float)y + 1));
+      Rectangle minkowski_collider = tile_collider.Grow(Vector2f(radius, radius));
+
+      if (minkowski_collider.ContainsInclusive(position)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 TileId Map::GetTileId(u16 x, u16 y) const {
   if (!tiles) return 0;
   if (x >= 1024 || y >= 1024) return 20;
