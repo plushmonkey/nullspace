@@ -207,6 +207,15 @@ void ShipController::Update(const InputState& input, float dt) {
     speed -= ship_settings.TurretSpeedPenalty;
   }
 
+  if (self->repel_time > 0.0f) {
+    s32 repel_speed = connection.settings.RepelSpeed;
+
+    if (repel_speed > (s32)speed) {
+      speed = repel_speed;
+    }
+    self->repel_time -= dt;
+  }
+
   self->velocity.Truncate(abs((s32)speed / 10.0f / 16.0f));
 
   // Energy update order must be: afterburners, recharge, all of the status costs.
@@ -1713,6 +1722,7 @@ void ShipController::ResetShip() {
   self->flag_timer = 0;
   self->togglables = 0;
   self->bounty = 0;
+  self->repel_time = 0.0f;
 
   if (self->ship == 8) return;
 

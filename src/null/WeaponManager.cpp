@@ -407,12 +407,13 @@ WeaponSimulateResult WeaponManager::SimulateRepel(Weapon& weapon) {
         if (player.id == player_manager.player_id) {
           Vector2f direction = Normalize(player.position - weapon.position);
           player.velocity = direction * speed;
+          player.repel_time = connection.settings.RepelTime / 100.0f;
         }
       }
     }
   }
 
-  return WeaponSimulateResult::Continue;
+  return WeaponSimulateResult::TimedOut;
 }
 
 bool WeaponManager::SimulateAxis(Weapon& weapon, float dt, int axis) {
@@ -1058,7 +1059,7 @@ int WeaponManager::GetWeaponTotalAliveTime(WeaponType type, bool alternate) {
       }
     } break;
     case WeaponType::Repel: {
-      result = connection.settings.RepelTime;
+      result = 1;
     } break;
     case WeaponType::Decoy: {
       result = connection.settings.DecoyAliveTime;

@@ -56,6 +56,7 @@ struct Player {
 
   Vector2f lerp_velocity;
   float lerp_time;
+  float repel_time;
 
   u16 wins;
   u16 losses;
