@@ -92,8 +92,8 @@ void ShipController::Update(const InputState& input, float dt) {
     for (size_t i = 0; i < wormholes.count; ++i) {
       u16 p_x = (u16)self->position.x * 16;
       u16 p_y = (u16)self->position.y * 16;
-      u16 wh_x = wormholes.tiles[i].x * 16;
-      u16 wh_y = wormholes.tiles[i].y * 16;
+      u16 wh_x = (wormholes.tiles[i].x + 2) * 16 + 8;
+      u16 wh_y = (wormholes.tiles[i].y + 2) * 16 + 8;
 
       s16 dx = (p_x - wh_x);
       s16 dy = (p_y - wh_y);
@@ -103,7 +103,7 @@ void ShipController::Update(const InputState& input, float dt) {
       if (dist_sq < abs(gravity) * 1000) {
         int gravity_thrust = (gravity * 1000) / dist_sq;
 
-        Vector2f position((float)wormholes.tiles[i].x, (float)wormholes.tiles[i].y);
+        Vector2f position((float)wormholes.tiles[i].x + 2.5f, (float)wormholes.tiles[i].y + 2.5f);
         Vector2f direction = Normalize(position - self->position);
 
         float per_second = (gravity_thrust * 10.0f / 16.0f);
