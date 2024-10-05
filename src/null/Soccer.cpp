@@ -249,7 +249,7 @@ void Soccer::Simulate(Powerball& ball, bool drop_trail) {
   if (ball.state != BallState::Goal && ball.carrier_id == player_manager.player_id) {
     TileId tile_id = connection.map.GetTileId(ball.x / 16000, ball.y / 16000);
 
-    if (tile_id == kGoalTileId) {
+    if (tile_id == kTileIdGoal) {
       Vector2f position(ball.x / 16000.0f, ball.y / 16000.0f);
 
       if (!IsTeamGoal(position)) {

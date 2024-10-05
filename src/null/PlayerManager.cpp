@@ -1453,8 +1453,6 @@ bool PlayerManager::SimulateAxis(Player& player, float dt, int axis, bool extrap
 
   bool collided = check < 0 || check > 1023;
   for (s16 other = start; other < end && !collided; ++other) {
-    // TODO: Handle special tiles like warp here
-
     if (axis == 0 && map.IsSolid(check, other, player.frequency)) {
       if (BoxBoxIntersect(collider_min, collider_max, Vector2f((float)check, (float)other),
                           Vector2f((float)check + 1, (float)other + 1))) {
@@ -1510,6 +1508,20 @@ void PlayerManager::SimulatePlayer(Player& player, float dt, bool extrapolating)
 
     if (!extrapolating && player.velocity.LengthSq() >= kBounceSoundThresholdSq) {
       weapon_manager->PlayPositionalSound(AudioType::Bounce, player.position);
+    }
+  }
+
+  TileId tile_id = connection.map.GetTileId(player.position);
+  if (tile_id == kTileIdWormhole && player.id == this->player_id) {
+    float energy_cost = ship_controller->ship.energy * 0.8f;
+
+    this->Spawn(false);
+    player.velocity = Vector2f(0, 0);
+
+    if (player.energy > energy_cost) {
+      player.energy -= energy_cost;
+    } else {
+      player.energy = 1;
     }
   }
 

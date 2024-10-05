@@ -240,7 +240,7 @@ void ShipController::Update(const InputState& input, float dt) {
   HandleStatusEnergy(*self, Status_Cloak, ship_settings.CloakEnergy, dt);
   HandleStatusEnergy(*self, Status_Antiwarp, ship_settings.AntiWarpEnergy, dt);
 
-  if (player_manager.connection.map.GetTileId(self->position) == kTileSafeId) {
+  if (player_manager.connection.map.GetTileId(self->position) == kTileIdSafe) {
     self->togglables |= Status_Safety;
   } else {
     self->togglables &= ~Status_Safety;
@@ -438,7 +438,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
 
   u16 energy_cost = 0;
 
-  bool in_safe = connection.map.GetTileId(self.position) == kTileSafeId;
+  bool in_safe = connection.map.GetTileId(self.position) == kTileIdSafe;
 
   bool can_fastshoot = !afterburners || !ship_settings.DisableFastShooting;
 
@@ -766,7 +766,7 @@ void ShipController::FireWeapons(Player& self, const InputState& input, float dt
       energy_cost = 0;
     }
 
-    if (connection.map.GetTileId(self.position) == kTileSafeId) {
+    if (connection.map.GetTileId(self.position) == kTileIdSafe) {
       self.velocity = Vector2f(0, 0);
     } else if (self.energy > energy_cost) {
       u32 x = (u32)(self.position.x * 16);
@@ -1904,7 +1904,7 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
         if ((weapon.flags & WEAPON_FLAG_EMP) && damage > 0 && self->id != shooter->id) {
           TileId tile_id = connection.map.GetTileId((u16)self->position.x, (u16)self->position.y);
 
-          if (tile_id != kTileSafeId) {
+          if (tile_id != kTileIdSafe) {
             u32 emp_time = (u32)((connection.settings.EBombShutdownTime * damage) / bomb_dmg);
 
             ship.emped_time = emp_time / 100.0f;
@@ -1925,7 +1925,7 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
 
   TileId tile_id = connection.map.GetTileId((u16)self->position.x, (u16)self->position.y);
 
-  if (tile_id == kTileSafeId) {
+  if (tile_id == kTileIdSafe) {
     if (self->flags > 0) {
       connection.SendFlagDrop();
     }

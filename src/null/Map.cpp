@@ -21,6 +21,7 @@ bool IsSolid(TileId id) {
   if (id == 0) return false;
   if (id >= 162 && id <= 169) return true;
   if (id < 170) return true;
+  if (id == 220) return false;
   if (id >= 192 && id <= 240) return true;
   if (id >= 242 && id <= 252) return true;
 
@@ -345,7 +346,7 @@ u32 Map::GetChecksum(u32 key) const {
         tile = 0;
       }
 
-      if ((tile >= kTileStart && tile <= kTileEnd) || tile == kTileSafeId) {
+      if ((tile >= kTileStart && tile <= kTileEnd) || tile == kTileIdSafe) {
         key += basekey ^ tile;
       }
     }

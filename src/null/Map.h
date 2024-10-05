@@ -25,8 +25,9 @@ struct ArenaSettings;
 struct BrickManager;
 
 using TileId = u8;
-constexpr u32 kTileSafeId = 171;
-constexpr u32 kGoalTileId = 172;
+constexpr u32 kTileIdSafe = 171;
+constexpr u32 kTileIdGoal = 172;
+constexpr u32 kTileIdWormhole = 220;
 
 constexpr size_t kAnimatedTileCount = 7;
 
