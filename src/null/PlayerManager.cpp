@@ -199,7 +199,11 @@ void PlayerManager::Update(float dt) {
       }
     }
   }
+}
 
+void PlayerManager::SynchronizePosition() {
+  null::Tick current_tick = GetCurrentTick();
+  Player* self = GetPlayerById(player_id);
   s32 position_delay = 100;
 
   if (self && self->ship != 8) {
@@ -647,11 +651,17 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
     killed->flags = 0;
     killed->flag_timer = 0;
     killed->ball_carrier = false;
+    ++killed->losses;
 
     DetachPlayer(*killed);
     DetachAllChildren(*killed);
 
     weapon_manager->PlayPositionalSound(AudioType::Explode1, killed->position);
+  }
+
+  if (killer) {
+    ++killer->wins;
+    // TODO: points
   }
 
   if (killer && killer != killed) {
@@ -666,7 +676,8 @@ void PlayerManager::OnPlayerDeath(u8* pkt, size_t size) {
     }
   }
 
-  if (killer && killed) {
+  bool is_self = (killer_id == player_id || killed_id == player_id);
+  if (killer && killed && is_self) {
     TextColor color = (killer_id == player_id || killed_id == player_id) ? TextColor::Yellow : TextColor::Green;
     GameNotification* notification = notifications->PushNotification(color);
 

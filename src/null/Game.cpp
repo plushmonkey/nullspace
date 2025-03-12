@@ -119,6 +119,12 @@ static void OnFlagPositionPkt(void* user, u8* pkt, size_t size) {
   game->OnFlagPosition(pkt, size);
 }
 
+static void OnFlagDropPkt(void* user, u8* pkt, size_t size) {
+  Game* game = (Game*)user;
+
+  game->OnFlagDrop(pkt, size);
+}
+
 static void OnPlayerIdPkt(void* user, u8* pkt, size_t size) {
   Game* game = (Game*)user;
 
@@ -202,7 +208,7 @@ static void OnPlayerPrizePkt(void* user, u8* pkt, size_t size) {
 
   u16 x = buffer.ReadU16();
   u16 y = buffer.ReadU16();
-  u16 prize_id = buffer.ReadU16();
+  s16 prize_id = (s16)buffer.ReadU16();
   u16 player_id = buffer.ReadU16();
 
   // Loop through greens to remove any on that tile. This exists so players outside of position broadcast range will
@@ -218,6 +224,8 @@ static void OnPlayerPrizePkt(void* user, u8* pkt, size_t size) {
       break;
     }
   }
+
+  if (prize_id == (s16)Prize::Warp) return;
 
   // Perform prize sharing
   Player* player = game->player_manager.GetPlayerById(player_id);
@@ -327,10 +335,14 @@ bool Game::Update(const InputState& input, float dt) {
 
   connection.map.UpdateDoors(connection.settings);
 
-  // Update ship controller before player manager so it will send the position packet with any weapons fired before the
-  // player manager sends its position packet.
-  ship_controller.Update(input, dt);
+  // The order of these three calls is important.
+  // Player manager will update our position before firing weapons, then
+  // Ship controller decides if it should send a position packet with weapon, then
+  // Player manager will send a position packet if none was sent by ship controller.
   player_manager.Update(dt);
+  ship_controller.Update(input, dt);
+  player_manager.SynchronizePosition();
+
   weapon_manager.Update(dt);
 
   soccer.Update(dt);
@@ -412,46 +424,50 @@ bool Game::Update(const InputState& input, float dt) {
 
   u32 tick = GetCurrentTick();
 
-  // TODO: Spatial partition queries
-  for (size_t i = 0; i < flag_count; ++i) {
-    GameFlag* flag = flags + i;
+  if (connection.settings.CarryFlags) {
+    // TODO: Spatial partition queries
+    for (size_t i = 0; i < flag_count; ++i) {
+      GameFlag* flag = flags + i;
 
-    if (TICK_GT(flag->hidden_end_tick, tick)) continue;
-    if (!(flag->flags & GameFlag_Dropped)) continue;
+      if (TICK_GT(flag->hidden_end_tick, tick)) continue;
+      if (!(flag->flags & GameFlag_Dropped)) continue;
 
-    Vector2f flag_min = flag->position;
-    Vector2f flag_max = flag->position + Vector2f(1, 1);
+      Vector2f flag_min = flag->position;
+      Vector2f flag_max = flag->position + Vector2f(1, 1);
 
-    for (size_t j = 0; j < player_manager.player_count; ++j) {
-      Player* player = player_manager.players + j;
+      s32 carry_count = connection.settings.CarryFlags - 1;
+      if (carry_count == 0) carry_count = 1024;
 
-      if (player->ship == 8) continue;
-      if (player->enter_delay > 0.0f) continue;
-      if (player->frequency == flag->owner) continue;
-      if (!player_manager.IsSynchronized(*player)) continue;
+      for (size_t j = 0; j < player_manager.player_count; ++j) {
+        Player* player = player_manager.players + j;
 
-      float radius = connection.settings.ShipSettings[player->ship].GetRadius() + (1.0f / 16.0f);
-      Vector2f player_min = player->position - Vector2f(radius, radius);
-      Vector2f player_max = player->position + Vector2f(radius, radius);
+        if (player->ship == 8) continue;
+        if (player->enter_delay > 0.0f) continue;
+        if (player->frequency == flag->owner) continue;
+        if (player->flags >= carry_count) continue;
+        if (!player_manager.IsSynchronized(*player)) continue;
 
-      if (BoxBoxIntersect(flag_min, flag_max, player_min, player_max)) {
-        constexpr u32 kHideFlagDelay = 300;
+        float radius = connection.settings.ShipSettings[player->ship].GetRadius() + (1.0f / 16.0f);
+        Vector2f player_min = player->position - Vector2f(radius, radius);
+        Vector2f player_max = player->position + Vector2f(radius, radius);
 
-        if (!(flag->flags & GameFlag_Turf)) {
-          flag->hidden_end_tick = MAKE_TICK(tick + kHideFlagDelay);
-        }
+        if (BoxBoxIntersect(flag_min, flag_max, player_min, player_max)) {
+          constexpr u32 kHideFlagDelay = 300;
 
-        u32 carry = connection.settings.CarryFlags;
-        bool can_carry = carry > 0 && (carry == 1 || player->flags < carry - 1);
+          if (!(flag->flags & GameFlag_Turf)) {
+            flag->hidden_end_tick = MAKE_TICK(tick + kHideFlagDelay);
+          }
 
-        u32 view_tick = connection.login_tick + connection.settings.EnterGameFlaggingDelay;
+          u32 carry = connection.settings.CarryFlags;
+          bool can_carry = carry > 0 && (carry == 1 || player->flags < carry - 1);
 
-        if (TICK_GT(tick, view_tick) && (can_carry || (flag->flags & GameFlag_Turf))) {
-          if (player->id == player_manager.player_id &&
-              TICK_DIFF(tick, flag->last_pickup_request_tick) >= kFlagPickupDelay) {
-            // Send flag pickup
-            connection.SendFlagRequest(flag->id);
-            flag->last_pickup_request_tick = tick;
+          if (can_carry || (flag->flags & GameFlag_Turf)) {
+            if (player->id == player_manager.player_id &&
+                TICK_DIFF(tick, flag->last_pickup_request_tick) >= kFlagPickupDelay) {
+              // Send flag pickup
+              connection.SendFlagRequest(flag->id);
+              flag->last_pickup_request_tick = tick;
+            }
           }
         }
       }
@@ -924,6 +940,17 @@ void Game::OnFlagPosition(u8* pkt, size_t size) {
   flags[id].position = Vector2f((float)x, (float)y);
   flags[id].flags |= GameFlag_Dropped;
   flags[id].hidden_end_tick = 0;
+}
+
+void Game::OnFlagDrop(u8* pkt, size_t size) {
+  if (size < 3) return;
+
+  u16 pid = *(u16*)(pkt + 1);
+  auto player = player_manager.GetPlayerById(pid);
+
+  if (!player) return;
+
+  player->flags = 0;
 }
 
 void Game::OnTurfFlagUpdate(u8* pkt, size_t size) {

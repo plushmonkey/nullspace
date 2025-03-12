@@ -117,6 +117,7 @@ struct Game {
 
   void OnFlagClaim(u8* pkt, size_t size);
   void OnFlagPosition(u8* pkt, size_t size);
+  void OnFlagDrop(u8* pkt, size_t size);
   void OnTurfFlagUpdate(u8* pkt, size_t size);
   void OnPlayerId(u8* pkt, size_t size);
 };

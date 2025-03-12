@@ -74,6 +74,8 @@ struct PlayerManager {
   }
 
   void Update(float dt);
+  void SynchronizePosition();
+
   void Render(Camera& camera, SpriteRenderer& renderer);
 
   void RenderPlayerName(Camera& camera, SpriteRenderer& renderer, Player& self, Player& player,

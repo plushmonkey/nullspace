@@ -44,6 +44,12 @@ static void OnPlayerBannerChangePkt(void* user, u8* pkt, size_t size) {
   statbox->TriggerRebuild();
 }
 
+static void OnPlayerDeath(void* user, u8* pkt, size_t size) {
+  StatBox* statbox = (StatBox*)user;
+
+  statbox->TriggerRebuild();
+}
+
 StatBox::StatBox(PlayerManager& player_manager, BannerPool& banners, PacketDispatcher& dispatcher)
     : player_manager(player_manager), banners(banners) {
   dispatcher.Register(ProtocolS2C::PlayerEntering, OnPlayerEnterPkt, this);
@@ -51,6 +57,7 @@ StatBox::StatBox(PlayerManager& player_manager, BannerPool& banners, PacketDispa
   dispatcher.Register(ProtocolS2C::TeamAndShipChange, OnPlayerFreqAndShipChangePkt, this);
   dispatcher.Register(ProtocolS2C::FrequencyChange, OnPlayerFrequencyChangePkt, this);
   dispatcher.Register(ProtocolS2C::PlayerBannerChange, OnPlayerBannerChangePkt, this);
+  dispatcher.Register(ProtocolS2C::PlayerDeath, OnPlayerDeath, this);
 
   sliding_view.top = 0;
   sliding_view.size = 20;
