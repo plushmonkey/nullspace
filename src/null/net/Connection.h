@@ -145,7 +145,7 @@ struct Connection {
   void SendDropBrick(const Vector2f& position);
   void SendBallPickup(u8 ball_id, u32 timestamp);
   void SendBallFire(u8 ball_id, const Vector2f& position, const Vector2f& velocity, u16 pid, u32 timestamp);
-  void SendBallGoal(u8 ball_id, u32 timestamp);
+  void SendBallGoal(u8 ball_id, s16 x, s16 y);
 
   PingStatistics CalculatePingStatistics();
 };

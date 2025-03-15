@@ -22,7 +22,7 @@ static void OnPowerballPositionPkt(void* user, u8* pkt, size_t size) {
   soccer->OnPowerballPosition(pkt, size);
 }
 
-inline void SimulateAxis(Powerball& ball, Map& map, u32* pos, s16* vel) {
+inline static void SimulateAxis(Powerball& ball, Map& map, u32* pos, s16* vel) {
   u32 previous = *pos;
 
   *pos += *vel;
@@ -36,7 +36,7 @@ inline void SimulateAxis(Powerball& ball, Map& map, u32* pos, s16* vel) {
   }
 }
 
-inline Vector2f GetBallPosition(PlayerManager& player_manager, Powerball& ball, u64 microtick) {
+inline static Vector2f GetBallPosition(PlayerManager& player_manager, Powerball& ball, u64 microtick) {
   if (ball.state == BallState::Carried) {
     Player* carrier = player_manager.GetPlayerById(ball.carrier_id);
 
@@ -253,7 +253,7 @@ void Soccer::Simulate(Powerball& ball, bool drop_trail) {
       Vector2f position(ball.x / 16000.0f, ball.y / 16000.0f);
 
       if (!IsTeamGoal(position)) {
-        connection.SendBallGoal((u8)ball.id, GetCurrentTick() + connection.time_diff);
+        connection.SendBallGoal((u8)ball.id, (s16)position.x, (s16)position.y);
         ball.state = BallState::Goal;
       }
     }
@@ -407,32 +407,64 @@ void Soccer::OnPowerballPosition(u8* pkt, size_t size) {
 
     ball->timestamp = timestamp;
   } else if (timestamp == 0) {
-    // Ball is carried if the timestamp is zero.
-    ball->timestamp = timestamp;
-    ball->carrier_id = owner_id;
-    ball->vel_x = ball->vel_y = 0;
-    ball->last_micro_tick = GetMicrosecondTick();
+    if (owner_id != kInvalidBallId) {
+      // Ball is carried if the timestamp is zero with valid carrier.
+      ball->timestamp = timestamp;
+      ball->carrier_id = owner_id;
+      ball->vel_x = ball->vel_y = 0;
+      ball->last_micro_tick = GetMicrosecondTick();
 
-    Player* carrier = player_manager.GetPlayerById(owner_id);
+      Player* carrier = player_manager.GetPlayerById(owner_id);
 
-    if (ball->state != BallState::Carried && carrier && carrier->ship != 8) {
-      ball->state = BallState::Carried;
-      carrier->ball_carrier = true;
+      if (ball->state != BallState::Carried && carrier && carrier->ship != 8) {
+        ball->state = BallState::Carried;
+        carrier->ball_carrier = true;
 
-      if (carrier->id == player_manager.player_id) {
-        ShipSettings& ship_settings = connection.settings.ShipSettings[carrier->ship];
+        if (carrier->id == player_manager.player_id) {
+          ShipSettings& ship_settings = connection.settings.ShipSettings[carrier->ship];
 
-        this->carry_timer = ship_settings.SoccerBallThrowTimer / 100.0f;
-        this->carry_id = ball->id;
+          this->carry_timer = ship_settings.SoccerBallThrowTimer / 100.0f;
+          this->carry_id = ball->id;
 
-        player_manager.ship_controller->AddBombDelay(ship_settings.BombFireDelay);
-        player_manager.ship_controller->AddBulletDelay(ship_settings.BombFireDelay);
+          player_manager.ship_controller->AddBombDelay(ship_settings.BombFireDelay);
+          player_manager.ship_controller->AddBulletDelay(ship_settings.BombFireDelay);
+        }
+      }
+    } else if (owner_id == kInvalidBallId) {
+      if (ball->carrier_id != kInvalidBallId) {
+        Player* carrier = player_manager.GetPlayerById(owner_id);
+
+        if (carrier) {
+          carrier->ball_carrier = false;
+        }
+
+        if (ball->carrier_id == carry_id) {
+          carry_id = kInvalidBallId;
+          carry_timer = 0.0f;
+        }
+      }
+
+      ball->x = x * 1000;
+      ball->y = y * 1000;
+      ball->vel_x = velocity_x;
+      ball->vel_y = velocity_y;
+      ball->next_x = ball->x;
+      ball->next_y = ball->y;
+      ball->frequency = 0xFFFF;
+      ball->state = BallState::World;
+      ball->carrier_id = owner_id;
+      ball->timestamp = timestamp;
+      ball->last_micro_tick = GetMicrosecondTick();
+
+      // This ball doesn't exist anymore with invalid carrier and timestamp 0.
+      if (ball->timestamp == 0) {
+        ball->id = kInvalidBallId;
       }
     }
   }
 }
 
-bool OnMode3(const Vector2f& position, u32 frequency) {
+static bool OnMode3(const Vector2f& position, u32 frequency) {
   u32 corner = frequency % 4;
 
   switch (corner) {
@@ -456,7 +488,7 @@ bool OnMode3(const Vector2f& position, u32 frequency) {
   return false;
 }
 
-bool OnMode5(const Vector2f& position, u32 frequency) {
+static bool OnMode5(const Vector2f& position, u32 frequency) {
   u32 direction = frequency % 4;
 
   switch (direction) {

@@ -915,13 +915,14 @@ void Connection::SendBallFire(u8 ball_id, const Vector2f& position, const Vector
   packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
 }
 
-void Connection::SendBallGoal(u8 ball_id, u32 timestamp) {
+void Connection::SendBallGoal(u8 ball_id, s16 x, s16 y) {
 #pragma pack(push, 1)
   struct {
     u8 type;
     u8 ball_id;
-    u32 timestamp;
-  } pkt = {0x21, ball_id, timestamp};
+    s16 x;
+    s16 y;
+  } pkt = {0x21, ball_id, x, y};
 #pragma pack(pop)
 
   packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));

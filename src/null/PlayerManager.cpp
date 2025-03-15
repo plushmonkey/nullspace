@@ -521,7 +521,7 @@ Player* PlayerManager::GetSelf() {
 Player* PlayerManager::GetPlayerById(u16 id, size_t* index) {
   u16 player_index = player_lookup[id];
 
-  if (player_index <= kInvalidPlayerId) {
+  if (player_index < kInvalidPlayerId) {
     if (index) {
       *index = player_index;
     }
@@ -553,7 +553,7 @@ void PlayerManager::OnPlayerIdChange(u8* pkt, size_t size) {
   this->player_count = 0;
   this->received_initial_list = false;
 
-  memset(player_lookup, 0, sizeof(player_lookup));
+  memset(player_lookup, 0xFF, sizeof(player_lookup));
 }
 
 void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
