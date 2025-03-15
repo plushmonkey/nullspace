@@ -73,8 +73,8 @@ struct Game {
   BackgroundRenderer background_renderer;
   StatBox statbox;
   ChatController chat;
-  SpectateView specview;
   Soccer soccer;
+  SpectateView specview;
   ShipController ship_controller;
   LvzController lvz;
   Radar radar;

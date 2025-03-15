@@ -74,7 +74,9 @@ struct Soccer {
 
   bool IsTeamGoal(const Vector2f& position);
 
-  inline bool IsCarryingBall() { return carry_id != kInvalidBallId; }
+  inline bool IsCarryingBall() const { return carry_id != kInvalidBallId; }
+
+  static Vector2f GetBallPosition(PlayerManager& player_manager, Powerball& powerball, u64 microtick);
 };
 
 }  // namespace null

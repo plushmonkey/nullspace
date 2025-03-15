@@ -36,31 +36,6 @@ inline static void SimulateAxis(Powerball& ball, Map& map, u32* pos, s16* vel) {
   }
 }
 
-inline static Vector2f GetBallPosition(PlayerManager& player_manager, Powerball& ball, u64 microtick) {
-  if (ball.state == BallState::Carried) {
-    Player* carrier = player_manager.GetPlayerById(ball.carrier_id);
-
-    if (carrier && carrier->ship != 8) {
-      Vector2f heading = OrientationToHeading((u8)(carrier->orientation * 40.0f));
-      float radius = player_manager.connection.settings.ShipSettings[carrier->ship].GetRadius();
-
-      float extension = radius - 0.25f;
-
-      if (extension < 0) {
-        extension = 0.0f;
-      }
-
-      return carrier->position.PixelRounded() + heading * extension;
-    }
-  }
-
-  Vector2f current_position(ball.x / 16000.0f, ball.y / 16000.0f);
-  Vector2f next_position(ball.next_x / 16000.0f, ball.next_y / 16000.0f);
-  float t = (microtick - ball.last_micro_tick) / (float)kTickDurationMicro;
-
-  return current_position * (1 - t) + (t * next_position);
-}
-
 Soccer::Soccer(PlayerManager& player_manager) : player_manager(player_manager), connection(player_manager.connection) {
   connection.dispatcher.Register(ProtocolS2C::PowerballPosition, OnPowerballPositionPkt, this);
 
@@ -566,6 +541,31 @@ bool Soccer::IsTeamGoal(const Vector2f& position) {
   }
 
   return true;
+}
+
+Vector2f Soccer::GetBallPosition(PlayerManager& player_manager, Powerball& ball, u64 microtick) {
+  if (ball.state == BallState::Carried) {
+    Player* carrier = player_manager.GetPlayerById(ball.carrier_id);
+
+    if (carrier && carrier->ship != 8) {
+      Vector2f heading = OrientationToHeading((u8)(carrier->orientation * 40.0f));
+      float radius = player_manager.connection.settings.ShipSettings[carrier->ship].GetRadius();
+
+      float extension = radius - 0.25f;
+
+      if (extension < 0) {
+        extension = 0.0f;
+      }
+
+      return carrier->position.PixelRounded() + heading * extension;
+    }
+  }
+
+  Vector2f current_position(ball.x / 16000.0f, ball.y / 16000.0f);
+  Vector2f next_position(ball.next_x / 16000.0f, ball.next_y / 16000.0f);
+  float t = (microtick - ball.last_micro_tick) / (float)kTickDurationMicro;
+
+  return current_position * (1 - t) + (t * next_position);
 }
 
 }  // namespace null

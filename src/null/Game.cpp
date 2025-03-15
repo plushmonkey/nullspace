@@ -269,8 +269,8 @@ Game::Game(MemoryArena& perm_arena, MemoryArena& temp_arena, WorkQueue& work_que
       fps(60.0f),
       statbox(player_manager, banner_pool, dispatcher),
       chat(dispatcher, connection, player_manager, statbox),
-      specview(connection, statbox),
       soccer(player_manager),
+      specview(connection, statbox, soccer),
       ship_controller(player_manager, weapon_manager, dispatcher, notifications),
       lvz(perm_arena, temp_arena, connection.requester, sprite_renderer, dispatcher),
       radar(player_manager) {
@@ -357,7 +357,7 @@ bool Game::Update(const InputState& input, float dt) {
         for (size_t i = 0; i < player_manager.player_count; ++i) {
           Player* player = player_manager.GetPlayerById(statbox.player_view[i]);
 
-          if (player->ship != 8) {
+          if (player && player->ship != 8) {
             specview.SpectatePlayer(*player);
             break;
           }

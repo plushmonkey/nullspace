@@ -3,6 +3,7 @@
 #include <null/Clock.h>
 #include <null/InputState.h>
 #include <null/PlayerManager.h>
+#include <null/Soccer.h>
 #include <null/StatBox.h>
 #include <null/net/Connection.h>
 #include <null/render/Camera.h>
@@ -13,7 +14,8 @@
 
 namespace null {
 
-SpectateView::SpectateView(Connection& connection, StatBox& statbox) : connection(connection), statbox(statbox) {}
+SpectateView::SpectateView(Connection& connection, StatBox& statbox, Soccer& soccer)
+    : connection(connection), statbox(statbox), soccer(soccer) {}
 
 u32 SpectateView::GetFrequency() {
   Player* self = statbox.player_manager.GetSelf();
@@ -94,6 +96,7 @@ bool SpectateView::Update(const InputState& input, float dt) {
     }
 
     spectate_id = kInvalidSpectateId;
+    spectate_ball_id = 0xFF;
   } else if (input.IsDown(InputAction::Bullet)) {
     SpectateSelected();
   }
@@ -110,6 +113,24 @@ bool SpectateView::Update(const InputState& input, float dt) {
     } else {
       // TODO: Get next spectator
       spectate_id = kInvalidSpectateId;
+    }
+  } else if (spectate_ball_id < NULLSPACE_ARRAY_SIZE(soccer.balls)) {
+    Powerball& ball = soccer.balls[spectate_ball_id];
+
+    if (ball.id != kInvalidBallId) {
+      if (ball.state == BallState::Carried) {
+        Player* carrier = statbox.player_manager.GetPlayerById(ball.carrier_id);
+
+        if (carrier) {
+          self->position = carrier->position;
+        }
+      } else {
+        self->position =
+            Soccer::GetBallPosition(statbox.player_manager, soccer.balls[spectate_ball_id], GetMicrosecondTick());
+      }
+    } else {
+      // This ball became invalid so switch to next one.
+      SpectateNextBall();
     }
   }
 
@@ -189,15 +210,32 @@ bool SpectateView::SpectatePlayer(Player& player) {
   if (TICK_DIFF(tick, last_spectate_packet) < 10) return false;
 
   if (player.ship != 8 && player.id != spectate_id) {
+    spectate_ball_id = 0xFF;
     spectate_id = player.id;
     spectate_frequency = player.frequency;
     last_spectate_packet = tick;
 
     connection.SendSpectateRequest(spectate_id);
+
     return true;
   }
 
   return false;
+}
+
+void SpectateView::SpectateNextBall() {
+  u8 start_ball = spectate_ball_id + 1;
+  if (start_ball > NULLSPACE_ARRAY_SIZE(soccer.balls)) start_ball = 0;
+
+  for (u8 i = 0; i < NULLSPACE_ARRAY_SIZE(soccer.balls); ++i) {
+    u8 current_ball = (start_ball + i) % NULLSPACE_ARRAY_SIZE(soccer.balls);
+
+    if (soccer.balls[current_ball].id != kInvalidBallId) {
+      spectate_ball_id = current_ball;
+      spectate_id = kInvalidSpectateId;
+      break;
+    }
+  }
 }
 
 bool SpectateView::OnAction(InputAction action) {
@@ -205,9 +243,13 @@ bool SpectateView::OnAction(InputAction action) {
 
   if (!self || self->ship != 8) return false;
 
-  // TODO: F5 to follow ball and F4 to spectate multiple players
+  // TODO: F4 to spectate multiple players
   if (action == InputAction::Bullet || action == InputAction::Bomb) {
     return SpectateSelected();
+  }
+
+  if (action == InputAction::Decoy) {
+    SpectateNextBall();
   }
 
   return false;
