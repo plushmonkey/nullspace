@@ -12,6 +12,7 @@ constexpr u32 kInvalidLink = 0xFFFFFFFF;
 
 #define WEAPON_FLAG_EMP (1 << 0)
 #define WEAPON_FLAG_BURST_ACTIVE (1 << 1)
+#define WEAPON_FLAG_INITIAL_SIM (1 << 2)
 
 // TODO: This weapon struct is pretty large. It could be broken into multiple pieces to increase iteration speed if
 // performance is ever a concern.

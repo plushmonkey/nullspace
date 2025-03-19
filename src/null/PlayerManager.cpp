@@ -824,12 +824,11 @@ void PlayerManager::Spawn(bool reset) {
 
   self->togglables |= Status_Flash;
   self->warp_anim_t = 0.0f;
+  self->velocity = Vector2f(0, 0);
 
   if (ship_controller) {
     ship_controller->exhaust_count = 0;
   }
-
-  SendPositionPacket();
 }
 
 void PlayerManager::OnPlayerFrequencyChange(u8* pkt, size_t size) {
@@ -1010,8 +1009,8 @@ void PlayerManager::OnSmallPositionPacket(u8* pkt, size_t size) {
   Player* player = GetPlayerById(pid);
 
   // Put packet timestamp into local time
-  u32 server_timestamp = (connection.GetServerTick() & 0x7FFF0000) | timestamp;
-  u32 local_timestamp = server_timestamp - connection.time_diff;
+  u32 server_timestamp = MAKE_TICK((connection.GetServerTick() & 0x7FFF0000) | timestamp);
+  u32 local_timestamp = MAKE_TICK(server_timestamp - connection.time_diff);
 
   // Throw away bad timestamps so the player doesn't get desynchronized.
   if (TICK_DIFF(local_timestamp, GetCurrentTick()) >= 300) {
@@ -1072,7 +1071,10 @@ void PlayerManager::OnBatchedLargePositionPacket(u8* pkt, size_t size) {
   u32 server_tick = (GetCurrentTick() + connection.time_diff);
 
   while (buffer.write - buffer.read >= 11) {
-    u16 player_id = buffer.ReadU16() & 0x3FF;
+    u16 pid_togglables = buffer.ReadU16();
+
+    u16 player_id = pid_togglables & 0x3FF;
+    u8 togglables = (u8)(pid_togglables >> 10);
 
     u16 packed = buffer.ReadU16();
     u16 direction = (packed >> 10);
@@ -1109,6 +1111,8 @@ void PlayerManager::OnBatchedLargePositionPacket(u8* pkt, size_t size) {
 
       player->timestamp = timestamp;
       player->orientation = direction / 40.0f;
+      // Store the new togglables, but keep the top 2 bits since they aren't sent in this.
+      player->togglables = togglables | (player->togglables & 0xC0);
 
       OnPositionPacket(*player, position, velocity, timestamp_diff);
     }
