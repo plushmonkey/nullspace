@@ -584,7 +584,9 @@ void PlayerManager::OnPlayerEnter(u8* pkt, size_t size) {
   player->ship = ship;
 
   memcpy(player->name, name, 20);
+  player->name[20] = 0;
   memcpy(player->squad, squad, 20);
+  player->squad[20] = 0;
 
   player->kill_points = buffer.ReadU32();
   player->flag_points = buffer.ReadU32();

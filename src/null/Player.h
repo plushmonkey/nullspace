@@ -42,8 +42,8 @@ struct AttachInfo {
 };
 
 struct Player {
-  char name[20];
-  char squad[20];
+  char name[32];
+  char squad[32];
 
   s32 flag_points;
   s32 kill_points;
