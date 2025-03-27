@@ -120,8 +120,34 @@ Connection::TickResult Connection::Tick() {
     return TickResult::ConnectionError;
   }
 
+  // If the server doesn't send an encryption response back, resend 0x00 0x11
+  if (encrypt_method == EncryptMethod::Continuum && encrypt.ShouldResend()) {
+    if (++encrypt.resend_count >= 3) {
+      return TickResult::ConnectionClosed;
+    }
+
+#pragma pack(push, 1)
+    struct {
+      u8 core;
+      u8 type;
+      u32 key;
+      u16 flag;
+    } response;
+#pragma pack(pop)
+
+    response.core = 0x00;
+    response.type = 0x11;
+    response.key = encrypt.key1;
+    response.flag = 0x0001;
+
+    Log(LogLevel::Debug, "Resending encryption response (retry #%u).", encrypt.resend_count);
+    this->SendRaw((u8*)&response, sizeof(response));
+
+    encrypt.key_send_tick = current_tick;
+  }
+
   // Don't read new packets until the encryption is finalized
-  if (encrypt_method == EncryptMethod::Continuum && encrypt.expanding) {
+  if (encrypt_method == EncryptMethod::Continuum && encrypt.IsExpanding()) {
     return TickResult::Success;
   }
 
@@ -181,8 +207,11 @@ Connection::TickResult Connection::Tick() {
 #else
       if (1) {
 #endif
-        ProcessPacket(pkt, size);
-        if (encrypt_method == EncryptMethod::Continuum && encrypt.expanding) {
+        if (size > 0) {
+          ProcessPacket(pkt, size);
+        }
+
+        if (encrypt_method == EncryptMethod::Continuum && !encrypt.IsInitialized()) {
           // Early exit here in case buffer contains two packets.
           // We want to full expand before we read the next one.
           return TickResult::Success;
@@ -276,6 +305,8 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
           if (!vie_encrypt.Initialize(*(u32*)(pkt + 2))) {
             Log(LogLevel::Error, "Failed to initialize vie encryption.");
           }
+        } else if (encrypt_method == EncryptMethod::Continuum) {
+          encrypt.state = ContinuumEncrypt::State::Initialized;
         }
 
         SendPassword(false);
@@ -393,7 +424,9 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
 
         encrypt.key1 = key1;
         encrypt.key2 = key2;
-        encrypt.expanding = true;
+        encrypt.state = ContinuumEncrypt::State::Expanding;
+        encrypt.key_send_tick = GetCurrentTick();
+        encrypt.resend_count = 0;
 
         security_solver.ExpandKey(key2, [this](u32* table) {
           if (table) {
@@ -1012,11 +1045,6 @@ size_t Connection::Send(u8* data, size_t size) {
 
   send_arena.Reset();
 
-  sockaddr_in addr;
-  addr.sin_family = remote_addr.family;
-  addr.sin_port = remote_addr.port;
-  addr.sin_addr.s_addr = remote_addr.addr;
-
   if (encrypt_method == EncryptMethod::Continuum && (encrypt.key1 || encrypt.key2)) {
     // Allocate enough space for both the crc and possibly the crc escape
     u8* dest = send_arena.Allocate(size + 2);
@@ -1027,6 +1055,16 @@ size_t Connection::Send(u8* data, size_t size) {
     size = vie_encrypt.Encrypt(data, dest, size);
     data = dest;
   }
+
+  return SendRaw(data, size);
+}
+
+size_t Connection::SendRaw(u8* data, size_t size) {
+  sockaddr_in addr = {};
+
+  addr.sin_family = remote_addr.family;
+  addr.sin_port = remote_addr.port;
+  addr.sin_addr.s_addr = remote_addr.addr;
 
   int bytes = sendto(this->fd, (const char*)data, (int)size, 0, (sockaddr*)&addr, sizeof(addr));
   ++packets_sent;

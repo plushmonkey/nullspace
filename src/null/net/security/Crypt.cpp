@@ -1,6 +1,7 @@
 #include "Crypt.h"
 
 #include <null/Clock.h>
+#include <null/Logger.h>
 #include <null/net/security/Checksum.h>
 #include <null/net/security/MD5.h>
 //
@@ -321,7 +322,7 @@ void ContinuumEncrypt::FinalizeExpansion(u32 key) {
     last = (expanded_key[i] ^= ctx.buf[i & 3] + last);
   }
 
-  this->expanding = false;
+  this->state = State::Waiting;
 }
 
 size_t ContinuumEncrypt::Encrypt(const u8* pkt, u8* dest, size_t size) {
@@ -363,7 +364,10 @@ size_t ContinuumEncrypt::Decrypt(u8* pkt, size_t size) {
   u8 crc_check = decrypted[0];
   u8 crc = crc8(decrypted + 1, size);
 
-  // TODO: crc verify
+  if (crc != crc_check) {
+    Log(LogLevel::Debug, "Discarding packet with bad crc.");
+    return 0;
+  }
 
   return size;
 }

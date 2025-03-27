@@ -118,6 +118,9 @@ struct Connection {
   size_t Send(u8* data, size_t size);
   size_t Send(NetworkBuffer& buffer);
 
+  // This will not encrypt the data.
+  size_t SendRaw(u8* data, size_t size);
+
   u32 GetServerTick() { return (GetCurrentTick() + time_diff) & 0x7FFFFFFF; }
 
   TickResult Tick();
