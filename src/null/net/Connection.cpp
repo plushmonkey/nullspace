@@ -251,7 +251,7 @@ void Connection::SendPassword(bool registration) {
   buffer.WriteU32(machine_id);  // Machine ID
   buffer.WriteU8(0x04);         // connect type
   buffer.WriteU16(timezone);    // Time zone bias
-  buffer.WriteU16(0);           // Always zero
+  buffer.WriteU16(0x00);        // Always zero
   buffer.WriteU16(version);     // Version
 
   buffer.WriteU32(444);
@@ -259,7 +259,9 @@ void Connection::SendPassword(bool registration) {
   buffer.WriteU32(0x00);
   buffer.WriteU32(0x00);
 
-  buffer.WriteU32(0x7F000001);
+  u32 remote_ip = (u32)remote_addr.addr;
+
+  buffer.WriteU32(remote_ip);
 
   struct sockaddr_in addr;
   socklen_t addr_size = sizeof(addr);

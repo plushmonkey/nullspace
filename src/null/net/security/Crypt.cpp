@@ -364,7 +364,7 @@ size_t ContinuumEncrypt::Decrypt(u8* pkt, size_t size) {
   u8 crc_check = decrypted[0];
   u8 crc = crc8(decrypted + 1, size);
 
-  if (crc != crc_check) {
+  if (crc != crc_check && crc_check != 0) {
     Log(LogLevel::Debug, "Discarding packet with bad crc.");
     return 0;
   }
