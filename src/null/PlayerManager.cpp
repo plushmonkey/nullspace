@@ -208,8 +208,13 @@ void PlayerManager::SynchronizePosition() {
 
   if (self && self->ship != 8) {
     position_delay = connection.settings.SendPositionDelay;
+
     if (position_delay < 5) {
       position_delay = 5;
+    }
+
+    if (self->enter_delay > 0.0f) {
+      position_delay = 50;
     }
   }
 
@@ -473,6 +478,7 @@ void PlayerManager::SendPositionPacket() {
       }
     } else {
       player->attach_parent = kInvalidPlayerId;
+      requesting_attach = false;
     }
   }
 

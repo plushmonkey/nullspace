@@ -18,7 +18,7 @@ namespace null {
 constexpr size_t kReliableHeaderSize = 6;
 constexpr u32 kResendDelay = 300;
 
-void SendReliable(Connection& connection, ReliableMessage& mesg) {
+static inline void SendReliable(Connection& connection, ReliableMessage& mesg) {
   u8 data[kMaxPacketSize];
   NetworkBuffer buffer(data, kMaxPacketSize);
 
@@ -57,6 +57,45 @@ void PacketSequencer::Tick(Connection& connection) {
       mesg->timestamp = current_tick;
     }
   }
+
+  ProcessOutboundAcks(connection);
+}
+
+void PacketSequencer::ProcessOutboundAcks(Connection& connection) {
+  constexpr size_t kAckSize = 6;
+  // This is the size of the ack (6) + header length (1)
+  constexpr size_t kClusterAckSize = kAckSize + 1;
+  constexpr size_t kClusterTypeSize = 2;
+  constexpr size_t kMaxAckPerCluster = (kMaxPacketSize - kClusterTypeSize) / kClusterAckSize;
+
+  u8 data[kMaxPacketSize];
+
+  size_t count_offset = 0;
+  while (count_offset < outbound_acks.count) {
+    size_t ack_count = outbound_acks.count - count_offset;
+    if (ack_count > kMaxAckPerCluster) {
+      ack_count = kMaxAckPerCluster;
+    }
+
+    NetworkBuffer buffer(data, kClusterTypeSize + kClusterAckSize * ack_count);
+
+    buffer.WriteU8(0x00);
+    buffer.WriteU8(0x0E);
+
+    for (size_t i = 0; i < ack_count; ++i) {
+      buffer.WriteU8(kAckSize);
+      buffer.WriteU8(0x00);
+      buffer.WriteU8(0x04);
+      buffer.WriteU32(outbound_acks.ids[count_offset + i]);
+    }
+
+    connection.Send(buffer);
+
+    count_offset += ack_count;
+    Log(LogLevel::Jabber, "Sending reliable ack cluster with %zu ack%c", ack_count, ack_count == 1 ? ' ' : 's');
+  }
+
+  outbound_acks.count = 0;
 }
 
 ///////////// Reliable messages
@@ -80,15 +119,7 @@ void PacketSequencer::OnReliableMessage(Connection& connection, u8* pkt, size_t 
   Log(LogLevel::Jabber, "Got reliable message of id %d", id);
 #endif
 
-  u8 ack_pkt[6];
-  NetworkBuffer buffer(ack_pkt, 6);
-
-  buffer.WriteU8(0x00);
-  buffer.WriteU8(0x04);
-  buffer.WriteU32(id);
-
-  // Send acknowledgement
-  connection.Send(buffer);
+  outbound_acks.Add(id);
 
   // This was already processed
   if (id < next_reliable_process_id) {
