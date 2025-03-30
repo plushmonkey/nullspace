@@ -114,6 +114,16 @@ u8 crc8(const u8* ptr, size_t len) {
   return crc;
 }
 
+u8 crc8_repeat(const u8 value, size_t len) {
+  u8 crc = 0;
+
+  while (len--) {
+    crc = crc8_table[value ^ crc];
+  }
+
+  return crc;
+}
+
 uint32_t crc32_for_byte(uint32_t r) {
   for (int j = 0; j < 8; ++j) {
     r = (r & 1 ? 0 : (uint32_t)0xEDB88320L) ^ r >> 1;

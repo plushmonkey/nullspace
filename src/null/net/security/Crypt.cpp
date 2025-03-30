@@ -360,13 +360,17 @@ size_t ContinuumEncrypt::Decrypt(u8* pkt, size_t size) {
   size--;
 
   memcpy(pkt, decrypted + 1, size);
-
+ 
   u8 crc_check = decrypted[0];
   u8 crc = crc8(decrypted + 1, size);
 
-  if (crc != crc_check && crc_check != 0) {
-    Log(LogLevel::Debug, "Discarding packet with bad crc.");
-    return 0;
+  if (crc != crc_check) {
+    u8 repeat_crc = crc8_repeat(pkt[0], size);
+    
+    if (repeat_crc != crc_check) {
+      Log(LogLevel::Debug, "Discarding packet with bad crc.");
+      return 0;
+    }
   }
 
   return size;
