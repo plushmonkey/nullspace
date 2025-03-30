@@ -40,6 +40,7 @@ struct PlayerManager {
   // This is in server time
   s32 last_position_tick = 0;
   bool received_initial_list = false;
+  bool requesting_attach = false;
 
   AttachInfo* attach_free = nullptr;
 

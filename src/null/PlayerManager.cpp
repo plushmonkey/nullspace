@@ -443,11 +443,6 @@ void PlayerManager::SendPositionPacket() {
     y = 0xFFFF;
   }
 
-  if (player->attach_parent != kInvalidPlayerId) {
-    vel_x = 0;
-    vel_y = 0;
-  }
-
   u16 weapon = *(u16*)&player->weapon;
   u16 energy = (u16)player->energy;
   s32 time_diff = connection.time_diff;
@@ -457,6 +452,29 @@ void PlayerManager::SendPositionPacket() {
   u32 local_timestamp = GetCurrentTick();
 
   s32 server_timestamp = MAKE_TICK(local_timestamp + time_diff);
+
+  if (player->attach_parent != kInvalidPlayerId) {
+    vel_x = 0;
+    vel_y = 0;
+
+    Player* parent = GetPlayerById(player->attach_parent);
+
+    if (parent) {
+      // We can't send more position packets to server while waiting for the attach request to go through.
+      if (!IsSynchronized(*parent)) {
+        last_position_tick = server_timestamp;
+        return;
+      }
+
+      // If we are requesting an attach and we got our parent's position, drop our energy for the attach operation.
+      if (requesting_attach) {
+        player->energy = player->energy * 0.333f;
+        requesting_attach = false;
+      }
+    } else {
+      player->attach_parent = kInvalidPlayerId;
+    }
+  }
 
   // Override the timestamp if the time_diff changes or it's being sent on the same tick as last packet.
   // This is necessary because packets will be thrown away server side if the timestamp isn't newer.
@@ -1242,6 +1260,8 @@ void PlayerManager::AttachSelf(Player* destination) {
   if (!destination) return;
   if (soccer->IsCarryingBall()) return;
 
+  requesting_attach = false;
+
   Player* self = GetSelf();
 
   if (!self) return;
@@ -1304,7 +1324,9 @@ void PlayerManager::AttachSelf(Player* destination) {
       ship_controller->ship.fake_antiwarp_end_tick = GetCurrentTick() + connection.settings.AntiwarpSettleDelay;
     }
 
-    self->attach_parent = destination->id;
+    // Hook us into the parent's children because subgame doesn't send the '0x0E CreateTurret' packet for ourselves.
+    AttachPlayer(*self, *destination);
+    requesting_attach = true;
   }
 }
 
@@ -1354,7 +1376,11 @@ void PlayerManager::OnCreateTurretLink(u8* pkt, size_t size) {
 
       // If the attach happening was requested (not server controlled), then reduce energy
       if (self && self->attach_parent == destination_id) {
-        self->energy = self->energy * 0.333f;
+        if (requesting_attach) {
+          self->energy = self->energy * 0.333f;
+          requesting_attach = false;
+        }
+        return;
       }
     }
 
