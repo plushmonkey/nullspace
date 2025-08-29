@@ -1791,6 +1791,21 @@ void ShipController::ResetShip() {
   ship.rockets = ship_settings.InitialRocket;
   ship.portals = ship_settings.InitialPortal;
 
+  if (ship.energy > ship_settings.MaximumEnergy) ship.energy = ship_settings.MaximumEnergy;
+  if (ship.recharge > ship_settings.MaximumRecharge) ship.recharge = ship_settings.MaximumRecharge;
+  if (ship.rotation > ship_settings.MaximumRotation) ship.rotation = ship_settings.MaximumRotation;
+  if (ship.guns > ship_settings.MaxGuns) ship.guns = ship_settings.MaxGuns;
+  if (ship.bombs > ship_settings.MaxBombs) ship.bombs = ship_settings.MaxBombs;
+  if (ship.thrust > ship_settings.MaximumThrust) ship.thrust = ship_settings.MaximumThrust;
+  if (ship.speed > ship_settings.MaximumSpeed) ship.speed = ship_settings.MaximumSpeed;
+  if (ship.repels > ship_settings.RepelMax) ship.repels = ship_settings.RepelMax;
+  if (ship.bursts > ship_settings.BurstMax) ship.bursts = ship_settings.BurstMax;
+  if (ship.decoys > ship_settings.DecoyMax) ship.decoys = ship_settings.DecoyMax;
+  if (ship.thors > ship_settings.ThorMax) ship.thors = ship_settings.ThorMax;
+  if (ship.bricks > ship_settings.BrickMax) ship.bricks = ship_settings.BrickMax;
+  if (ship.rockets > ship_settings.RocketMax) ship.rockets = ship_settings.RocketMax;
+  if (ship.portals > ship_settings.PortalMax) ship.portals = ship_settings.PortalMax;
+
   if (ship_settings.StealthStatus == 2) {
     ship.capability |= ShipCapability_Stealth;
   }
@@ -1890,7 +1905,7 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
         s32 duration = connection.settings.BulletAliveTime - remaining;
 
         if (duration <= 25) {
-          damage = connection.settings.InactiveShrapDamage / 1000;
+          damage = (connection.settings.InactiveShrapDamage / 1000) * weapon.data.level;
         } else {
           float multiplier = connection.settings.ShrapnelDamagePercent / 1000.0f;
 
@@ -1994,6 +2009,20 @@ void ShipController::OnWeaponHit(Weapon& weapon) {
   }
 
   if (damage <= 0) return;
+
+  if (connection.send_damage) {
+    WeaponData wd = weapon.data;
+
+    if ((type == WeaponType::Bullet || type == WeaponType::BouncingBullet) && weapon.data.shrap > 0) {
+      wd.type = WeaponType::Shrapnel;
+      wd.shrapbouncing = 0;
+      wd.shraplevel = 0;
+      wd.shrap = 0;
+      wd.alternate = 0;
+    }
+
+    player_manager.PushDamage(shooter->id, wd, (int)self->energy, damage);
+  }
 
   if (self->energy < damage) {
     bool is_bomb = (type == WeaponType::Bomb || type == WeaponType::ProximityBomb || type == WeaponType::Thor);

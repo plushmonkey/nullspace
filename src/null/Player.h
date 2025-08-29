@@ -24,7 +24,19 @@ enum StatusFlag {
   Status_InputChange = (1 << 7)
 };
 
-enum class WeaponType : u16 { None, Bullet, BouncingBullet, Bomb, ProximityBomb, Repel, Decoy, Burst, Thor };
+enum class WeaponType : u16 {
+  None,
+  Bullet,
+  BouncingBullet,
+  Bomb,
+  ProximityBomb,
+  Repel,
+  Decoy,
+  Burst,
+  Thor,
+  Wormhole = 0, // Used in watch damage packet only
+  Shrapnel = 15 // Used in watch damage packet only
+};
 
 struct WeaponData {
   WeaponType type : 5;
@@ -35,6 +47,14 @@ struct WeaponData {
   u16 alternate : 1;
 };
 static_assert(sizeof(WeaponData) == 2, "WeaponData must be 2 bytes");
+
+struct Damage {
+  u32 timestamp;
+  PlayerId shooter_id;
+  WeaponData weapon_data;
+  s16 energy;
+  s16 damage;
+};
 
 struct AttachInfo {
   u16 player_id;

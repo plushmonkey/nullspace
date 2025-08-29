@@ -65,6 +65,7 @@ enum class ProtocolC2S {
   SecurityViolation2,
   Unknown5,
   Password,
+  WatchDamage = 0x32,
   ToggleLVZ = 0x35,
   ModifyLVZ = 0x36,
 
@@ -132,6 +133,7 @@ enum class ProtocolS2C {
   BatchedSmallPosition,
   BatchedLargePosition,
   Redirect = 0x3B,
+  SelectBox = 0x3C,
 
   Count
 };

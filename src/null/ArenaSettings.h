@@ -206,7 +206,7 @@ struct SpawnSettings {
   // Y Coordinate for the center point where this team will start
   int Y : 10;
   // How large of a circle from the center point this team can start
-  int Radius : 9;
+  uint32_t Radius : 9;
   int _pad : 3;
 };
 

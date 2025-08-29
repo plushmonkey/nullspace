@@ -7,6 +7,7 @@
 #include <null/FileRequester.h>
 #include <null/Map.h>
 #include <null/Memory.h>
+#include <null/Player.h>
 #include <null/Settings.h>
 #include <null/Types.h>
 #include <null/net/PacketDispatcher.h>
@@ -102,6 +103,7 @@ struct Connection {
   TimeSyncResult sync_history[32];
 
   bool extra_position_info = false;
+  bool send_damage = false;
 
   u32 last_sync_tick = 0;
   u32 last_position_tick = 0;
@@ -149,6 +151,7 @@ struct Connection {
   void SendBallPickup(u8 ball_id, u32 timestamp);
   void SendBallFire(u8 ball_id, const Vector2f& position, const Vector2f& velocity, u16 pid, u32 timestamp);
   void SendBallGoal(u8 ball_id, s16 x, s16 y);
+  void SendDamage(size_t damage_count, Damage* damages);
 
   PingStatistics CalculatePingStatistics();
 };

@@ -77,22 +77,37 @@ void PacketSequencer::ProcessOutboundAcks(Connection& connection) {
       ack_count = kMaxAckPerCluster;
     }
 
-    NetworkBuffer buffer(data, kClusterTypeSize + kClusterAckSize * ack_count);
+    if (ack_count == 1) {
+      // We shouldn't cluster if we only have one ack to send.
+      NetworkBuffer buffer(data, kAckSize);
 
-    buffer.WriteU8(0x00);
-    buffer.WriteU8(0x0E);
-
-    for (size_t i = 0; i < ack_count; ++i) {
-      buffer.WriteU8(kAckSize);
       buffer.WriteU8(0x00);
       buffer.WriteU8(0x04);
-      buffer.WriteU32(outbound_acks.ids[count_offset + i]);
+
+      buffer.WriteU32(outbound_acks.ids[count_offset]);
+
+      connection.Send(buffer);
+
+      Log(LogLevel::Jabber, "Sending reliable ack with 1 ack");
+    } else {
+      NetworkBuffer buffer(data, kClusterTypeSize + kClusterAckSize * ack_count);
+
+      buffer.WriteU8(0x00);
+      buffer.WriteU8(0x0E);
+
+      for (size_t i = 0; i < ack_count; ++i) {
+        buffer.WriteU8(kAckSize);
+        buffer.WriteU8(0x00);
+        buffer.WriteU8(0x04);
+        buffer.WriteU32(outbound_acks.ids[count_offset + i]);
+      }
+
+      connection.Send(buffer);
+
+      Log(LogLevel::Jabber, "Sending reliable ack cluster with %zu acks", ack_count);
     }
 
-    connection.Send(buffer);
-
     count_offset += ack_count;
-    Log(LogLevel::Jabber, "Sending reliable ack cluster with %zu ack%c", ack_count, ack_count == 1 ? ' ' : 's');
   }
 
   outbound_acks.count = 0;

@@ -223,6 +223,12 @@ void PlayerManager::SynchronizePosition() {
       abs(server_timestamp - last_position_tick) >= position_delay) {
     SendPositionPacket();
   }
+
+  if (damage_count > 0 && TICK_DIFF(current_tick, last_send_damage_tick) >= 10) {
+    connection.SendDamage(damage_count, damages);
+    damage_count = 0;
+    last_send_damage_tick = current_tick;
+  }
 }
 
 void PlayerManager::Render(Camera& camera, SpriteRenderer& renderer) {
@@ -429,6 +435,18 @@ void PlayerManager::RenderPlayerName(Camera& camera, SpriteRenderer& renderer, P
   }
 }
 
+void PlayerManager::PushDamage(PlayerId shooter_id, WeaponData weapon_data, int energy, int damage) {
+  if (damage_count >= NULLSPACE_ARRAY_SIZE(damages)) return;
+
+  Damage& dmg = damages[damage_count++];
+
+  dmg.timestamp = connection.GetServerTick();
+  dmg.shooter_id = shooter_id;
+  dmg.weapon_data = weapon_data;
+  dmg.energy = (s16)energy;
+  dmg.damage = (s16)damage;
+}
+
 void PlayerManager::SendPositionPacket() {
   u8 data[kMaxPacketSize];
   NetworkBuffer buffer(data, kMaxPacketSize);
@@ -476,6 +494,9 @@ void PlayerManager::SendPositionPacket() {
         player->energy = player->energy * 0.333f;
         requesting_attach = false;
       }
+
+      vel_x = (u16)(parent->velocity.x * 16.0f * 10.0f);
+      vel_y = (u16)(parent->velocity.y * 16.0f * 10.0f);
     } else {
       player->attach_parent = kInvalidPlayerId;
       requesting_attach = false;
@@ -1342,6 +1363,7 @@ void PlayerManager::AttachPlayer(Player& requester, Player& destination) {
   // Fetch or allocate new AttachInfo and append it to destination's children list
   if (!attach_free) {
     attach_free = memory_arena_push_type(&perm_arena, AttachInfo);
+    attach_free->next = nullptr;
   }
 
   AttachInfo* info = attach_free;
@@ -1589,7 +1611,12 @@ void PlayerManager::SimulatePlayer(Player& player, float dt, bool extrapolating)
 
   TileId tile_id = connection.map.GetTileId(player.position);
   if (tile_id == kTileIdWormhole && player.id == this->player_id) {
-    float energy_cost = ship_controller->ship.energy * 0.8f;
+    float energy_cost = player.energy * 0.8f;
+
+    if (connection.send_damage) {
+      WeaponData wd = { WeaponType::Wormhole, 0, 0, 0, 0, 0 };
+      PushDamage(this->player_id, wd, (int)player.energy, (int)energy_cost);
+    }
 
     this->Spawn(false);
     player.velocity = Vector2f(0, 0);

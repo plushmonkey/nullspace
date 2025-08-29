@@ -48,6 +48,10 @@ struct PlayerManager {
   Animation warp_animation;
   Animation bombflash_animation;
 
+  u32 last_send_damage_tick = 0;
+  size_t damage_count = 0;
+  Damage damages[10];
+
   size_t player_count = 0;
   Player players[1024];
 
@@ -90,6 +94,8 @@ struct PlayerManager {
   inline u16 GetPlayerIndex(u16 id) { return player_lookup[id]; }
 
   void RemovePlayer(Player* player);
+
+  void PushDamage(PlayerId shooter_id, WeaponData weapon_data, int energy, int damage);
 
   void SendPositionPacket();
   void SimulatePlayer(Player& player, float dt, bool extrapolating);

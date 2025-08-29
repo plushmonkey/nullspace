@@ -51,6 +51,19 @@ constexpr bool kDownloadLvz = false;
 constexpr bool kDownloadLvz = true;
 #endif
 
+// Client features that extend beyond the VIE client so the server knows we support them.
+// Works with SubspaceServer.NET:
+// https://github.com/gigamon-dev/SubspaceServer/blob/master/src/Packets/Game/LoginPacket.cs
+enum {
+  ClientFeature_WatchDamage = (1 << 0),
+  ClientFeature_BatchPositions = (1 << 1),
+  ClientFeature_WarpTo = (1 << 2),
+  ClientFeature_Lvz = (1 << 3),
+  ClientFeature_Redirect = (1 << 4),
+  ClientFeature_Continuum = (ClientFeature_WatchDamage | ClientFeature_BatchPositions | ClientFeature_WarpTo |
+                             ClientFeature_Lvz | ClientFeature_Redirect),
+};
+
 const char* kLoginResponses[] = {"Ok",
                                  "Unregistered player",
                                  "Bad password",
@@ -254,7 +267,16 @@ void Connection::SendPassword(bool registration) {
   buffer.WriteU16(0x00);        // Always zero
   buffer.WriteU16(version);     // Version
 
-  buffer.WriteU32(444);
+  buffer.WriteU16(444);
+
+  u16 client_features = 0;
+
+  client_features |= ClientFeature_WatchDamage;
+  client_features |= ClientFeature_BatchPositions;
+  client_features |= ClientFeature_WarpTo;
+  client_features |= ClientFeature_Lvz;
+
+  buffer.WriteU16(client_features);
 
   buffer.WriteU32(0x00);
   buffer.WriteU32(0x00);
@@ -663,6 +685,9 @@ void Connection::ProcessPacket(u8* pkt, size_t size) {
       case ProtocolS2C::ModifyLVZ: {
       } break;
       case ProtocolS2C::ToggleSendDamage: {
+        if (size == 2) {
+          send_damage = buffer.ReadU8() != 0;
+        }
       } break;
       case ProtocolS2C::WatchDamage: {
       } break;
@@ -961,6 +986,35 @@ void Connection::SendBallGoal(u8 ball_id, s16 x, s16 y) {
 #pragma pack(pop)
 
   packet_sequencer.SendReliableMessage(*this, (u8*)&pkt, sizeof(pkt));
+}
+
+void Connection::SendDamage(size_t damage_count, Damage* damages) {
+  u8 data[kMaxPacketSize];
+  NetworkBuffer buffer(data, kMaxPacketSize);
+
+  buffer.WriteU8((u8)ProtocolC2S::WatchDamage);
+  buffer.WriteU32(damages[0].timestamp);
+
+  for (size_t i = 0; i < damage_count; ++i) {
+    const Damage& dmg = damages[i];
+
+    buffer.WriteU16(dmg.shooter_id);
+    buffer.WriteU16(*(u16*)&dmg.weapon_data);
+    buffer.WriteU16((u16)dmg.energy);
+    buffer.WriteU16((u16)dmg.damage);
+
+    int timestamp_offset = TICK_DIFF(dmg.timestamp, damages[0].timestamp);
+
+    if (timestamp_offset < 0) {
+      timestamp_offset = 0;
+    } else if (timestamp_offset > 255) {
+      timestamp_offset = 255;
+    }
+
+    buffer.WriteU8((u8)timestamp_offset);
+  }
+
+  packet_sequencer.SendReliableMessage(*this, buffer.data, buffer.GetSize());
 }
 
 ConnectResult Connection::Connect(const char* ip, u16 port) {
