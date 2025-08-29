@@ -7,11 +7,11 @@
 #include <android/asset_manager.h>
 #include <android/log.h>
 #include <android_native_app_glue.h>
-#include <src/Game.h>
-#include <src/Memory.h>
-#include <src/Platform.h>
-#include <src/net/Connection.h>
-#include <src/render/Image.h>
+#include <null/Game.h>
+#include <null/Memory.h>
+#include <null/Platform.h>
+#include <null/net/Connection.h>
+#include <null/render/Image.h>
 
 #include <chrono>
 
@@ -32,8 +32,12 @@ static struct {
   int64_t last_tap_time;
   float last_tap_x;
   float last_tap_y;
+  
+  int64_t touch_start_time;
+  bool long_press_triggered;
 } android_input;
 const int32_t DOUBLE_TAP_TIMEOUT = 300 * 1000000;
+const int32_t LONG_PRESS_TIMEOUT = 800 * 1000000; // 800ms for long press
 const int32_t DOUBLE_TAP_SLOP = 100;
 
 // Forward declarations of helper functions
@@ -51,7 +55,7 @@ void InitializeSettings() {
   g_Settings.window_type = WindowType::Windowed;
   g_Settings.render_stars = true;
 
-  g_Settings.encrypt_method = EncryptMethod::Continuum;
+  g_Settings.encrypt_method = EncryptMethod::Subspace;
 
   g_Settings.sound_enabled = true;
   g_Settings.sound_volume = 0.25f;
@@ -72,8 +76,8 @@ struct ServerInfo {
 
 ServerInfo kServers[] = {
     {"emulator", "10.0.2.2", 5000},
-    {"local", "192.168.0.169", 5000},
-    {"subgame", "192.168.0.169", 5002},
+    {"local", "192.168.7.243", 5000},
+    {"subgame", "192.168.7.243", 5002},
     {"SSCE Hyperspace", "162.248.95.143", 5005},
     {"SSCJ Devastation", "69.164.220.203", 7022},
     {"SSCJ MetalGear CTF", "69.164.220.203", 14000},
@@ -524,11 +528,42 @@ static int32_t handleInputEvent(struct android_app* app, AInputEvent* inputEvent
       null::Player* self = game->player_manager.GetSelf();
 
       if (self) {
-        if (flags == AMOTION_EVENT_ACTION_UP) {
+        if (flags == AMOTION_EVENT_ACTION_DOWN) {
+          android_input.touch_start_time = AMotionEvent_getEventTime(inputEvent);
+          android_input.long_press_triggered = false;
+        } else if (flags == AMOTION_EVENT_ACTION_UP) {
           android_input.anchored = false;
-          android_input.last_tap_time = AMotionEvent_getEventTime(inputEvent);
-          android_input.last_tap_x = x;
-          android_input.last_tap_y = y;
+          
+          int64_t touch_duration = AMotionEvent_getEventTime(inputEvent) - android_input.touch_start_time;
+          
+          // Check for long press to open menu
+          if (touch_duration >= LONG_PRESS_TIMEOUT && !android_input.long_press_triggered) {
+            // Trigger ESC menu
+            null::g_InputState.OnCharacter(NULLSPACE_KEY_ESCAPE);
+            android_input.long_press_triggered = true;
+          } else {
+            android_input.last_tap_time = AMotionEvent_getEventTime(inputEvent);
+            android_input.last_tap_x = x;
+            android_input.last_tap_y = y;
+            
+            // If menu is open, handle ship selection by screen zones
+            if (game->menu_open) {
+              // Divide screen into 9 zones (3x3 grid) for ships 1-8 + spectator
+              int zone_x = (int)(x / (screen_width / 3.0f));
+              int zone_y = (int)(y / (screen_height / 3.0f));
+              int ship_zone = zone_y * 3 + zone_x;
+              
+              if (ship_zone >= 0 && ship_zone <= 8) {
+                if (ship_zone == 8) {
+                  // Bottom-right = Spectator (S key)
+                  null::g_InputState.OnCharacter('s');
+                } else {
+                  // Ships 1-8 (number keys 1-8)
+                  null::g_InputState.OnCharacter('1' + ship_zone);
+                }
+              }
+            }
+          }
         } else {
           if (!android_input.anchored) {
             android_input.world_x = self->position.x;
